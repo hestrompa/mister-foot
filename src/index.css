@@ -1,0 +1,116 @@
+:root {
+  --fundo: #0f1a14;
+  --fundo-2: #16241c;
+  --cartao: #1b2c22;
+  --linha: #2a3f32;
+  --texto: #e8f1ec;
+  --texto-2: #9fb5a8;
+  --verde: #3ddc84;
+  --verde-escuro: #1f8a50;
+  --aviso: #f5c451;
+  --f-top: #3ddc84;
+  --f-alta: #9be15d;
+  --f-media: #f5c451;
+  --f-baixa: #f59e51;
+  --f-fraca: #e5675c;
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--texto);
+  background: var(--fundo);
+  line-height: 1.4;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--fundo); min-height: 100vh; }
+button { font: inherit; color: inherit; cursor: pointer; }
+input { font: inherit; }
+h1, h2, h3 { margin: 0; }
+
+.ecra { max-width: 1100px; margin: 0 auto; padding: 16px; padding-bottom: 96px; }
+
+.inicio { max-width: 460px; display: flex; flex-direction: column; gap: 20px; padding-top: 48px; }
+.logo { text-align: center; }
+.logo h1 { font-size: 40px; letter-spacing: -1px; margin-top: 8px; }
+.lema { color: var(--texto-2); margin: 4px 0 0; }
+
+.cartao { background: var(--cartao); border: 1px solid var(--linha); border-radius: 12px; padding: 16px; }
+.novo-jogo { display: flex; flex-direction: column; gap: 14px; }
+.novo-jogo label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 14px; }
+.novo-jogo input { background: var(--fundo); color: var(--texto); border: 1px solid var(--linha); border-radius: 8px; padding: 10px 12px; }
+.novo-jogo input:focus { outline: 2px solid var(--verde); border-color: transparent; }
+.dica { font-weight: 400; color: var(--texto-2); font-size: 12px; }
+
+.botao { border: 1px solid var(--linha); background: var(--fundo-2); border-radius: 8px; padding: 10px 16px; font-weight: 600; }
+.botao.principal { background: var(--verde); color: #06210f; border-color: var(--verde); }
+.botao.principal:hover { filter: brightness(1.08); }
+.botao.grande { padding: 14px; font-size: 17px; }
+.botao.fantasma { background: transparent; }
+
+.topo { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.clube-topo { border-left: 5px solid; padding-left: 12px; }
+.topo-info { flex: 1; min-width: 0; }
+.topo-info h2 { font-size: 22px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topo-det { color: var(--texto-2); font-size: 13px; }
+.topo-dinheiro { font-weight: 700; color: var(--verde); font-size: 18px; }
+
+.nota { color: var(--texto-2); font-size: 14px; margin: 8px 0 12px; }
+
+.separadores { display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid var(--linha); margin-bottom: 12px; }
+.separadores button { background: none; border: none; padding: 10px 14px; color: var(--texto-2); font-weight: 600; border-bottom: 3px solid transparent; white-space: nowrap; }
+.separadores button.ativo { color: var(--texto); border-bottom-color: var(--verde); }
+.separadores .sair { margin-left: auto; }
+
+.grelha-clubes { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
+.cartao.clube { display: flex; align-items: center; gap: 12px; text-align: left; padding: 12px; }
+.cartao.clube:hover { border-color: var(--verde-escuro); }
+.cartao.clube.sel { border-color: var(--verde); box-shadow: 0 0 0 1px var(--verde); }
+.clube-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.clube-nome { font-weight: 650; line-height: 1.25; }
+.clube-det { color: var(--texto-2); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.emblema { flex: none; }
+
+.barra-acao { position: fixed; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; align-items: center; gap: 16px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: var(--fundo-2); border-top: 1px solid var(--linha); }
+.barra-acao span { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.tabela-wrap { overflow-x: auto; border: 1px solid var(--linha); border-radius: 12px; }
+.tabela { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tabela th { text-align: left; color: var(--texto-2); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; padding: 8px 10px; background: var(--fundo-2); position: sticky; top: 0; }
+.tabela td { padding: 7px 10px; border-top: 1px solid var(--linha); white-space: nowrap; }
+.tabela .num { text-align: right; font-variant-numeric: tabular-nums; }
+.tabela tr.clicavel { cursor: pointer; }
+.tabela tr.clicavel:hover td { background: var(--fundo-2); }
+.tabela tr.meu td { background: rgba(61, 220, 132, 0.1); font-weight: 650; }
+.ordenar { white-space: nowrap; background: none; border: none; padding: 0; color: inherit; font: inherit; text-transform: inherit; letter-spacing: inherit; }
+.ordenar.ativo { color: var(--texto); }
+.clube-linha { display: inline-flex; align-items: center; gap: 8px; }
+
+.pos { display: inline-block; min-width: 38px; text-align: center; border-radius: 5px; padding: 1px 6px; font-size: 12px; font-weight: 700; }
+.pos-GR { background: #f5c45133; color: #f5c451; }
+.pos-DEF { background: #4ea3ff33; color: #7cbcff; }
+.pos-MED { background: #3ddc8433; color: #3ddc84; }
+.pos-AV { background: #e5675c33; color: #ff8a80; }
+.nome-jogador { font-weight: 550; }
+.craque { margin-left: 8px; font-size: 11px; font-weight: 700; color: #06210f; background: var(--aviso); border-radius: 4px; padding: 1px 6px; vertical-align: 1px; }
+.nac { margin-left: 6px; font-size: 11px; color: var(--texto-2); border: 1px solid var(--linha); border-radius: 4px; padding: 0 4px; }
+
+.forca { display: inline-flex; align-items: center; gap: 8px; }
+.forca-num { font-weight: 750; min-width: 22px; text-align: right; font-variant-numeric: tabular-nums; }
+.forca-barra { width: 60px; height: 6px; background: var(--linha); border-radius: 3px; overflow: hidden; }
+.forca-barra span { display: block; height: 100%; }
+
+.cartoes-info { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.cartao.info { display: flex; flex-direction: column; gap: 2px; }
+.info-t { color: var(--texto-2); font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }
+.info-v { font-size: 20px; font-weight: 700; }
+.info-d { color: var(--texto-2); font-size: 13px; }
+
+.outro-clube h3 { font-size: 18px; }
+
+.rodape { text-align: center; color: var(--texto-2); font-size: 12px; margin-top: 32px; }
+
+@media (max-width: 640px) {
+  .esconde-m { display: none; }
+  .grelha-clubes { grid-template-columns: 1fr; }
+  .topo-info h2 { font-size: 17px; white-space: normal; }
+  .forca-barra { width: 36px; }
+  .tabela td, .tabela th { padding: 7px 6px; }
+}
