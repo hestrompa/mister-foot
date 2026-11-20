@@ -80,6 +80,9 @@ export interface Partida {
   jogada: boolean
   /** Uma linha a explicar o resultado (ex.: "Dominou o meio-campo: 61% de posse."). */
   porque?: string
+  /** Espectadores e receita de bilheteira do clube da casa. */
+  publico?: number
+  receita?: number
 }
 
 export interface LinhaTabela {
@@ -108,6 +111,8 @@ export interface EstadoEpoca {
   indisponiveis: Record<number, Indisponivel>
   /** Golos marcados na época por jogador, para a lista de melhores marcadores. */
   marcadores: Record<number, number>
+  /** Balanço da última jornada por clube (bilheteira, receitas fixas, salários). */
+  ultimoBalanco?: Record<number, import('./financas').Balanco>
 }
 
 export interface ResumoEpoca {

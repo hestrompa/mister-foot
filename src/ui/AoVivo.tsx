@@ -1,3 +1,4 @@
+import { euros } from '../core/formato'
 import { useEffect, useRef, useState } from 'react'
 import type { Jogo } from '../core/types'
 import type { Lado, LinhaTabela, Partida, Postura } from '../core/partida'
@@ -316,6 +317,15 @@ function ResumoJornada({ jogo, r, continuar }: { jogo: Jogo; r: Resumo; continua
         </div>
         {golos.length > 0 && <ul className="golos-lista">{golos.map((g, i) => <li key={i} className={g.lado}>{g.minuto}' {g.jogadorId != null ? mundo.jogadores[g.jogadorId]?.curto : ''}</li>)}</ul>}
         {p.porque && <p className="porque">{p.porque}</p>}
+        {jogo.epoca.ultimoBalanco?.[clubeId] && (() => {
+          const b = jogo.epoca.ultimoBalanco![clubeId]
+          return (
+            <p className="balanco">
+              {b.publico > 0 && <>Público {b.publico.toLocaleString('pt-PT')} · bilheteira {euros(b.bilheteira)} · </>}
+              TV e patrocínios {euros(b.fixas)} · salários {euros(b.salarios)} · <b className={b.saldo >= 0 ? 'positivo' : 'negativo'}>saldo {b.saldo >= 0 ? '+' : ''}{euros(b.saldo)}</b>
+            </p>
+          )
+        })()}
         <p className="pos-mudanca">
           Posição: {posAntes}.º → <b>{posDepois}.º</b>
           {posDepois < posAntes && <span className="sobe-seta"> ▲ {posAntes - posDepois}</span>}

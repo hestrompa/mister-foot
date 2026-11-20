@@ -237,3 +237,8 @@ h1, h2, h3 { margin: 0; }
 .resumo-meu.res-V, .resumo-meu.res-E, .resumo-meu.res-D { color: var(--texto); background: var(--cartao); padding: 16px; font-weight: 400; }
 
 .nm-sigla { display: none; }
+.balanco { color: var(--texto-2); font-size: 13px; margin: 8px 0 0; }
+.balanco .positivo { color: var(--verde); }
+.balanco .negativo { color: var(--f-fraca); }
+.bilhete-ctl { display: flex; align-items: center; gap: 12px; }
+.bilhete-ctl .botao { padding: 2px 12px; font-size: 18px; }

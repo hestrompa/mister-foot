@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { forcaClube, gerarMundo } from './core/mundo'
+import { salariosPorJornada } from './core/financas'
 import { euros, lugares } from './core/formato'
 import type { Jogo, Mundo } from './core/types'
 import type { Escalacao } from './core/partida'
@@ -222,7 +223,16 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
       {sep === 'clube' && (
         <div className="cartoes-info">
           <Info t="Estádio" v={meu.estadio.nome} d={`${lugares(meu.estadio.lugares)} lugares`} />
-          <Info t="Bilhete" v={euros(meu.bilhete)} d="preço por jogo em casa" />
+          <div className="cartao info">
+            <span className="info-t">Bilhete</span>
+            <span className="info-v bilhete-ctl">
+              <button className="botao" aria-label="Baixar preço" onClick={() => { meu.bilhete = Math.max(1, meu.bilhete - 1); atualizar(jogo) }}>−</button>
+              {euros(meu.bilhete)}
+              <button className="botao" aria-label="Subir preço" onClick={() => { meu.bilhete = Math.min(100, meu.bilhete + 1); atualizar(jogo) }}>+</button>
+            </span>
+            <span className="info-d">mais caro rende mais por adepto, mas vai menos gente</span>
+          </div>
+          <Info t="Salários" v={euros(salariosPorJornada(mundo, meu.id))} d="por jornada" />
           <Info t="Dinheiro" v={euros(meu.dinheiro)} d="em caixa" />
           <Info t="Massa salarial" v={euros(meu.plantel.reduce((s, id) => s + mundo.jogadores[id].salario, 0))} d="por mês" />
           <Info t="Valor do plantel" v={euros(meu.plantel.reduce((s, id) => s + mundo.jogadores[id].valor, 0))} d={`${meu.plantel.length} jogadores`} />
