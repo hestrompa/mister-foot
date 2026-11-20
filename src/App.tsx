@@ -2,17 +2,26 @@ import { useState } from 'react'
 import { forcaClube, gerarMundo } from './core/mundo'
 import { euros, lugares } from './core/formato'
 import type { Jogo, Mundo } from './core/types'
-import { apagar, carregar, gravar } from './jogo/gravar'
+import type { Escalacao } from './core/partida'
+import { epocaTerminada, fecharEpoca, indisponiveisDe, tabela } from './core/epoca'
+import { escalarAuto } from './core/motor'
+import { apagar, carregar, gravar, prepararEpoca } from './jogo/gravar'
 import { Emblema } from './ui/Emblema'
 import { Forca, Plantel } from './ui/Plantel'
+import { PreJogo } from './ui/PreJogo'
+import { AoVivo } from './ui/AoVivo'
+import { Calendario } from './ui/Calendario'
+import { FimEpoca, type DadosFimEpoca } from './ui/FimEpoca'
+import { TabelaLiga } from './ui/comum'
 
 type Ecra = 'inicio' | 'escolher' | 'jogo'
-type Separador = 'plantel' | 'clube' | 'divisoes'
+type Separador = 'jogo' | 'plantel' | 'classificacao' | 'calendario' | 'clube' | 'divisoes'
 
 export default function App() {
   const [jogo, setJogo] = useState<Jogo | null>(() => carregar())
   const [mundoNovo, setMundoNovo] = useState<{ mundo: Mundo; treinador: string } | null>(null)
-  const [ecra, setEcra] = useState<Ecra>(() => (carregar() ? 'jogo' : 'inicio'))
+  const [ecra, setEcra] = useState<Ecra>(() => (jogo ? 'jogo' : 'inicio'))
+  const atualizar = (j: Jogo) => { gravar(j); setJogo({ ...j }) }
 
   if (ecra === 'inicio' || (ecra === 'jogo' && !jogo)) {
     return (
@@ -32,7 +41,7 @@ export default function App() {
         mundo={mundoNovo.mundo}
         voltar={() => setEcra('inicio')}
         escolher={(clubeId) => {
-          const j: Jogo = { mundo: mundoNovo.mundo, treinador: mundoNovo.treinador, clubeId, criado: new Date().toISOString() }
+          const j = prepararEpoca({ mundo: mundoNovo.mundo, treinador: mundoNovo.treinador, clubeId, criado: new Date().toISOString() } as Jogo)
           gravar(j)
           setJogo(j)
           setMundoNovo(null)
@@ -41,7 +50,7 @@ export default function App() {
       />
     )
   }
-  return <Principal jogo={jogo!} sair={() => setEcra('inicio')} />
+  return <Principal jogo={jogo!} atualizar={atualizar} sair={() => setEcra('inicio')} />
 }
 
 function Rodape() {
@@ -133,29 +142,80 @@ function Divisoes({ mundo, div, setDiv }: { mundo: Mundo; div: number; setDiv: (
   )
 }
 
-function Principal({ jogo, sair }: { jogo: Jogo; sair: () => void }) {
+function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; atualizar: (j: Jogo) => void }) {
   const { mundo } = jogo
   const meu = mundo.clubes[jogo.clubeId]
-  const [sep, setSep] = useState<Separador>('plantel')
+  const [sep, setSep] = useState<Separador>('jogo')
   const [div, setDiv] = useState(meu.divisao)
   const [verClube, setVerClube] = useState<number | null>(null)
+  const [aoVivo, setAoVivo] = useState<string | null>(null)
+  const [fim, setFim] = useState<DadosFimEpoca | null>(null)
+
+  const mudarEscalacao = (e: Escalacao) => atualizar({ ...jogo, escalacao: e })
+
+  const aposJornada = () => {
+    setAoVivo(null)
+    setSep('jogo')
+    if (!epocaTerminada(jogo.epoca)) {
+      // Lesionados ou castigados no onze: refaz a escalação mantendo formação e postura.
+      const ind = indisponiveisDe(mundo, jogo.epoca, jogo.clubeId)
+      if (jogo.escalacao.titulares.some((id) => ind.has(id))) {
+        atualizar({ ...jogo, escalacao: { ...escalarAuto(mundo, jogo.clubeId, ind, jogo.escalacao.formacao), postura: jogo.escalacao.postura } })
+      }
+      return
+    }
+    const divisaoAntes = meu.divisao
+    const posicao = tabela(mundo, jogo.epoca, divisaoAntes).findIndex((l) => l.clubeId === meu.id) + 1
+    const resumo = fecharEpoca(mundo, jogo.epoca)
+    prepararEpoca(jogo)
+    atualizar(jogo)
+    setDiv(mundo.clubes[jogo.clubeId].divisao)
+    setFim({ resumo, posicao, divisaoAntes, divisaoDepois: mundo.clubes[jogo.clubeId].divisao })
+  }
+
+  const cabecalho = (
+    <header className="topo clube-topo" style={{ borderColor: meu.cores[0] }}>
+      <Emblema clube={meu} tamanho={44} />
+      <div className="topo-info">
+        <h2>{meu.nome}</h2>
+        <span className="topo-det">{mundo.divisoes[meu.divisao - 1].nome} · Época {mundo.epoca}/{String(mundo.epoca + 1).slice(2)} · Mister {jogo.treinador}</span>
+      </div>
+      <div className="topo-dinheiro" title="Dinheiro em caixa">{euros(meu.dinheiro)}</div>
+    </header>
+  )
+
+  if (fim) {
+    return <div className="ecra jogo">{cabecalho}<FimEpoca jogo={jogo} d={fim} continuar={() => setFim(null)} /></div>
+  }
+  if (aoVivo) {
+    return (
+      <div className="ecra jogo ecra-vivo">
+        <AoVivo key={aoVivo} jogo={jogo} guardar={() => atualizar(jogo)} continuar={aposJornada} />
+      </div>
+    )
+  }
 
   return (
     <div className="ecra jogo">
-      <header className="topo clube-topo" style={{ borderColor: meu.cores[0] }}>
-        <Emblema clube={meu} tamanho={44} />
-        <div className="topo-info">
-          <h2>{meu.nome}</h2>
-          <span className="topo-det">{mundo.divisoes[meu.divisao - 1].nome} · Época {mundo.epoca}/{String(mundo.epoca + 1).slice(2)} · Mister {jogo.treinador}</span>
-        </div>
-        <div className="topo-dinheiro" title="Dinheiro em caixa">{euros(meu.dinheiro)}</div>
-      </header>
+      {cabecalho}
       <nav className="separadores principal-nav">
-        <button className={sep === 'plantel' ? 'ativo' : ''} onClick={() => setSep('plantel')}>Plantel</button>
-        <button className={sep === 'clube' ? 'ativo' : ''} onClick={() => setSep('clube')}>Clube</button>
-        <button className={sep === 'divisoes' ? 'ativo' : ''} onClick={() => { setSep('divisoes'); setVerClube(null) }}>Divisões</button>
+        {([['jogo', 'Jogo'], ['plantel', 'Plantel'], ['classificacao', 'Classificação'], ['calendario', 'Calendário'], ['clube', 'Clube'], ['divisoes', 'Divisões']] as [Separador, string][]).map(([k, t]) => (
+          <button key={k} className={sep === k ? 'ativo' : ''} onClick={() => { setSep(k); setVerClube(null) }}>{t}</button>
+        ))}
         <button className="sair" onClick={sair}>Menu</button>
       </nav>
+
+      {sep === 'jogo' && <PreJogo jogo={jogo} mudar={mudarEscalacao} jogar={() => setAoVivo(`${jogo.epoca.ano}-${jogo.epoca.jornada}`)} />}
+
+      {sep === 'classificacao' && (
+        <>
+          <Divisoes mundo={mundo} div={div} setDiv={setDiv} />
+          <TabelaLiga mundo={mundo} linhas={tabela(mundo, jogo.epoca, div)} divisao={div} meuId={meu.id} />
+          <p className="nota"><span className="leg sobe">■</span> subida · <span className="leg desce">■</span> descida</p>
+        </>
+      )}
+
+      {sep === 'calendario' && <Calendario jogo={jogo} />}
 
       {sep === 'plantel' && <Plantel mundo={mundo} clubeId={meu.id} />}
 
@@ -174,7 +234,7 @@ function Principal({ jogo, sair }: { jogo: Jogo; sair: () => void }) {
       {sep === 'divisoes' && !verClube && (
         <>
           <Divisoes mundo={mundo} div={div} setDiv={setDiv} />
-          <p className="nota">Ainda sem jogos: os clubes aparecem ordenados pela força do onze.</p>
+          <p className="nota">Clubes ordenados pela força do onze. Toca num clube para ver o plantel.</p>
           <div className="tabela-wrap">
             <table className="tabela">
               <thead><tr><th>#</th><th>Clube</th><th>Força</th><th className="num esconde-m">Estádio</th><th className="num">Dinheiro</th></tr></thead>

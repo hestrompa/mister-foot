@@ -54,6 +54,9 @@ try {
   await passo('escolher clube e assinar contrato', async () => {
     await page.locator('button.cartao.clube').first().click()
     await page.getByRole('button', { name: 'Assinar contrato' }).click()
+    await page.getByRole('button', { name: 'Jogar jornada' }).waitFor({ timeout: 10000 })
+    await foto('3a-jogo.png')
+    await page.getByRole('button', { name: 'Plantel', exact: true }).click()
     await page.locator('table.plantel').first().waitFor({ timeout: 10000 })
   })
 
@@ -84,12 +87,50 @@ try {
     await page.locator('table.plantel').first().waitFor({ timeout: 5000 })
   })
 
+  await passo('jogar jornada ao vivo a 2x', async () => {
+    await page.getByRole('button', { name: 'Jogo', exact: true }).click()
+    await page.getByRole('button', { name: 'Jogar jornada' }).click()
+    await page.getByRole('button', { name: '2x' }).click()
+    await page.waitForTimeout(5000)
+    await foto('6-ao-vivo.png')
+    const n = await page.locator('.placares li').count()
+    esperar(n === 9, `esperava 9 jogos, encontrei ${n}`)
+  })
+
+  await passo('saltar e ver o resumo', async () => {
+    await page.getByRole('button', { name: 'Saltar' }).click()
+    await page.getByText('Outros resultados').waitFor({ timeout: 10000 })
+    await foto('7-resumo.png')
+  })
+
+  await passo('continuar e ver a jornada 2', async () => {
+    await page.getByRole('button', { name: 'Continuar', exact: true }).click()
+    await page.getByText(/Jornada 2 de/).waitFor({ timeout: 5000 })
+    await page.getByRole('button', { name: 'Classificação', exact: true }).click()
+    await foto('8-classificacao.png')
+    await page.getByRole('button', { name: 'Calendário', exact: true }).click()
+    await page.locator('.res-V, .res-E, .res-D').first().waitFor({ timeout: 5000 })
+    await page.getByRole('button', { name: 'Jogo', exact: true }).click()
+  })
+
   await passo('telemóvel 390x844 sem scroll horizontal', async () => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.waitForTimeout(300)
     const { sw, iw } = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }))
     await foto('5-telemovel.png')
     esperar(sw <= iw + 1, `scrollWidth ${sw} > innerWidth ${iw}`)
+  })
+
+  await passo('telemóvel: jornada ao vivo sem scroll horizontal', async () => {
+    await page.getByRole('button', { name: 'Jogar jornada' }).click()
+    await page.getByRole('button', { name: '4x' }).click()
+    await page.waitForTimeout(3000)
+    await foto('9-ao-vivo-telemovel.png')
+    const { sw, iw } = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }))
+    esperar(sw <= iw + 1, `scrollWidth ${sw} > innerWidth ${iw}`)
+    await page.getByRole('button', { name: 'Saltar' }).click()
+    await page.getByText('Outros resultados').waitFor({ timeout: 10000 })
+    await foto('10-resumo-telemovel.png')
   })
 
   await ctx.close()

@@ -1,3 +1,5 @@
+import type { Escalacao, EstadoEpoca } from './partida'
+
 export type Posicao = 'GR' | 'DEF' | 'MED' | 'AV'
 
 export const POSICOES: readonly Posicao[] = ['GR', 'DEF', 'MED', 'AV']
@@ -65,4 +67,8 @@ export interface Jogo {
   treinador: string
   clubeId: number
   criado: string
+  /** Época a decorrer (calendário, castigos, marcadores). */
+  epoca: EstadoEpoca
+  /** Escalação e tática guardadas do utilizador. */
+  escalacao: Escalacao
 }

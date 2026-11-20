@@ -114,3 +114,120 @@ h1, h2, h3 { margin: 0; }
   .forca-barra { width: 36px; }
   .tabela td, .tabela th { padding: 7px 6px; }
 }
+
+/* ---- M1: jornada ao vivo ---- */
+.botao:disabled { opacity: 0.45; cursor: default; }
+.botao.ativo { border-color: var(--verde); color: var(--verde); }
+.sub-tit { font-size: 13px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--texto-2); margin: 12px 0 6px; }
+.erro { color: var(--f-fraca); font-size: 14px; white-space: normal !important; }
+.aviso-txt { color: var(--aviso); font-weight: 600; margin: 6px 0; }
+.grupo-botoes { display: flex; gap: 6px; flex-wrap: wrap; }
+.grupo-botoes .botao { flex: 1; padding: 8px 10px; }
+
+.forma { display: inline-flex; gap: 3px; }
+.forma-p { width: 18px; height: 18px; border-radius: 4px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; color: #06210f; }
+.forma-V { background: var(--verde); }
+.forma-E { background: #9fb5a8; }
+.forma-D { background: var(--f-fraca); }
+
+.classificacao tr.sobe td:first-child { box-shadow: inset 4px 0 0 var(--verde); }
+.classificacao tr.desce td:first-child { box-shadow: inset 4px 0 0 var(--f-fraca); }
+.classificacao .pts { font-weight: 750; }
+.classificacao.compacta { font-size: 13px; }
+.classificacao.compacta td, .classificacao.compacta th { padding: 4px 6px; }
+.leg.sobe { color: var(--verde); } .leg.desce { color: var(--f-fraca); }
+.sobe-seta { color: var(--verde); font-size: 10px; margin-left: 3px; }
+.desce-seta { color: var(--f-fraca); font-size: 10px; margin-left: 3px; }
+
+.calendario tr.proxima td { background: rgba(245, 196, 81, 0.08); }
+.casa-fora { font-size: 11px; font-weight: 700; color: var(--texto-2); border: 1px solid var(--linha); border-radius: 4px; padding: 0 5px; }
+.resultado { font-weight: 700; border-radius: 5px; padding: 2px 8px; font-variant-numeric: tabular-nums; }
+.res-V { background: #3ddc8433; color: var(--verde); }
+.res-E { background: #9fb5a833; color: var(--texto); }
+.res-D { background: #e5675c33; color: #ff8a80; }
+
+/* Pré-jogo */
+.pre-jogo { display: flex; flex-direction: column; gap: 12px; }
+.pj-cab { color: var(--texto-2); font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; text-align: center; }
+.pj-equipas { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; margin-top: 10px; }
+.pj-eq { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; min-width: 0; }
+.pj-eq b { font-size: 15px; line-height: 1.2; overflow-wrap: anywhere; }
+.pj-vs { color: var(--texto-2); font-weight: 700; }
+.tatica { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.campo { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: var(--texto-2); flex: 1; min-width: 200px; }
+.campo select { background: var(--fundo); color: var(--texto); border: 1px solid var(--linha); border-radius: 8px; padding: 9px 10px; font: inherit; }
+.onze-grelha { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.lista-jog { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.linha-jog { width: 100%; display: flex; align-items: center; gap: 8px; background: var(--cartao); border: 1px solid var(--linha); border-radius: 8px; padding: 7px 10px; text-align: left; min-height: 40px; }
+.linha-jog .nome-jogador { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.linha-jog .direita { margin-left: auto; }
+.linha-jog.sel { border-color: var(--aviso); box-shadow: 0 0 0 1px var(--aviso); }
+.linha-jog.alvo:hover { border-color: var(--verde); }
+.linha-jog.indisp { opacity: 0.5; }
+.linha-jog.nao-conv { background: transparent; }
+.linha-jog.lesionado { border-color: var(--f-fraca); }
+.linha-jog:disabled { cursor: default; }
+.fora-pos { font-size: 10px; color: var(--aviso); border: 1px solid var(--aviso); border-radius: 4px; padding: 0 4px; }
+.baixa { font-size: 11px; font-weight: 700; border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
+.baixa-lesao { background: #e5675c33; color: #ff8a80; }
+.baixa-castigo { background: #f5c45133; color: var(--aviso); }
+.barra-acao .botao.grande { min-width: 180px; }
+
+/* Ao vivo */
+.ao-vivo { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.av-principal, .av-lateral { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.meu-jogo { text-align: center; }
+.mj-min { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--verde); font-size: 15px; }
+.mj-placar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; margin: 8px 0; }
+.mj-eq { display: flex; flex-direction: column; align-items: center; gap: 4px; font-weight: 650; font-size: 14px; line-height: 1.2; min-width: 0; overflow-wrap: anywhere; }
+.mj-golos { font-size: 44px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -1px; }
+.mj-golos span { color: var(--texto-2); margin: 0 6px; }
+.mj-estat { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.estat-l { display: flex; justify-content: space-between; font-size: 13px; font-variant-numeric: tabular-nums; }
+.estat-barra { height: 5px; background: #4ea3ff66; border-radius: 3px; overflow: hidden; margin-top: 3px; }
+.estat-barra span { display: block; height: 100%; background: var(--verde); }
+.controlos { display: flex; gap: 6px; flex-wrap: wrap; }
+.controlos .botao { flex: 1; padding: 8px; }
+.relato ul { list-style: none; margin: 0; padding: 0; max-height: 340px; overflow-y: auto; font-size: 14px; }
+.relato li { padding: 5px 0; border-top: 1px solid var(--linha); }
+.ev-min { display: inline-block; min-width: 30px; color: var(--texto-2); font-variant-numeric: tabular-nums; }
+.ev-golo { font-weight: 700; color: var(--verde); }
+.ev-golo:not(.nosso) { color: #ff8a80; }
+.ev-amarelo .ev-min::after { content: ''; display: inline-block; width: 7px; height: 10px; background: var(--aviso); margin-left: 4px; border-radius: 1px; }
+.ev-vermelho .ev-min::after { content: ''; display: inline-block; width: 7px; height: 10px; background: var(--f-fraca); margin-left: 4px; border-radius: 1px; }
+.ev-intervalo, .ev-fim { color: var(--texto-2); font-style: italic; }
+.ev-lesao { color: var(--f-baixa); }
+.placares ul { list-style: none; margin: 0; padding: 0; }
+.placar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) 32px; gap: 8px; align-items: center; padding: 6px 4px; border-top: 1px solid var(--linha); font-size: 14px; border-radius: 6px; }
+.placar.meu { font-weight: 700; }
+.pl-casa { text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-fora { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-golos { font-weight: 800; font-variant-numeric: tabular-nums; min-width: 38px; text-align: center; }
+.pl-min { color: var(--texto-2); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+.flash { animation: flash-golo 1.6s ease-out; }
+@keyframes flash-golo { 0%, 30% { background: rgba(61, 220, 132, 0.35); } 100% { background: transparent; } }
+.painel-subs { border-color: var(--aviso); display: flex; flex-direction: column; gap: 10px; }
+.ps-cab { display: flex; justify-content: space-between; align-items: baseline; }
+
+/* Resumo e fim de época */
+.resumo-jornada, .fim-epoca { display: flex; flex-direction: column; gap: 12px; }
+.resumo-meu { text-align: center; }
+.resumo-meu.res-V { border-color: var(--verde); }
+.resumo-meu.res-D { border-color: var(--f-fraca); }
+.golos-lista { list-style: none; padding: 0; margin: 4px 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; font-size: 13px; color: var(--texto-2); }
+.porque { font-style: italic; margin: 8px 0 4px; }
+.pos-mudanca { margin: 4px 0 0; }
+.resumo-grelha { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+.destaque { text-align: center; display: flex; flex-direction: column; gap: 6px; border-color: var(--aviso); }
+.destaque h2 { font-size: 26px; }
+
+@media (max-width: 860px) {
+  .ao-vivo, .resumo-grelha { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .onze-grelha { grid-template-columns: 1fr; }
+  .mj-golos { font-size: 36px; }
+  .linha-jog .forca-barra { display: none; }
+  .barra-acao .botao.grande { min-width: 0; padding: 12px 18px; }
+}
+.resumo-meu.res-V, .resumo-meu.res-E, .resumo-meu.res-D { color: var(--texto); background: var(--cartao); padding: 16px; font-weight: 400; }

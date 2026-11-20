@@ -1,14 +1,45 @@
 import type { Jogo } from '../core/types'
+import type { EstadoEpoca, Partida } from '../core/partida'
+import { escalarAuto } from '../core/motor'
+import { epocaTerminada, fecharEpoca, indisponiveisDe, novaEpoca } from '../core/epoca'
 
 const CHAVE = 'mister-foot:jogo'
 
+/** Partidas antigas guardam só os eventos de golo (o relato completo ocupa demasiado). */
+function compactar(epoca: EstadoEpoca): EstadoEpoca {
+  const limite = epoca.jornada - 1
+  const calendario = epoca.calendario.map((div) =>
+    div.map((jornada) =>
+      jornada.map((p): Partida =>
+        p.jornada < limite && p.eventos.some((e) => e.tipo !== 'golo')
+          ? { ...p, eventos: p.eventos.filter((e) => e.tipo === 'golo') }
+          : p,
+      ),
+    ),
+  )
+  return { ...epoca, calendario }
+}
+
 export function gravar(jogo: Jogo): boolean {
   try {
-    localStorage.setItem(CHAVE, JSON.stringify(jogo))
+    const dados = jogo.epoca ? { ...jogo, epoca: compactar(jogo.epoca) } : jogo
+    localStorage.setItem(CHAVE, JSON.stringify(dados))
     return true
   } catch {
     return false
   }
+}
+
+/** Semente para uma nova época, derivada do mundo. */
+export function sementeEpoca(jogo: Pick<Jogo, 'mundo'>): number {
+  return ((jogo.mundo.semente * 31 + jogo.mundo.epoca * 7919) >>> 0) || 1
+}
+
+/** Cria época e escalação para um jogo novo ou para uma gravação antiga. */
+export function prepararEpoca(jogo: Jogo): Jogo {
+  jogo.epoca = novaEpoca(jogo.mundo, sementeEpoca(jogo))
+  jogo.escalacao = escalarAuto(jogo.mundo, jogo.clubeId, indisponiveisDe(jogo.mundo, jogo.epoca, jogo.clubeId), jogo.escalacao?.formacao)
+  return jogo
 }
 
 export function carregar(): Jogo | null {
@@ -16,7 +47,16 @@ export function carregar(): Jogo | null {
     const s = localStorage.getItem(CHAVE)
     if (!s) return null
     const j = JSON.parse(s) as Jogo
-    return j?.mundo?.versao === 1 ? j : null
+    if (j?.mundo?.versao !== 1) return null
+    let mudou = false
+    if (!j.epoca) { prepararEpoca(j); mudou = true }
+    else if (epocaTerminada(j.epoca)) { fecharEpoca(j.mundo, j.epoca); prepararEpoca(j); mudou = true }
+    if (!j.escalacao) {
+      j.escalacao = escalarAuto(j.mundo, j.clubeId, indisponiveisDe(j.mundo, j.epoca, j.clubeId))
+      mudou = true
+    }
+    if (mudou) gravar(j)
+    return j
   } catch {
     return null
   }
