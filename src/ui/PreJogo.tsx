@@ -72,9 +72,9 @@ export function PreJogo({ jogo, mudar, jogar }: { jogo: Jogo; mudar: (e: Escalac
       <div className="cartao proximo-jogo">
         <div className="pj-cab">Jornada {epoca.jornada} de {epoca.totalJornadas} · {p.casaId === clubeId ? 'em casa' : 'fora'}</div>
         <div className="pj-equipas">
-          <div className="pj-eq"><Emblema clube={meu} tamanho={48} /><b>{meu.nome}</b><span className="dica">{posMeu + 1}.º</span></div>
+          <div className="pj-eq"><Emblema clube={meu} tamanho={48} /><b>{meu.nome}</b>{epoca.jornada > 1 && <span className="dica">{posMeu + 1}.º</span>}</div>
           <span className="pj-vs">vs</span>
-          <div className="pj-eq"><Emblema clube={adv} tamanho={48} /><b>{adv.nome}</b><span className="dica">{posAdv + 1}.º · {tab[posAdv]?.pts ?? 0} pts</span>
+          <div className="pj-eq"><Emblema clube={adv} tamanho={48} /><b>{adv.nome}</b>{epoca.jornada > 1 && <span className="dica">{posAdv + 1}.º · {tab[posAdv]?.pts ?? 0} pts</span>}
             {tab[posAdv] && tab[posAdv].forma.length > 0 && <FormaPills forma={tab[posAdv].forma} />}</div>
         </div>
       </div>

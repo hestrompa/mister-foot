@@ -108,6 +108,8 @@ h1, h2, h3 { margin: 0; }
 .rodape { text-align: center; color: var(--texto-2); font-size: 12px; margin-top: 32px; }
 
 @media (max-width: 640px) {
+  .ecra .nm-longo { display: none; }
+  .ecra .nm-sigla { display: inline; font-weight: 650; }
   .esconde-m { display: none; }
   .grelha-clubes { grid-template-columns: 1fr; }
   .topo-info h2 { font-size: 17px; white-space: normal; }
@@ -225,9 +227,13 @@ h1, h2, h3 { margin: 0; }
   .ao-vivo, .resumo-grelha { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
+  .ecra .nm-longo { display: none; }
+  .ecra .nm-sigla { display: inline; font-weight: 650; }
   .onze-grelha { grid-template-columns: 1fr; }
   .mj-golos { font-size: 36px; }
   .linha-jog .forca-barra { display: none; }
   .barra-acao .botao.grande { min-width: 0; padding: 12px 18px; }
 }
 .resumo-meu.res-V, .resumo-meu.res-E, .resumo-meu.res-D { color: var(--texto); background: var(--cartao); padding: 16px; font-weight: 400; }
+
+.nm-sigla { display: none; }

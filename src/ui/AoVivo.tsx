@@ -197,9 +197,9 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
               const p = e.partida
               return (
                 <li key={p.id} className={`placar ${e === meu ? 'meu' : ''} ${recente(p) ? 'flash' : ''}`}>
-                  <span className="pl-casa">{mundo.clubes[p.casaId].nome}</span>
+                  <span className="pl-casa"><span className="nm-longo">{mundo.clubes[p.casaId].nome}</span><span className="nm-sigla">{mundo.clubes[p.casaId].sigla}</span></span>
                   <span className="pl-golos">{p.golos[0]}-{p.golos[1]}</span>
-                  <span className="pl-fora">{mundo.clubes[p.foraId].nome}</span>
+                  <span className="pl-fora"><span className="nm-longo">{mundo.clubes[p.foraId].nome}</span><span className="nm-sigla">{mundo.clubes[p.foraId].sigla}</span></span>
                   <span className="pl-min">{terminou(e) ? 'F' : `${e.minuto}'`}</span>
                 </li>
               )
@@ -310,9 +310,9 @@ function ResumoJornada({ jogo, r, continuar }: { jogo: Jogo; r: Resumo; continua
       <div className={`cartao resumo-meu res-${res[0]}`}>
         <div className="pj-cab">Jornada {r.jornada} · {res}</div>
         <div className="mj-placar">
-          <div className="mj-eq"><Emblema clube={mundo.clubes[p.casaId]} tamanho={40} /><span>{mundo.clubes[p.casaId].nome}</span></div>
+          <div className="mj-eq"><Emblema clube={mundo.clubes[p.casaId]} tamanho={40} /><span><span className="nm-longo">{mundo.clubes[p.casaId].nome}</span><span className="nm-sigla">{mundo.clubes[p.casaId].sigla}</span></span></div>
           <div className="mj-golos">{p.golos[0]}<span>-</span>{p.golos[1]}</div>
-          <div className="mj-eq"><Emblema clube={mundo.clubes[p.foraId]} tamanho={40} /><span>{mundo.clubes[p.foraId].nome}</span></div>
+          <div className="mj-eq"><Emblema clube={mundo.clubes[p.foraId]} tamanho={40} /><span><span className="nm-longo">{mundo.clubes[p.foraId].nome}</span><span className="nm-sigla">{mundo.clubes[p.foraId].sigla}</span></span></div>
         </div>
         {golos.length > 0 && <ul className="golos-lista">{golos.map((g, i) => <li key={i} className={g.lado}>{g.minuto}' {g.jogadorId != null ? mundo.jogadores[g.jogadorId]?.curto : ''}</li>)}</ul>}
         {p.porque && <p className="porque">{p.porque}</p>}
@@ -328,9 +328,9 @@ function ResumoJornada({ jogo, r, continuar }: { jogo: Jogo; r: Resumo; continua
           <ul>
             {r.outras.map((o) => (
               <li key={o.id} className="placar">
-                <span className="pl-casa">{mundo.clubes[o.casaId].nome}</span>
+                <span className="pl-casa"><span className="nm-longo">{mundo.clubes[o.casaId].nome}</span><span className="nm-sigla">{mundo.clubes[o.casaId].sigla}</span></span>
                 <span className="pl-golos">{o.golos[0]}-{o.golos[1]}</span>
-                <span className="pl-fora">{mundo.clubes[o.foraId].nome}</span>
+                <span className="pl-fora"><span className="nm-longo">{mundo.clubes[o.foraId].nome}</span><span className="nm-sigla">{mundo.clubes[o.foraId].sigla}</span></span>
               </li>
             ))}
           </ul>
