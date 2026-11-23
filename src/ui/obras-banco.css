@@ -1,0 +1,13 @@
+.obras-banco { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; margin-top: 10px; }
+.ob-cartao { display: flex; flex-direction: column; gap: 10px; }
+.ob-cartao p { margin: 0; }
+.ob-cartao .sub-tit { margin: 0; }
+.ob-opcoes { display: flex; flex-wrap: wrap; gap: 6px; }
+.ob-opcoes .botao { padding: 6px 12px; }
+.ob-opcoes .botao.sel { border-color: var(--verde); box-shadow: 0 0 0 1px var(--verde); }
+.ob-aviso { color: var(--texto-2); font-size: 14px; }
+.ob-montante { display: flex; flex-direction: column; gap: 6px; }
+.ob-montante input { width: 100%; accent-color: var(--verde); }
+.ob-barra { height: 10px; border-radius: 5px; background: var(--fundo-2); border: 1px solid var(--linha); overflow: hidden; }
+.ob-barra span { display: block; height: 100%; background: var(--verde); }
+.botao:disabled { opacity: 0.5; cursor: not-allowed; }

@@ -71,6 +71,20 @@ try {
     await page.getByText('Estádio').first().waitFor({ timeout: 5000 })
   })
 
+  await passo('obras no estádio e empréstimo ao banco', async () => {
+    await page.getByRole('region', { name: 'Obras no estádio' }).waitFor({ timeout: 5000 })
+    const banco = page.getByRole('region', { name: 'Banco' })
+    const antes = await page.locator('.topo-dinheiro').innerText()
+    await banco.getByRole('button', { name: 'Pedir empréstimo' }).click()
+    await banco.getByRole('button', { name: /Liquidar/ }).waitFor({ timeout: 5000 })
+    const depois = await page.locator('.topo-dinheiro').innerText()
+    esperar(antes !== depois, `o dinheiro não mudou (${antes})`)
+    await page.getByRole('region', { name: 'Obras no estádio' }).getByRole('radio').first().click()
+    await page.getByRole('button', { name: 'Começar obra' }).click()
+    await page.getByText(/Faltam \d+ jornadas/).waitFor({ timeout: 5000 })
+    await foto('3b-obras-banco.png')
+  })
+
   await passo('separador Divisões com 18 linhas', async () => {
     await page.getByRole('button', { name: 'Divisões', exact: true }).or(page.getByRole('tab', { name: 'Divisões', exact: true })).first().click()
     await page.locator('table tbody tr').first().waitFor({ timeout: 5000 })

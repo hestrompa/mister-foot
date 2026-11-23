@@ -1,4 +1,6 @@
 import type { Escalacao, EstadoEpoca } from './partida'
+import type { Obra } from './estadio'
+import type { Emprestimo } from './banco'
 
 export type Posicao = 'GR' | 'DEF' | 'MED' | 'AV'
 
@@ -40,7 +42,10 @@ export interface Clube {
   reputacao: number
   /** Dinheiro em caixa, em euros. */
   dinheiro: number
-  estadio: { nome: string; lugares: number }
+  /** `base`: lotação antes de obras (a procura cresce menos do que a lotação). */
+  estadio: { nome: string; lugares: number; base?: number; obra?: Obra }
+  /** Empréstimo ao banco em curso. */
+  emprestimo?: Emprestimo
   /** Preço do bilhete em euros. */
   bilhete: number
   /** Ids dos jogadores do plantel. */

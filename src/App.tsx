@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { forcaClube, gerarMundo } from './core/mundo'
 import { salariosPorJornada } from './core/financas'
+import { ObrasBanco } from './ui/ObrasBanco'
 import { euros, lugares } from './core/formato'
 import type { Jogo, Mundo } from './core/types'
 import type { Escalacao } from './core/partida'
@@ -240,6 +241,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
           <Info t="Força do onze" v={String(forcaClube(mundo, meu.id))} d="média dos 11 melhores" />
         </div>
       )}
+      {sep === 'clube' && <ObrasBanco jogo={jogo} atualizar={atualizar} />}
 
       {sep === 'divisoes' && !verClube && (
         <>

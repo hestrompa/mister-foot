@@ -1,6 +1,8 @@
 // Dinheiro por jornada: bilheteira dos jogos em casa, receitas fixas (TV e patrocínios) e salários.
 import type { Clube, Mundo } from './types'
 import type { LinhaTabela, Partida } from './partida'
+import { lotacaoAtual, avancarObra } from './estadio'
+import { cobrarPrestacao } from './banco'
 
 /** Receitas fixas por jornada (TV e patrocínios), por divisão. */
 export const RECEITA_FIXA = [90_000, 15_000, 4_000, 3_000]
@@ -14,13 +16,20 @@ export interface Balanco {
   fixas: number
   salarios: number
   saldo: number
+  /** Prestação do empréstimo cobrada nesta jornada. */
+  banco?: number
+  /** Lugares inaugurados nesta jornada (obra acabada). */
+  inaugurados?: number
 }
 
 /** Quantos adeptos vão ao jogo em casa. Determinístico: depende da reputação, do adversário, da posição e do preço. */
 export function publicoEsperado(casa: Clube, fora: Clube, posCasa: number, totalClubes: number): number {
   const d = casa.divisao - 1
   // Procura base: uma parte do estádio, mais para clubes com reputação alta.
-  let procura = casa.estadio.lugares * (0.35 + casa.reputacao / 160)
+  // Lugares acrescentados por obras atraem metade da procura dos originais.
+  const base = casa.estadio.base ?? casa.estadio.lugares
+  const tamanho = base + 0.5 * Math.max(0, casa.estadio.lugares - base)
+  let procura = tamanho * (0.35 + casa.reputacao / 160)
   // Adversário com mais nome atrai mais gente.
   procura *= 0.85 + fora.reputacao / 250
   // Equipa nos lugares de cima enche mais; no fundo, menos.
@@ -29,7 +38,7 @@ export function publicoEsperado(casa: Clube, fora: Clube, posCasa: number, total
   // Preço: cada 10% acima do normal tira ~8% do público; abaixo traz mais.
   const rel = casa.bilhete / (BILHETE_NORMAL[d] ?? 5)
   procura *= Math.pow(rel, -0.8)
-  return Math.max(0, Math.min(casa.estadio.lugares, Math.round(procura)))
+  return Math.max(0, Math.min(lotacaoAtual(casa), Math.round(procura)))
 }
 
 export function salariosPorJornada(mundo: Mundo, clubeId: number): number {
@@ -56,9 +65,13 @@ export function aplicarFinancas(mundo: Mundo, partidas: Partida[], tabelas: Linh
       const bilheteira = publico * c.bilhete
       const fixas = RECEITA_FIXA[c.divisao - 1] ?? 0
       const salarios = salariosPorJornada(mundo, id)
-      const saldo = bilheteira + fixas - salarios
-      c.dinheiro += saldo
+      const banco = cobrarPrestacao(c)
+      const inaugurados = avancarObra(c)
+      const saldo = bilheteira + fixas - salarios - banco
+      c.dinheiro += bilheteira + fixas - salarios
       out[id] = { publico, bilheteira, fixas, salarios, saldo }
+      if (banco) out[id].banco = banco
+      if (inaugurados) out[id].inaugurados = inaugurados
       if (emCasa) { p.publico = publico; p.receita = bilheteira }
     }
   }

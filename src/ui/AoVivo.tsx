@@ -322,10 +322,11 @@ function ResumoJornada({ jogo, r, continuar }: { jogo: Jogo; r: Resumo; continua
           return (
             <p className="balanco">
               {b.publico > 0 && <>Público {b.publico.toLocaleString('pt-PT')} · bilheteira {euros(b.bilheteira)} · </>}
-              TV e patrocínios {euros(b.fixas)} · salários {euros(b.salarios)} · <b className={b.saldo >= 0 ? 'positivo' : 'negativo'}>saldo {b.saldo >= 0 ? '+' : ''}{euros(b.saldo)}</b>
+              TV e patrocínios {euros(b.fixas)} · salários {euros(b.salarios)} · {b.banco ? <>banco {euros(b.banco)} · </> : null}<b className={b.saldo >= 0 ? 'positivo' : 'negativo'}>saldo {b.saldo >= 0 ? '+' : ''}{euros(b.saldo)}</b>
             </p>
           )
         })()}
+        {jogo.epoca.ultimoBalanco?.[clubeId]?.inaugurados ? <p className="balanco">Obras concluídas: o estádio tem mais {jogo.epoca.ultimoBalanco[clubeId].inaugurados!.toLocaleString('pt-PT')} lugares.</p> : null}
         <p className="pos-mudanca">
           Posição: {posAntes}.º → <b>{posDepois}.º</b>
           {posDepois < posAntes && <span className="sobe-seta"> ▲ {posAntes - posDepois}</span>}
