@@ -85,6 +85,20 @@ try {
     await foto('3b-obras-banco.png')
   })
 
+  await passo('editar nome, sigla e emblema do clube', async () => {
+    await page.getByRole('button', { name: 'Clube', exact: true }).click()
+    await page.getByRole('button', { name: 'Editar nome, cores e emblema' }).click()
+    const f = page.locator('.ed-clube')
+    await f.getByLabel('Nome do clube').fill('Mister Futebol Clube')
+    await f.getByLabel('Sigla').fill('MFC')
+    await f.getByRole('button', { name: 'Redondo' }).click()
+    await f.getByRole('button', { name: 'Riscas' }).click()
+    await foto('4b-editar-clube.png')
+    await f.getByRole('button', { name: 'Guardar' }).click()
+    await page.getByRole('heading', { name: 'Mister Futebol Clube' }).waitFor({ timeout: 3000 })
+    esperar(await page.locator('.ed-clube').count() === 0, 'o editor não fechou depois de guardar')
+  })
+
   await passo('separador Divisões com 18 linhas', async () => {
     await page.getByRole('button', { name: 'Divisões', exact: true }).or(page.getByRole('tab', { name: 'Divisões', exact: true })).first().click()
     await page.locator('table tbody tr').first().waitFor({ timeout: 5000 })

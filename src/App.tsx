@@ -32,6 +32,7 @@ import { registarFichas } from './core/fichas'
 import { avancarImprensa, noticiasPorLer } from './core/imprensa'
 import { AvisoRival, ConferenciaCartao, Noticias } from './ui/Imprensa'
 import { Historia } from './ui/Historia'
+import { EditarClube } from './ui/EditarClube'
 import { AvisoDirecao, Carreira, Despedido, despedido, ofertasPendentes } from './ui/Carreira'
 
 type Ecra = 'inicio' | 'escolher' | 'jogo'
@@ -168,6 +169,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
   const [sep, setSep] = useState<Separador>('jogo')
   const [div, setDiv] = useState(meu.divisao)
   const [verClube, setVerClube] = useState<number | null>(null)
+  const [editar, setEditar] = useState<number | null>(null)
   const [aoVivo, setAoVivo] = useState<string | null>(null)
   const [tacaVivo, setTacaVivo] = useState<string | null>(null)
   const pendTaca = meuJogoPendente(jogo as JogoComTaca)
@@ -273,7 +275,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
       {cabecalho}
       <nav className="separadores principal-nav">
         {([['jogo', 'Jogo'], ['plantel', 'Plantel'], ['balneario', conflitosPendentes(jogo) ? `Balneário (${conflitosPendentes(jogo)})` : 'Balneário'], ['staff', 'Staff'], ['mercado', `Mercado${propostasPendentes(jogo) ? ` (${propostasPendentes(jogo)})` : ''}`], ['taca', pendTaca ? 'Taça (!)' : 'Taça'], ['europa', pendEu ? 'Europa (!)' : 'Europa'], ['classificacao', 'Classificação'], ['calendario', 'Calendário'], ['clube', 'Clube'], ['carreira', `Carreira${ofertasPendentes(jogo) ? ` (${ofertasPendentes(jogo)})` : ''}`], ['divisoes', 'Divisões'], ['noticias', `Imprensa${noticiasPorLer(jogo) ? ` (${noticiasPorLer(jogo)})` : ''}`], ['historia', 'História']] as [Separador, string][]).map(([k, t]) => (
-          <button key={k} className={sep === k ? 'ativo' : ''} onClick={() => { setSep(k); setVerClube(null) }}>{t}</button>
+          <button key={k} className={sep === k ? 'ativo' : ''} onClick={() => { setSep(k); setVerClube(null); setEditar(null) }}>{t}</button>
         ))}
         <button className="sair" onClick={sair}>Menu</button>
       </nav>
@@ -314,6 +316,9 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
 
       {sep === 'mercado' && <Mercado jogo={jogo} atualizar={atualizar} />}
 
+      {sep === 'clube' && (editar === meu.id
+        ? <EditarClube jogo={jogo} clubeId={meu.id} atualizar={atualizar} fechar={() => setEditar(null)} />
+        : <button className="botao ed-abrir" onClick={() => setEditar(meu.id)}>Editar nome, cores e emblema</button>)}
       {sep === 'clube' && (
         <div className="cartoes-info">
           <Info t="Estádio" v={meu.estadio.nome} d={`${lugares(meu.estadio.lugares)} lugares`} />
@@ -367,7 +372,9 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
             <button className="botao fantasma" onClick={() => setVerClube(null)}>Voltar</button>
             <Emblema clube={mundo.clubes[verClube]} tamanho={32} />
             <h3>{mundo.clubes[verClube].nome}</h3>
+            {editar !== verClube && <button className="botao fantasma" onClick={() => setEditar(verClube)}>Editar</button>}
           </div>
+          {editar === verClube && <EditarClube jogo={jogo} clubeId={verClube} atualizar={atualizar} fechar={() => setEditar(null)} />}
           <Plantel mundo={mundo} clubeId={verClube} />
         </>
       )}
