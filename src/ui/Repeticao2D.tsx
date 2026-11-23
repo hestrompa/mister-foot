@@ -5,7 +5,6 @@ import { bolaEm, caricasEm, COMPRIMENTO, LARGURA, POSTES, RAIO, type CenaRepetic
 import './repeticao.css'
 
 const MARGEM = 4
-const LARG_M = COMPRIMENTO + MARGEM * 2
 const ALT_M = LARGURA + MARGEM * 2
 
 const ORIGEM: Record<CenaRepeticao['origem'], string> = {
@@ -96,14 +95,67 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
     const X = (x: number) => SX(esp ? COMPRIMENTO - x : x)
     const Y = (y: number) => SY(esp ? LARGURA - y : y)
     const rasto: { x: number; y: number }[] = []
+    // Relvado pintado uma vez por tamanho (riscas do corte, manchas, sombra nos cantos).
+    let relva: HTMLCanvasElement | null = null
+    const pintarRelva = () => {
+      const c = document.createElement('canvas')
+      c.width = cv.width; c.height = cv.height
+      const g = c.getContext('2d')
+      if (!g) return null
+      g.fillStyle = '#1d5e2e'; g.fillRect(0, 0, c.width, c.height)
+      const faixas = 14, lf = COMPRIMENTO / faixas
+      for (let i = -1; i <= faixas; i++) {
+        const xa = SX(lf * i), xb = SX(lf * (i + 1))
+        const gr = g.createLinearGradient(xa, 0, xb, 0)
+        const base = i % 2 ? [47, 139, 67] : [41, 126, 60]
+        gr.addColorStop(0, `rgb(${base[0] - 2},${base[1] - 3},${base[2] - 2})`)
+        gr.addColorStop(0.5, `rgb(${base[0] + 2},${base[1] + 3},${base[2] + 1})`)
+        gr.addColorStop(1, `rgb(${base[0] - 2},${base[1] - 3},${base[2] - 2})`)
+        g.fillStyle = gr
+        g.fillRect(xa, SY(-1.5), xb - xa + 1, (LARGURA + 3) * esc)
+      }
+      // Manchas de relva (sempre as mesmas: semente fixa).
+      let sm = 12345
+      const rnd = () => { sm = (sm * 1103515245 + 12345) >>> 0; return sm / 4294967296 }
+      const n = Math.round((c.width * c.height) / 260)
+      for (let i = 0; i < n; i++) {
+        const x = rnd() * c.width, y = rnd() * c.height
+        g.fillStyle = rnd() < 0.5 ? 'rgba(255,255,255,0.035)' : 'rgba(0,0,0,0.05)'
+        g.fillRect(x, y, 1.5 * dpr, 1.5 * dpr)
+      }
+      // Placas de publicidade à volta.
+      const placa = (y0: number, yl: number) => {
+        g.fillStyle = '#121820'
+        g.fillRect(0, SY(y0), c.width, yl * esc)
+        g.font = `800 ${Math.round(yl * esc * 0.62)}px system-ui, sans-serif`
+        g.textBaseline = 'middle'; g.textAlign = 'center'
+        const nomes = [casa.sigla, 'MISTER-FOOT', fora.sigla]
+        const passo = Math.max(80 * dpr, yl * esc * 9)
+        for (let x = passo / 2, k = 0; x < c.width; x += passo, k++) {
+          const cor = k % 3 === 1 ? '#3ddc84' : k % 3 === 0 ? cores.casa[0] : cores.fora[0]
+          const [r1, g1, b1] = rgb(cor)
+          g.fillStyle = r1 * 0.3 + g1 * 0.59 + b1 * 0.11 < 70 ? '#e8e8e8' : cor
+          g.fillText(nomes[k % 3], x, SY(y0 + yl / 2))
+        }
+      }
+      placa(-MARGEM, 1.6)
+      placa(LARGURA + MARGEM - 1.6, 1.6)
+      // Vinheta suave.
+      const v = g.createRadialGradient(c.width / 2, c.height / 2, c.height * 0.3, c.width / 2, c.height / 2, c.width * 0.75)
+      v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.22)')
+      g.fillStyle = v; g.fillRect(0, 0, c.width, c.height)
+      return c
+    }
+    // Rotação de cada carica (rola quando corre) e posição anterior.
+    let rot: number[] = cena.caricas.map(() => 0)
+    let ant: [number, number][] | null = null
+    // Árbitro: segue a bola com atraso, sem entrar no lance.
+    let arb: { x: number; y: number } | null = null
 
     const campo = () => {
       const X = SX, Y = SY
-      const faixas = 12
-      for (let i = 0; i < faixas; i++) {
-        ctx.fillStyle = i % 2 ? '#2f8a43' : '#2a7f3d'
-        ctx.fillRect(X(-MARGEM + (LARG_M / faixas) * i), 0, (LARG_M / faixas) * esc + 1, cv.height)
-      }
+      if (!relva || relva.width !== cv.width || relva.height !== cv.height) relva = pintarRelva()
+      if (relva) ctx.drawImage(relva, 0, 0)
       ctx.strokeStyle = 'rgba(255,255,255,0.85)'
       ctx.lineWidth = Math.max(1, 0.18 * esc)
       ctx.strokeRect(X(0), Y(0), COMPRIMENTO * esc, LARGURA * esc)
@@ -134,16 +186,17 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
       }
     }
 
-    const carica = (x: number, y: number, fundo: string, borda: string, num: number, destaque: boolean) => {
+    const carica = (x: number, y: number, fundo: string, borda: string, num: number | string, destaque: boolean, giro = 0, vel = 0) => {
       const r = Math.max(6 * dpr, RAIO * esc)
       const cxp = X(x), cyp = Y(y)
-      // Sombra
-      ctx.beginPath(); ctx.arc(cxp + r * 0.18, cyp + r * 0.22, r, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fill()
-      // Borda serrilhada da carica.
+      // Sombra: a correr, a carica "levanta" um pouco e a sombra afasta-se.
+      const lev = Math.min(1, vel / 7)
+      ctx.beginPath(); ctx.arc(cxp + r * (0.18 + lev * 0.2), cyp + r * (0.22 + lev * 0.25), r * (1 - lev * 0.06), 0, Math.PI * 2); ctx.fillStyle = `rgba(0,0,0,${0.3 - lev * 0.08})`; ctx.fill()
+      // Borda serrilhada da carica (roda quando corre).
       ctx.beginPath()
       const dentes = 21
       for (let i = 0; i <= dentes * 2; i++) {
-        const a = (i / (dentes * 2)) * Math.PI * 2
+        const a = (i / (dentes * 2)) * Math.PI * 2 + giro
         const rr = i % 2 ? r : r * 0.9
         const px = cxp + Math.cos(a) * rr, py = cyp + Math.sin(a) * rr
         if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py)
@@ -154,7 +207,9 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
       // Brilho
       ctx.beginPath(); ctx.arc(cxp - r * 0.25, cyp - r * 0.28, r * 0.32, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.fill()
       if (destaque) { ctx.beginPath(); ctx.arc(cxp, cyp, r * 1.35, 0, Math.PI * 2); ctx.strokeStyle = '#ffe066'; ctx.lineWidth = Math.max(1.5, r * 0.18); ctx.stroke() }
-      ctx.fillStyle = borda
+      // Número com contraste: a cor da borda se se ler bem, senão branco ou preto.
+      const lum = (c: string) => { const [r1, g1, b1] = rgb(c); return r1 * 0.3 + g1 * 0.59 + b1 * 0.11 }
+      ctx.fillStyle = Math.abs(lum(fundo) - lum(borda)) > 110 ? borda : claro(fundo) ? '#111' : '#fff'
       ctx.font = `700 ${Math.round(r * 0.95)}px system-ui, sans-serif`
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
       ctx.fillText(String(num), cxp, cyp + r * 0.04)
@@ -172,6 +227,8 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
     }
 
     let t = 0, ultimo = performance.now(), raf = 0, parado = false
+    let dtDesenho = 0, giroBola = 0
+    let bAnt: { x: number; y: number } | null = null
     const desenhar = () => {
       ctx.clearRect(0, 0, cv.width, cv.height)
       campo()
@@ -190,23 +247,67 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
         ctx.lineTo(X(f.de.x + (f.ate.x - f.de.x) * fr), Y(f.de.y + (f.ate.y - f.de.y) * fr)); ctx.stroke()
         ctx.restore()
       }
+      // Quanto cada carica andou desde o último desenho (para rodar e "levantar").
+      const vels = ps.map((p, i) => {
+        if (!ant || dtDesenho <= 0) return 0
+        const d = Math.hypot(p[0] - ant[i][0], p[1] - ant[i][1])
+        if (d > 4) return 0 // corte de plano
+        rot[i] += (d / RAIO) * 0.5 * (i % 2 ? 1 : -1)
+        return d / dtDesenho
+      })
+      ant = ps
+      // Árbitro: atrás do lance, na diagonal, sem chocar com ninguém.
+      const alvoArb = { x: Math.min(b.x - 9, 92), y: b.y < 34 ? Math.min(66, b.y + 11) : Math.max(2, b.y - 11) }
+      if (!arb || dtDesenho <= 0 || Math.hypot(alvoArb.x - arb.x, alvoArb.y - arb.y) > 40) arb = { ...alvoArb }
+      else {
+        const dx = alvoArb.x - arb.x, dy = alvoArb.y - arb.y, d = Math.hypot(dx, dy)
+        const passo = Math.min(d, 6.5 * dtDesenho)
+        if (d > 0.01) arb = { x: arb.x + (dx / d) * passo, y: arb.y + (dy / d) * passo }
+      }
+      carica(arb.x, arb.y, '#15181d', '#f2d200', 'A', false, t * 2, 3)
       // Primeiro os de trás, a bola por cima.
       cena.caricas.forEach((c, i) => {
         const [x, y] = ps[i]
         const gr = c.pos === 'GR'
         const [f, bd] = gr ? [corGR(c.lado), '#1b1b1b'] : cores[c.lado]
-        carica(x, y, f, bd, c.num, c.id === cena.rematadorId && t < cena.tFim + 0.2)
+        carica(x, y, f, bd, c.num, c.id === cena.rematadorId && t < cena.tFim + 0.2, rot[i], vels[i])
       })
       rasto.push({ x: b.x, y: b.y })
-      if (rasto.length > 9) rasto.shift()
-      rasto.forEach((p, i) => {
-        ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), Math.max(1.5, 0.35 * esc) * (i / rasto.length), 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(255,255,255,${0.35 * (i / rasto.length)})`; ctx.fill()
-      })
+      if (rasto.length > 14) rasto.shift()
+      if (rasto.length > 2) {
+        ctx.save()
+        ctx.lineCap = 'round'
+        for (let i = 1; i < rasto.length; i++) {
+          const f = i / rasto.length
+          ctx.strokeStyle = `rgba(255,255,255,${(0.4 * f).toFixed(3)})`
+          ctx.lineWidth = Math.max(1, 0.5 * esc * f)
+          ctx.beginPath(); ctx.moveTo(X(rasto[i - 1].x), Y(rasto[i - 1].y)); ctx.lineTo(X(rasto[i].x), Y(rasto[i].y)); ctx.stroke()
+        }
+        ctx.restore()
+      }
       const rb = Math.max(3.2, 0.55 * esc) * (1 + b.z * 0.12)
       ctx.beginPath(); ctx.arc(X(b.x + b.z * 0.35), Y(b.y + b.z * 0.45), Math.max(3, 0.55 * esc), 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill()
       ctx.beginPath(); ctx.arc(X(b.x), Y(b.y), rb, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill()
       ctx.strokeStyle = '#222'; ctx.lineWidth = Math.max(1, rb * 0.22); ctx.stroke()
+      // Gomos da bola a rodar.
+      giroBola += Math.hypot(b.x - (bAnt?.x ?? b.x), b.y - (bAnt?.y ?? b.y)) * 1.6
+      bAnt = b
+      ctx.fillStyle = '#2a2a2a'
+      for (let k = 0; k < 3; k++) {
+        const a = giroBola + (k * Math.PI * 2) / 3
+        ctx.beginPath(); ctx.arc(X(b.x) + Math.cos(a) * rb * 0.45, Y(b.y) + Math.sin(a) * rb * 0.45, rb * 0.22, 0, Math.PI * 2); ctx.fill()
+      }
+      // Golo: a rede estica onde a bola entrou.
+      if (cena.desfecho === 'golo' && t > cena.tFim && t < cena.tFim + 1.4) {
+        const f = Math.sin(Math.min(1, (t - cena.tFim) / 1.4) * Math.PI)
+        ctx.save()
+        ctx.strokeStyle = `rgba(255,255,255,${(0.7 * f).toFixed(3)})`
+        ctx.lineWidth = Math.max(1, 0.12 * esc)
+        ctx.beginPath()
+        ctx.ellipse(X(COMPRIMENTO + 1.8), Y(b.y), 0.9 * esc * f + 1, 2.2 * esc, 0, 0, Math.PI * 2)
+        ctx.stroke()
+        ctx.restore()
+      }
       // Nomes do passe e do remate.
       const iR = cena.caricas.findIndex((c) => c.id === cena.rematadorId)
       if (rem && iR >= 0) etiqueta(ps[iR][0], ps[iR][1], rem.curto)
@@ -268,6 +369,7 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
     const passo = (agora: number) => {
       const dtR = Math.min(0.05, (agora - ultimo) / 1000)
       ultimo = agora
+      dtDesenho = parado ? 0 : dtR * velocidade
       if (!parado) {
         t += dtR * velocidade
         const falta = cena.acoes?.find((a) => a.tipo === 'falta')
