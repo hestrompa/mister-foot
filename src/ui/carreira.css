@@ -1,0 +1,31 @@
+.carreira { display: flex; flex-direction: column; gap: 12px; }
+.cr-direcao .sub-tit:first-child { margin-top: 0; }
+.cr-conf { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cr-conf-barra { position: relative; flex: 1; min-width: 160px; height: 10px; background: var(--linha); border-radius: 5px; overflow: hidden; }
+.cr-conf-barra span { display: block; height: 100%; border-radius: 5px; }
+.cr-conf-barra i { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--f-fraca); opacity: 0.8; }
+.cr-bem { background: var(--verde); }
+.cr-perto { background: var(--aviso); }
+.cr-mal { background: var(--f-fraca); }
+.cr-conf-txt { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cr-t-bem { color: var(--verde); }
+.cr-t-perto { color: var(--aviso); }
+.cr-t-mal { color: var(--f-fraca); }
+.cr-obj { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cr-obj li { display: flex; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; font-size: 14px; }
+.cr-oferta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; padding: 12px; }
+.cr-of-info { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 2px; }
+.cr-msgs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.cr-av { font-weight: 650; }
+.cr-av-superado, .cr-av-cumprido { color: var(--verde); }
+.cr-av-quase { color: var(--aviso); }
+.cr-av-falhado { color: var(--f-fraca); }
+.cr-div { white-space: nowrap; }
+.cr-balanco { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.cr-balanco p { margin: 0; }
+.cr-aviso { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; width: 100%; text-align: left; padding: 10px 14px; margin-bottom: 12px; font-weight: 600; }
+.cr-aviso .info-d { margin-left: auto; font-weight: 400; }
+@media (max-width: 600px) {
+  .cr-div { display: block; }
+}
+.carreira .tabela td { white-space: normal; }

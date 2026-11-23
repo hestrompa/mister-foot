@@ -4,6 +4,7 @@ import { NOMES_DIVISAO } from '../core/mundo'
 import { Emblema } from './Emblema'
 import { vencedorTacaDe } from './Taca'
 import { NOME_TACA } from '../core/taca'
+import { BalancoDirecao } from './Carreira'
 
 export interface DadosFimEpoca {
   resumo: ResumoEpoca
@@ -29,6 +30,7 @@ export function FimEpoca({ jogo, d, continuar }: { jogo: Jogo; d: DadosFimEpoca;
         <h2>{d.posicao}.º lugar na {nomeDiv(d.divisaoAntes)}</h2>
         <p>{msg}</p>
       </div>
+      <BalancoDirecao jogo={jogo} />
       <div className="cartoes-info">
         {r.campeoes.map((c) => (
           <div key={c.divisao} className="cartao info">

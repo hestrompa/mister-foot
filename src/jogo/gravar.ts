@@ -4,6 +4,7 @@ import { escalarAuto } from '../core/motor'
 import { gestaoIA } from '../core/ia-financas'
 import { epocaTerminada, fecharEpoca, indisponiveisDe, novaEpoca } from '../core/epoca'
 import { registarCampeao, type JogoComTaca } from '../core/taca'
+import { avancarDirecao, iniciarEpocaDirecao } from '../core/direcao'
 
 const CHAVE = 'mister-foot:jogo'
 
@@ -43,6 +44,7 @@ export function prepararEpoca(jogo: Jogo): Jogo {
   if (jogo.epoca) gestaoIA(jogo.mundo, jogo.clubeId)
   jogo.epoca = novaEpoca(jogo.mundo, sementeEpoca(jogo))
   jogo.escalacao = escalarAuto(jogo.mundo, jogo.clubeId, indisponiveisDe(jogo.mundo, jogo.epoca, jogo.clubeId), jogo.escalacao?.formacao)
+  iniciarEpocaDirecao(jogo)
   return jogo
 }
 
@@ -54,7 +56,7 @@ export function carregar(): Jogo | null {
     if (j?.mundo?.versao !== 1) return null
     let mudou = false
     if (!j.epoca) { prepararEpoca(j); mudou = true }
-    else if (epocaTerminada(j.epoca)) { registarCampeao(j as JogoComTaca, fecharEpoca(j.mundo, j.epoca).campeoes); prepararEpoca(j); mudou = true }
+    else if (epocaTerminada(j.epoca)) { avancarDirecao(j); registarCampeao(j as JogoComTaca, fecharEpoca(j.mundo, j.epoca).campeoes); prepararEpoca(j); mudou = true }
     if (!j.escalacao) {
       j.escalacao = escalarAuto(j.mundo, j.clubeId, indisponiveisDe(j.mundo, j.epoca, j.clubeId))
       mudou = true

@@ -93,6 +93,15 @@ try {
     await foto('4-divisoes.png')
   })
 
+  await passo('separador Carreira: confiança, objetivos e histórico', async () => {
+    await page.getByRole('button', { name: /^Carreira/ }).first().click()
+    await page.getByText('Confiança da direção').first().waitFor({ timeout: 5000 })
+    await page.getByText(/Liga: /).first().waitFor({ timeout: 5000 })
+    const n = await page.locator('.carreira table tbody tr').count()
+    esperar(n >= 1, `histórico vazio`)
+    await foto('4b-carreira.png')
+  })
+
   await passo('mercado: fazer oferta e pôr um jogador em leilão', async () => {
     await page.getByRole('button', { name: /^Mercado/ }).first().click()
     await page.getByText('Mercado aberto').first().waitFor({ timeout: 5000 })
@@ -204,7 +213,7 @@ try {
   await passo('telemóvel: todos os separadores sem scroll horizontal', async () => {
     await page.getByRole('button', { name: 'Continuar', exact: true }).click()
     await page.getByText(/Jornada 3 de/).waitFor({ timeout: 5000 })
-    const seps = ['Plantel', 'Mercado', 'Taça', 'Classificação', 'Calendário', 'Clube', 'Divisões', 'Jogo']
+    const seps = ['Plantel', 'Mercado', 'Taça', 'Classificação', 'Calendário', 'Clube', 'Carreira', 'Divisões', 'Jogo']
     const largos = []
     for (const [i, nome] of seps.entries()) {
       await page.getByRole('button', { name: new RegExp(`^${nome}( \\(\\d+\\))?$`) }).click()

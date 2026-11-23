@@ -21,8 +21,11 @@ import { avancarMercado } from './core/mercado'
 import { avancarTaca, meuJogoPendente, registarCampeao, type JogoComTaca } from './core/taca'
 import { AoVivoTaca, TacaSeparador, avisoTaca } from './ui/Taca'
 
+import { avancarDirecao } from './core/direcao'
+import { AvisoDirecao, Carreira, Despedido, despedido, ofertasPendentes } from './ui/Carreira'
+
 type Ecra = 'inicio' | 'escolher' | 'jogo'
-type Separador = 'jogo' | 'plantel' | 'mercado' | 'taca' | 'classificacao' | 'calendario' | 'clube' | 'divisoes'
+type Separador = 'jogo' | 'plantel' | 'mercado' | 'taca' | 'classificacao' | 'calendario' | 'clube' | 'carreira' | 'divisoes'
 
 export default function App() {
   const [jogo, setJogo] = useState<Jogo | null>(() => carregar())
@@ -167,6 +170,8 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
     setSep('jogo')
     avancarMercado(jogo)
     avancarTaca(jogo as JogoComTaca)
+    avancarDirecao(jogo)
+    if (!epocaTerminada(jogo.epoca) && despedido(jogo)) { atualizar(jogo); return }
     if (!epocaTerminada(jogo.epoca)) {
       // Lesionados ou castigados no onze: refaz a escalação mantendo formação e postura.
       const ind = indisponiveisDe(mundo, jogo.epoca, jogo.clubeId)
@@ -214,6 +219,10 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
       </div>
     )
   }
+  const mudouClube = () => { setSep('jogo'); setVerClube(null); setDiv(mundo.clubes[jogo.clubeId].divisao) }
+  if (despedido(jogo) && !aoVivo) {
+    return <div className="ecra jogo">{cabecalho}<Despedido jogo={jogo} atualizar={atualizar} mudouClube={mudouClube} /><Rodape /></div>
+  }
   if (aoVivo) {
     return (
       <div className="ecra jogo ecra-vivo">
@@ -226,7 +235,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
     <div className="ecra jogo">
       {cabecalho}
       <nav className="separadores principal-nav">
-        {([['jogo', 'Jogo'], ['plantel', 'Plantel'], ['mercado', `Mercado${propostasPendentes(jogo) ? ` (${propostasPendentes(jogo)})` : ''}`], ['taca', pendTaca ? 'Taça (!)' : 'Taça'], ['classificacao', 'Classificação'], ['calendario', 'Calendário'], ['clube', 'Clube'], ['divisoes', 'Divisões']] as [Separador, string][]).map(([k, t]) => (
+        {([['jogo', 'Jogo'], ['plantel', 'Plantel'], ['mercado', `Mercado${propostasPendentes(jogo) ? ` (${propostasPendentes(jogo)})` : ''}`], ['taca', pendTaca ? 'Taça (!)' : 'Taça'], ['classificacao', 'Classificação'], ['calendario', 'Calendário'], ['clube', 'Clube'], ['carreira', `Carreira${ofertasPendentes(jogo) ? ` (${ofertasPendentes(jogo)})` : ''}`], ['divisoes', 'Divisões']] as [Separador, string][]).map(([k, t]) => (
           <button key={k} className={sep === k ? 'ativo' : ''} onClick={() => { setSep(k); setVerClube(null) }}>{t}</button>
         ))}
         <button className="sair" onClick={sair}>Menu</button>
@@ -234,6 +243,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
 
       <Dicas sep={sep} />
 
+      {sep === 'jogo' && <AvisoDirecao jogo={jogo} abrir={() => setSep('carreira')} />}
       {sep === 'jogo' && (pendTaca
         ? <PreJogo key="taca" jogo={jogo} mudar={mudarEscalacao} outro={avisoTaca(jogo as JogoComTaca, pendTaca.ronda, pendTaca.partida)} jogar={() => setTacaVivo(`${jogo.epoca.ano}-${pendTaca.partida.id}`)} />
         : <PreJogo jogo={jogo} mudar={mudarEscalacao} jogar={() => setAoVivo(`${jogo.epoca.ano}-${jogo.epoca.jornada}`)} />)}
@@ -249,6 +259,8 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
       )}
 
       {sep === 'calendario' && <Calendario jogo={jogo} />}
+
+      {sep === 'carreira' && <Carreira jogo={jogo} atualizar={atualizar} mudouClube={mudouClube} />}
 
       {sep === 'plantel' && <Plantel mundo={mundo} clubeId={meu.id} />}
 
