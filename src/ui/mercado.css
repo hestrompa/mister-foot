@@ -31,3 +31,5 @@
 .noticias li { padding: 6px 10px; border-radius: 8px; background: var(--fundo-2); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .noticias li.minha { border-left: 3px solid var(--verde); }
 .mercado-tab td.acaba { color: var(--aviso); font-weight: 700; }
+.pot-Pérola { color: var(--aviso); }
+.pot-Alto { color: var(--verde); }

@@ -116,6 +116,10 @@ try {
     await foto('4d-contratos.png')
     await page.getByRole('button', { name: 'Livres', exact: true }).click()
     await page.getByText(/Jogadores sem clube/).waitFor({ timeout: 5000 })
+    await page.getByRole('button', { name: /^Juniores/ }).click()
+    await foto('4e-juniores.png')
+    await page.getByRole('button', { name: 'Promover', exact: true }).first().click()
+    await page.getByText(/sobe ao plantel principal/).waitFor({ timeout: 5000 })
   })
 
   await passo('recarregar mantém a carreira', async () => {

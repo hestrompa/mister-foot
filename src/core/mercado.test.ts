@@ -177,3 +177,59 @@ describe('contratos', () => {
     expect(livres(j).length).toBeLessThan(antes)
   })
 })
+
+describe('juniores e salários', () => {
+  it('a formação dá juniores: promover junta-os ao plantel, dispensar deixa-os livres', async () => {
+    const { juniores, promoverJunior, dispensarJunior, livres, JUNIORES_POR_EPOCA } = await import('./mercado')
+    const j = novoJogo(17, 4)
+    const meu = j.mundo.clubes[j.clubeId]
+    const js = juniores(j)
+    expect(js).toHaveLength(JUNIORES_POR_EPOCA)
+    for (const x of js) { expect(x.idade).toBeLessThanOrEqual(18); expect(x.clubeId).toBe(0); expect(meu.plantel).not.toContain(x.id) }
+    const n = meu.plantel.length
+    expect(promoverJunior(j, js[0].id).ok).toBe(true)
+    expect(meu.plantel).toHaveLength(n + 1)
+    expect(js[0].clubeId).toBe(j.clubeId)
+    expect(js[0].contrato).toBe(3)
+    expect(dispensarJunior(j, js[1].id).ok).toBe(true)
+    expect(livres(j).map((x) => x.id)).toContain(js[1].id)
+    // O que ficou sem decisão sai livre quando fecha a janela de verão.
+    for (let k = 0; k < 6; k++) { concluirJornada(j.mundo, j.epoca, 40 + k); avancarMercado(j) }
+    expect(juniores(j)).toHaveLength(0)
+    // Ids únicos.
+    const ids = Object.values(j.mundo.jogadores).map((x) => x.id)
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  it('renovar pode baixar o salário de quem já não vale tanto, e nunca sobe mais de 10%', async () => {
+    const { pedidoRenovacao } = await import('./mercado')
+    const j = novoJogo(19, 3)
+    for (const id of j.mundo.clubes[j.clubeId].plantel) {
+      const x = j.mundo.jogadores[id]
+      expect(pedidoRenovacao(j.mundo, x)).toBeLessThanOrEqual(Math.round(x.salario * 1.1) + 50)
+    }
+    const x = j.mundo.jogadores[j.mundo.clubes[j.clubeId].plantel[0]]
+    x.salario *= 3
+    expect(pedidoRenovacao(j.mundo, x)).toBeLessThan(x.salario)
+  })
+
+  it('em 4 épocas os salários não disparam e ninguém fica com plantel abaixo do mínimo', async () => {
+    const { fecharEpoca } = await import('./epoca')
+    const j = novoJogo(23, 4)
+    const massa = (d: number) => {
+      const v = j.mundo.divisoes[d].clubes.map((id) => j.mundo.clubes[id].plantel.reduce((s, p) => s + j.mundo.jogadores[p].salario, 0)).sort((a, b) => a - b)
+      return v[9]
+    }
+    const inicio = [0, 1, 2, 3].map(massa)
+    for (let e = 0; e < 4; e++) {
+      estadoMercado(j)
+      for (let k = 0; k < 34; k++) { concluirJornada(j.mundo, j.epoca, e * 100 + k); avancarMercado(j) }
+      fecharEpoca(j.mundo, j.epoca)
+      j.epoca = novaEpoca(j.mundo, 50 + e)
+    }
+    estadoMercado(j)
+    const fim = [0, 1, 2, 3].map(massa)
+    for (let d = 0; d < 4; d++) expect(fim[d]).toBeLessThan(inicio[d] * 1.6)
+    for (const c of Object.values(j.mundo.clubes)) expect(c.plantel.length).toBeGreaterThanOrEqual(PLANTEL_MIN)
+  })
+})

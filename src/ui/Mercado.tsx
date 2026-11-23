@@ -4,13 +4,16 @@ import { euros } from '../core/formato'
 import {
   aceitarProposta, comprar, estadoMercado, janelaAberta, listaIA, pedidoSalarial, porAVenda, precoPedido,
   recusaDoJogador, recusarProposta, retirarDaVenda, textoJanela, PLANTEL_MAX, type JogoComMercado, type Resultado,
+  dispensarJunior, juniores, promoverJunior,
   anosMaximos, contratarLivre, livres, pedidoLivre, pedidoRenovacao, premioAssinatura, renovar,
 } from '../core/mercado'
 import { Emblema } from './Emblema'
 import { Forca } from './Plantel'
+import { potencialTexto } from '../core/juniores'
+import { salarioDe } from '../core/mundo'
 import './mercado.css'
 
-type Sub = 'lista' | 'procurar' | 'livres' | 'propostas' | 'vender' | 'contratos' | 'noticias'
+type Sub = 'lista' | 'procurar' | 'livres' | 'juniores' | 'propostas' | 'vender' | 'contratos' | 'noticias'
 const POS: (Posicao | 'todas')[] = ['todas', 'GR', 'DEF', 'MED', 'AV']
 const MAX_LINHAS = 60
 
@@ -35,13 +38,14 @@ export function Mercado({ jogo, atualizar }: { jogo: JogoComMercado; atualizar: 
         <span className="janela-txt">Dinheiro: <b>{euros(meu.dinheiro)}</b> · Plantel: <b>{meu.plantel.length}/{PLANTEL_MAX}</b></span>
       </div>
       <nav className="separadores sub-sep" aria-label="Mercado">
-        {([['lista', 'À venda'], ['procurar', 'Procurar'], ['livres', 'Livres'], ['propostas', `Propostas${st.propostas.length ? ` (${st.propostas.length})` : ''}`], ['vender', 'Vender'], ['contratos', `Contratos${aAcabar(jogo) ? ` (${aAcabar(jogo)})` : ''}`], ['noticias', 'Notícias']] as [Sub, string][]).map(([k, t]) => (
+        {([['lista', 'À venda'], ['procurar', 'Procurar'], ['livres', 'Livres'], ['juniores', `Juniores${juniores(jogo).length ? ` (${juniores(jogo).length})` : ''}`], ['propostas', `Propostas${st.propostas.length ? ` (${st.propostas.length})` : ''}`], ['vender', 'Vender'], ['contratos', `Contratos${aAcabar(jogo) ? ` (${aAcabar(jogo)})` : ''}`], ['noticias', 'Notícias']] as [Sub, string][]).map(([k, t]) => (
           <button key={k} className={sub === k ? 'ativo' : ''} onClick={() => { setSub(k); setMsg(null) }}>{t}</button>
         ))}
       </nav>
       {msg && <p className={msg.ok ? 'msg-ok' : 'erro'} role="status">{msg.texto}</p>}
       {(sub === 'lista' || sub === 'procurar') && <Comprar key={sub} jogo={jogo} soLista={sub === 'lista'} feito={feito} />}
       {sub === 'livres' && <Livres jogo={jogo} feito={feito} />}
+      {sub === 'juniores' && <Juniores jogo={jogo} feito={feito} />}
       {sub === 'contratos' && <Contratos jogo={jogo} feito={feito} />}
       {sub === 'propostas' && <Propostas jogo={jogo} feito={feito} />}
       {sub === 'vender' && <Vender jogo={jogo} feito={feito} />}
@@ -301,6 +305,9 @@ function Noticias({ jogo }: { jogo: JogoComMercado }) {
         if (n.tipo === 'livre') {
           return <li key={i} className={minha ? 'minha' : ''}><span className="dica">J{n.jornada}</span> <span className={`pos pos-${j?.posicao}`}>{j?.posicao}</span> <b>{j?.curto}</b> ({j?.forca}) assinou pelo <ClubeCurto jogo={jogo} id={n.paraId} /> a custo zero</li>
         }
+        if (n.tipo === 'reformou') {
+          return <li key={i} className={minha ? 'minha' : ''}><span className="dica">J{n.jornada}</span> <b>{j?.curto}</b> ({j?.idade} anos) terminou a carreira no <ClubeCurto jogo={jogo} id={n.deId} /></li>
+        }
         if (n.tipo === 'renovou') {
           return <li key={i} className="minha"><span className="dica">J{n.jornada}</span> <b>{j?.curto}</b> renovou por 1 ano: sem ele o plantel ficava curto.</li>
         }
@@ -434,5 +441,33 @@ function AssinarLivre({ jogo, j, fechar, feito }: { jogo: JogoComMercado; j: Jog
       </div>
       <button className="botao principal" disabled={!aberta} onClick={() => feito(contratarLivre(jogo, j.id, salario, anos))}>{aberta ? 'Contratar' : 'Mercado fechado'}</button>
     </div>
+  )
+}
+
+function Juniores({ jogo, feito }: { jogo: JogoComMercado; feito: (r: Resultado) => void }) {
+  const lista = juniores(jogo)
+  const div = jogo.mundo.clubes[jogo.clubeId].divisao
+  return (
+    <>
+      <p className="nota">Todos os anos a formação do clube dá {lista.length || 'alguns'} juniores. Promove-os ao plantel (contrato de 3 anos) ou dispensa-os. Os que ficarem sem decisão saem livres quando fechar a janela de verão. O potencial é a opinião dos treinadores da formação, não uma certeza.</p>
+      {lista.length === 0 ? <p className="nota">Não há juniores à espera. A próxima fornada chega no início da próxima época.</p> : (
+        <div className="propostas">
+          {lista.map((j) => (
+            <div key={j.id} className="cartao proposta">
+              <div className="neg-topo">
+                <span className={`pos pos-${j.posicao}`}>{j.posicao}</span>
+                <span className="neg-nome">{j.nome}</span>
+                <Forca valor={j.forca} />
+              </div>
+              <p className="nota">{j.idade} anos · potencial <b className={`pot pot-${potencialTexto(j)}`}>{potencialTexto(j)}</b> · ganharia {euros(salarioDe(j.forca, div))}/mês</p>
+              <div className="grupo-botoes">
+                <button className="botao principal" onClick={() => feito(promoverJunior(jogo, j.id))}>Promover</button>
+                <button className="botao" onClick={() => feito(dispensarJunior(jogo, j.id))}>Dispensar</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   )
 }
