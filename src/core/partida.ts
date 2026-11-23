@@ -50,6 +50,8 @@ export interface EventoJogo {
   outroId?: number
   /** Jogos de baixa numa lesão. */
   duracao?: number
+  /** Tipo de lesão (ver lesoes.ts). */
+  tipoLesao?: string
   /** Para golos e oportunidades. */
   lance?: Lance
   /** Linha de relato curta em pt-PT (ex.: "Golo! R. Tavares de cabeça."). */
@@ -104,6 +106,9 @@ export interface Indisponivel {
   /** Jogos que ainda falha. */
   jogos: number
   motivo: 'lesao' | 'castigo'
+  /** Lesão: tipo (ver lesoes.ts) e duração inicial. */
+  tipo?: string
+  total?: number
 }
 
 export interface EstadoEpoca {

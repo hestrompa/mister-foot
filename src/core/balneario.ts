@@ -87,7 +87,8 @@ export function estadoBalneario(jogo: JogoComBalneario): EstadoBalneario {
     jogo.balneario = { promessas: [], conflitos: [], mensagens: [], proximoId: 1, jogos: {}, titular: {}, ano, jornada: jogo.epoca?.jornada ?? 1 }
   }
   const st = jogo.balneario
-  if (st.ano !== ano) { st.ano = ano; st.jogos = {}; st.titular = {} }
+  // Época nova: contadores a zero; promessas e conflitos da época passada caem (as férias acalmam tudo).
+  if (st.ano !== ano) { st.ano = ano; st.jogos = {}; st.titular = {}; st.jornada = jogo.epoca?.jornada ?? 1; st.promessas = []; st.conflitos = [] }
   return st
 }
 
@@ -143,4 +144,167 @@ export function textoMoral(m: number): string {
   if (m >= 50) return 'Normal'
   if (m >= 30) return 'Desanimado'
   return 'Revoltado'
+}
+
+// ---------- Capitão ----------
+
+/** Clube com capitão escolhido (opcional; sem escolha, o balneário escolhe o líder natural). */
+export type ClubeComCapitao = import('./types').Clube & { capitaoId?: number }
+
+/** Liderança 0-1: experiência pesa mais, ser dos melhores do plantel ajuda. */
+export function lideranca(mundo: Mundo, j: Jogador): number {
+  const c = mundo.clubes[j.clubeId]
+  const media = c && c.plantel.length ? c.plantel.reduce((s, id) => s + (mundo.jogadores[id]?.forca ?? 0), 0) / c.plantel.length : j.forca
+  const exp = clamp((j.idade - 20) / 12, 0, 1)
+  const nivel = clamp((j.forca - media) / 20 + 0.5, 0, 1)
+  return Math.round((exp * 0.6 + nivel * 0.4) * 100) / 100
+}
+
+/** Líder natural do plantel (quem o balneário escolheria). */
+export function liderNatural(mundo: Mundo, clubeId: number): number | undefined {
+  const c = mundo.clubes[clubeId]
+  let melhor: Jogador | undefined
+  let mv = -1
+  for (const id of c?.plantel ?? []) {
+    const j = mundo.jogadores[id]
+    if (!j) continue
+    const v = lideranca(mundo, j)
+    if (v > mv || (v === mv && melhor && j.id < melhor.id)) { melhor = j; mv = v }
+  }
+  return melhor?.id
+}
+
+export function capitaoDe(mundo: Mundo, clubeId: number): number | undefined {
+  const c = mundo.clubes[clubeId] as ClubeComCapitao | undefined
+  if (c?.capitaoId && c.plantel.includes(c.capitaoId)) return c.capitaoId
+  return liderNatural(mundo, clubeId)
+}
+
+// ---------- Estatuto e tempo de jogo ----------
+
+export type Estatuto = 'titular' | 'rotacao' | 'reserva' | 'jovem'
+
+const LUGARES: Record<string, number> = { GR: 1, DEF: 4, MED: 4, AV: 2 }
+
+/** O que cada jogador espera jogar, pela posição dele na hierarquia do plantel. */
+export function estatutos(mundo: Mundo, clubeId: number): Map<number, Estatuto> {
+  const out = new Map<number, Estatuto>()
+  const c = mundo.clubes[clubeId]
+  if (!c) return out
+  const porPos = new Map<string, Jogador[]>()
+  for (const id of c.plantel) {
+    const j = mundo.jogadores[id]
+    if (!j) continue
+    const l = porPos.get(j.posicao) ?? []
+    l.push(j)
+    porPos.set(j.posicao, l)
+  }
+  for (const [pos, l] of porPos) {
+    l.sort((a, b) => b.forca - a.forca || a.id - b.id)
+    const n = LUGARES[pos] ?? 2
+    l.forEach((j, i) => {
+      const e: Estatuto = i < n ? 'titular' : i < n * 2 ? 'rotacao' : 'reserva'
+      out.set(j.id, e !== 'titular' && j.idade <= 20 ? 'jovem' : e)
+    })
+  }
+  return out
+}
+
+export const NOME_ESTATUTO: Record<Estatuto, string> = { titular: 'Titular', rotacao: 'Rotação', reserva: 'Suplente', jovem: 'Jovem' }
+
+/** Onze inicial de cada lado, se a partida o guardou. */
+export function titularesDe(p: import('./partida').Partida): [number[], number[]] | undefined {
+  return p.onzes ? [p.onzes[0].titulares, p.onzes[1].titulares] : undefined
+}
+
+/** Minutos jogados por cada jogador numa partida (onze + substituições + saídas). */
+export function minutosJogados(p: import('./partida').Partida): Map<number, number> {
+  const out = new Map<number, number>()
+  const onze = titularesDe(p)
+  if (!onze) return out
+  const fim = Math.max(90, ...p.eventos.map((e) => e.minuto))
+  const entrou = new Map<number, number>()
+  for (const ids of onze) for (const id of ids) entrou.set(id, 0)
+  const saiu = new Map<number, number>()
+  for (const e of p.eventos) {
+    if (e.tipo === 'substituicao') {
+      if (e.jogadorId !== undefined && !saiu.has(e.jogadorId)) saiu.set(e.jogadorId, e.minuto)
+      if (e.outroId !== undefined) entrou.set(e.outroId, e.minuto)
+    } else if ((e.tipo === 'vermelho' || e.tipo === 'lesao') && e.jogadorId !== undefined && !saiu.has(e.jogadorId)) {
+      saiu.set(e.jogadorId, e.minuto)
+    }
+  }
+  for (const [id, de] of entrou) out.set(id, Math.max(1, (saiu.get(id) ?? fim) - de))
+  return out
+}
+
+/**
+ * Depois de um jogo: moral pelo resultado e pelo tempo de jogo, cansaço de quem jogou.
+ * Vale para todos os clubes (o computador também tem balneário). `liga` = jogo do campeonato
+ * (na taça a rotação é aceite e o resultado pesa menos).
+ */
+export function aplicarJogo(mundo: Mundo, p: import('./partida').Partida, indisponiveis: ReadonlySet<number>, liga = true): void {
+  if (!p.jogada) return
+  const mins = minutosJogados(p)
+  const t = titularesDe(p)
+  const onze = new Set(t ? [...t[0], ...t[1]] : [])
+  const lados: [number, number, number][] = [[p.casaId, p.golos[0], p.golos[1]], [p.foraId, p.golos[1], p.golos[0]]]
+  for (const [cid, gm, gs] of lados) {
+    const c = mundo.clubes[cid]
+    if (!c) continue
+    const cap = capitaoDe(mundo, cid)
+    const lid = cap ? lideranca(mundo, mundo.jogadores[cap]) : 0
+    const est = estatutos(mundo, cid)
+    const peso = liga ? 1 : 0.5
+    const resultado = gm > gs ? 3 : gm === gs ? 0.5 : -3 * (1 - 0.3 * lid)
+    for (const id of c.plantel) {
+      const j = mundo.jogadores[id]
+      if (!j) continue
+      const m = mins.get(id) ?? 0
+      const e = est.get(id) ?? 'reserva'
+      let d = resultado * peso
+      if (m > 0) {
+        const titular = onze.has(id)
+        if (titular) d += e === 'titular' ? 1 : e === 'rotacao' ? 2 : 3
+        else d += e === 'titular' ? -1 : 1.5
+        definirFadigaJ(j, m)
+      } else if (!indisponiveis.has(id)) {
+        d += (e === 'titular' ? -4 : e === 'rotacao' ? -1.5 : e === 'reserva' ? -0.3 : 0) * (liga ? 1 : 0.4)
+        if (id === cap) d -= 2
+      }
+      aplicar(j, d)
+    }
+  }
+}
+
+function definirFadigaJ(j: Jogador, minutos: number) {
+  const x = j as JogadorVivo & { fragil?: number }
+  const f = x.fadiga ?? 0
+  const idade = j.idade >= 31 ? 1.25 : j.idade <= 21 ? 0.9 : 1
+  x.fadiga = Math.round(Math.min(100, f + 20 * idade * Math.min(1.35, minutos / 90)))
+  if (x.fragil) { x.fragil -= 1; if (x.fragil <= 0) delete x.fragil }
+}
+
+/** Semana de descanso entre jornadas: recupera-se do cansaço e a moral volta devagar ao normal. */
+export function semanaDeTreino(mundo: Mundo, clubes: Iterable<number>, nivelFisico: (clubeId: number) => number): void {
+  for (const cid of clubes) {
+    const c = mundo.clubes[cid]
+    if (!c) continue
+    const n = nivelFisico(cid)
+    for (const id of c.plantel) {
+      const j = mundo.jogadores[id] as JogadorVivo | undefined
+      if (!j) continue
+      if (j.fadiga) j.fadiga = Math.round(j.fadiga * (0.55 - 0.025 * n))
+      if (j.moral !== undefined) definirMoral(j, j.moral + (MORAL_NEUTRA - j.moral) * 0.1)
+    }
+  }
+}
+
+/** Férias: o cansaço desaparece, a moral fica a meio caminho do normal e as fragilidades passam. */
+export function feriasBalneario(mundo: Mundo): void {
+  for (const j of Object.values(mundo.jogadores) as (JogadorVivo & { fragil?: number })[]) {
+    if (j.fadiga) j.fadiga = 0
+    if (j.fragil) delete j.fragil
+    if (j.moral !== undefined) definirMoral(j, MORAL_NEUTRA + (j.moral - MORAL_NEUTRA) * 0.5)
+  }
 }

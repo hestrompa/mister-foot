@@ -1,5 +1,6 @@
 // Taça Nacional: eliminatórias a uma mão com os 72 clubes, jogadas a meio da semana entre jornadas da liga.
 // Empate no fim dos 90 minutos dá prolongamento (30 minutos) e, se persistir, penáltis. O clube da divisão mais baixa joga em casa; a final é em campo neutro.
+import { aplicarJogo } from './balneario'
 import type { Jogo, Mundo } from './types'
 import type { Escalacao, EstatJogo, EventoJogo, Partida } from './partida'
 import { createRng, type Rng } from './rng'
@@ -412,6 +413,7 @@ export function jogarRondaTaca(jogo: JogoComTaca, jogadas: { partida: Partida; e
   }
 
   // 3. Castigos da taça já cumpridos por quem jogou; novos castigos, lesões e golos.
+  const ausentesTaca = new Set(Object.keys(epoca.indisponiveis).map(Number).filter((id) => epoca.indisponiveis[id].jogos > 0))
   const jogaram = new Set(ronda.jogos.flatMap((p) => [p.casaId, p.foraId]))
   for (const key of Object.keys(t.castigos)) {
     const id = Number(key)
@@ -429,10 +431,12 @@ export function jogarRondaTaca(jogo: JogoComTaca, jogadas: { partida: Partida; e
       else if (ev.tipo === 'lesao') {
         const jogos = Math.max(1, Math.round(ev.duracao ?? 1))
         const atual = epoca.indisponiveis[id]
-        if (!atual || atual.jogos < jogos) epoca.indisponiveis[id] = { jogos, motivo: 'lesao' }
+        if (!atual || atual.jogos < jogos) epoca.indisponiveis[id] = { jogos, motivo: 'lesao', ...(ev.tipoLesao ? { tipo: ev.tipoLesao } : {}), total: jogos }
       }
     }
   }
+  // Moral e cansaço também contam na taça (sem semana de descanso pelo meio).
+  for (const p of ronda.jogos) aplicarJogo(mundo, p, ausentesTaca, false)
 
   // 4. Dinheiro: bilheteira para a casa (a final é em campo neutro) e prémios a quem passa.
   const pagar = (id: number, v: number) => {

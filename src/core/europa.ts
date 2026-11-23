@@ -3,6 +3,7 @@
 // Os clubes estrangeiros não entram no mundo (nem no mercado, nem nas finanças): vivem no estado da Europa e
 // os jogos usam uma cópia do mundo com eles lá dentro (`mundoEuropa`). Joga-se a meio da semana, em datas
 // que não chocam com a Taça Nacional, e não há salários nesses jogos.
+import { aplicarJogo } from './balneario'
 import type { Clube, Jogador, Jogo, Mundo, Posicao } from './types'
 import type { Escalacao, EstatJogo, Partida } from './partida'
 import { createRng, type Rng } from './rng'
@@ -535,6 +536,7 @@ export function jogarDiaEuropa(jogo: JogoComEuropa, jogadas: { partida: Partida;
       p.serie = pen.serie
     }
 
+    const ausentesEu = new Set(Object.keys(epoca.indisponiveis).map(Number).filter((id) => epoca.indisponiveis[id].jogos > 0))
     for (const p of r.jogos) {
       for (const ev of p.eventos) {
         const id = ev.jogadorId
@@ -544,9 +546,11 @@ export function jogarDiaEuropa(jogo: JogoComEuropa, jogadas: { partida: Partida;
         else if (ev.tipo === 'lesao' && mundo.jogadores[id]) {
           const jogos = Math.max(1, Math.round(ev.duracao ?? 1))
           const atual = epoca.indisponiveis[id]
-          if (!atual || atual.jogos < jogos) epoca.indisponiveis[id] = { jogos, motivo: 'lesao' }
+          if (!atual || atual.jogos < jogos) epoca.indisponiveis[id] = { jogos, motivo: 'lesao', ...(ev.tipoLesao ? { tipo: ev.tipoLesao } : {}), total: jogos }
         }
       }
+      // Noites europeias também cansam e mexem com a moral (sem semana de descanso pelo meio).
+      aplicarJogo(m, p, ausentesEu, false)
       // Bilheteira para os clubes nacionais em casa (noite europeia: estádio mais cheio, mas a organização fica com parte). A final é neutra.
       const casa = m.clubes[p.casaId]
       if (!final && nacional(p.casaId)) {

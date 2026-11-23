@@ -33,3 +33,4 @@
 .mercado-tab td.acaba { color: var(--aviso); font-weight: 700; }
 .pot-Pérola { color: var(--aviso); }
 .pot-Alto { color: var(--verde); }
+.clausula-escolha { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; }

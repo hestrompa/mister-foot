@@ -1,0 +1,33 @@
+.balneario { display: flex; flex-direction: column; gap: 10px; }
+.balneario p { margin: 0; }
+.balneario section .sub-tit { margin: 0 0 6px; }
+.bn-topo { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.bn-cartao { display: flex; flex-direction: column; gap: 8px; }
+.bn-grande { font-size: 20px; font-weight: 700; }
+.bn-escolha { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--texto-2); }
+.bn-escolha select { background: var(--fundo); color: var(--texto); border: 1px solid var(--linha); border-radius: 8px; padding: 8px 10px; font: inherit; max-width: 100%; }
+.bn-barra { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.bn-barra-fundo { width: 54px; height: 6px; border-radius: 3px; background: var(--linha); overflow: hidden; flex: none; }
+.bn-barra-fundo span { display: block; height: 100%; }
+.bn-barra-txt { font-size: 12px; color: var(--texto-2); white-space: nowrap; }
+.bn-conflitos { border-color: var(--aviso); display: flex; flex-direction: column; gap: 8px; }
+.bn-conflito { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--linha); }
+.bn-lista { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.bn-lesao { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
+.bn-msgs li { font-size: 13px; }
+.bn-bom { color: var(--f-alta); }
+.bn-mau { color: var(--f-baixa); }
+.bn-info { color: var(--texto-2); }
+.botao.mini { padding: 4px 8px; font-size: 12px; }
+.bn-tabela td { vertical-align: middle; }
+.bn-conv { list-style: none; padding: 0; margin: 8px 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px 12px; }
+.bn-conv li { display: flex; align-items: center; gap: 6px; }
+.bn-conv li.meu .nome-jogador { color: var(--verde); font-weight: 700; }
+.bn-clube { color: var(--texto-2); font-size: 12px; margin-left: auto; }
+.baixa-cansado { background: #f59e5133; color: var(--f-baixa); }
+.baixa-moral { background: #9fb5a833; color: var(--texto-2); }
+.baixa-promessa { background: #3ddc8422; color: var(--verde); }
+@media (max-width: 480px) {
+  .bn-barra-fundo { width: 36px; }
+  .bn-tabela .bn-barra-txt { display: none; }
+}

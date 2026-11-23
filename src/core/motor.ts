@@ -5,6 +5,8 @@ import { createRng, type Rng } from './rng'
 import type { Jogador, Mundo, Posicao } from './types'
 import { FORMACOES } from './partida'
 import type { Escalacao, EstatJogo, EventoJogo, Formacao, Lado, Lance, Partida, Postura } from './partida'
+import { fatorMoral } from './balneario'
+import { fatorFisico, riscoLesao, sortearLesao } from './lesoes'
 
 /** Estado interno de um jogo a decorrer. Serializável (sem funções). */
 export interface EstadoJogo {
@@ -76,10 +78,11 @@ export function forcaNoLugar(j: Jogador, pos: Posicao): number {
 /** Escolhe a melhor escalação automática para um clube, ignorando indisponíveis. */
 export function escalarAuto(mundo: Mundo, clubeId: number, indisponiveis: ReadonlySet<number>, formacao: Escalacao['formacao'] = '4-4-2'): Escalacao {
   const clube = mundo.clubes[clubeId]
+  // Quem está cansado perde o lugar para um colega fresco de força parecida (rotação natural).
   const disp = clube.plantel
     .filter((id) => !indisponiveis.has(id) && mundo.jogadores[id])
     .map((id) => mundo.jogadores[id])
-    .sort((a, b) => b.forca - a.forca || a.id - b.id)
+    .sort((a, b) => b.forca * fatorFisico(b) - a.forca * fatorFisico(a) || a.id - b.id)
   const usados = new Set<number>()
   const [d, m, a] = FORMACOES[formacao]
   const lugares: Posicao[] = ['GR', ...Array<Posicao>(d).fill('DEF'), ...Array<Posicao>(m).fill('MED'), ...Array<Posicao>(a).fill('AV')]
@@ -95,7 +98,7 @@ export function escalarAuto(mundo: Mundo, clubeId: number, indisponiveis: Readon
     let melhor: Jogador | undefined
     for (const p of disp) {
       if (usados.has(p.id)) continue
-      if (!melhor || forcaNoLugar(p, pos) > forcaNoLugar(melhor, pos)) melhor = p
+      if (!melhor || forcaNoLugar(p, pos) * fatorFisico(p) > forcaNoLugar(melhor, pos) * fatorFisico(melhor)) melhor = p
     }
     if (melhor) { escolha[i] = melhor.id; usados.add(melhor.id) }
   })
@@ -161,7 +164,8 @@ function emCampo(mundo: Mundo, estado: EstadoJogo, lado: Lado): EmCampo[] {
     const j = mundo.jogadores[id]
     if (!j) return
     const pos = posicaoDoLugar(esc.formacao, i)
-    out.push({ j, pos, ef: forcaNoLugar(j, pos) * (iniciais.includes(id) ? cansaco : 1) })
+    // Moral e cansaço acumulado das últimas semanas mexem pouco, mas mexem.
+    out.push({ j, pos, ef: forcaNoLugar(j, pos) * (iniciais.includes(id) ? cansaco : 1) * fatorMoral(j) * fatorFisico(j) })
   })
   return out
 }
@@ -359,12 +363,15 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
       evs.push({ minuto: min, tipo: 'vermelho', lado, jogadorId: c.j.id, texto: `Vermelho direto para ${c.j.curto}! (${sigla(lado)})` })
     }
     const vivos = cl.filter((c) => !estado.fora.includes(c.j.id))
-    if (vivos.length && rng.chance(0.0017)) {
-      const c = rng.pick(vivos)
-      const duracao = rng.int(1, 6)
+    // Lesões: quem está cansado (ou voltou antes do tempo) arrisca mais. 1,15 é o risco médio de um onze normal.
+    const risco = vivos.reduce((s, c) => s + riscoLesao(c.j), 0) / Math.max(1, vivos.length)
+    if (vivos.length && rng.chance(0.0017 * risco / 1.15)) {
+      const c = pesado(rng, vivos, (c) => riscoLesao(c.j))!
+      const les = sortearLesao(rng, c.j)
+      const duracao = les.jogos
       x.lesionados.push(c.j.id)
       estado.fora.push(c.j.id)
-      evs.push({ minuto: min, tipo: 'lesao', lado, jogadorId: c.j.id, duracao, texto: `${c.j.curto} lesiona-se e não pode continuar (${duracao} ${duracao === 1 ? 'jogo' : 'jogos'}).` })
+      evs.push({ minuto: min, tipo: 'lesao', lado, jogadorId: c.j.id, duracao, tipoLesao: les.tipo.id, texto: `${c.j.curto} sai lesionado: ${les.tipo.nome.toLowerCase()} (${duracao} ${duracao === 1 ? 'jogo' : 'jogos'}).` })
       if (x.autoSub[lado]) {
         // substituir() regista o evento em partida.eventos; passa para a lista deste minuto.
         const s = retirarLesionadoAuto(mundo, estado, lado, c.j.id)

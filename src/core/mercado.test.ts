@@ -5,6 +5,7 @@ import { escalarAuto } from './motor'
 import {
   aceitarProposta, avancarMercado, comprar, estadoMercado, janelaAberta, listaIA, pedidoSalarial, porAVenda,
   PLANTEL_MAX, PLANTEL_MIN, type JogoComMercado,
+  comissaoEmpresario,
 } from './mercado'
 
 function novoJogo(semente = 5, div = 3): JogoComMercado {
@@ -51,13 +52,15 @@ describe('mercado', () => {
     const deId = alvo.clubeId
     const antesDe = j.mundo.clubes[deId].dinheiro
     const total = totalDinheiro(j)
-    const r = comprar(j, alvo.id, a.preco, pedidoSalarial(j.mundo, alvo, j.clubeId))
+    const salario = pedidoSalarial(j.mundo, alvo, j.clubeId)
+    const r = comprar(j, alvo.id, a.preco, salario)
     expect(r.ok, r.texto).toBe(true)
     expect(alvo.clubeId).toBe(j.clubeId)
     expect(meu.plantel).toContain(alvo.id)
     expect(j.mundo.clubes[deId].plantel).not.toContain(alvo.id)
     expect(j.mundo.clubes[deId].dinheiro).toBe(antesDe + a.preco)
-    expect(totalDinheiro(j)).toBe(total)
+    // Só a comissão do empresário sai da economia.
+    expect(totalDinheiro(j)).toBe(total - comissaoEmpresario(a.preco, salario))
     expect(st.lista.some((x) => x.jogadorId === alvo.id)).toBe(false)
   })
 
@@ -162,7 +165,7 @@ describe('contratos', () => {
     // Ninguém fica com contrato 0 dentro de um clube.
     for (const c of Object.values(j.mundo.clubes)) for (const id of c.plantel) expect(j.mundo.jogadores[id].contrato).toBeGreaterThan(0)
     expect(j.escalacao.titulares.every((id) => meu.plantel.includes(id))).toBe(true)
-    // Contratar um livre: sem custo de transferência, só o prémio de assinatura.
+    // Contratar um livre: sem custo de transferência, só o prémio de assinatura e a comissão (1 mês).
     meu.dinheiro = 10_000_000
     // Um livre que aceite vir (os bons esperam por clubes do seu nível).
     const { recusaDoLivre } = await import('./mercado')
@@ -171,7 +174,7 @@ describe('contratos', () => {
     expect(contratarLivre(j, alvo.id, sal - 100, 2).ok).toBe(false)
     const r = contratarLivre(j, alvo.id, sal, 2)
     expect(r.ok, r.texto).toBe(true)
-    expect(meu.dinheiro).toBe(10_000_000 - sal * 2)
+    expect(meu.dinheiro).toBe(10_000_000 - sal * 3)
     expect(alvo.clubeId).toBe(j.clubeId)
     // A IA vai buscando livres durante a janela.
     const antes = livres(j).length

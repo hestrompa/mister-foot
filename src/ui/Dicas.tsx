@@ -14,6 +14,10 @@ export const DICAS: Record<string, { titulo: string; texto: string }> = {
     titulo: 'O teu plantel',
     texto: 'A força vai de 1 a 99. Os jovens crescem até ao potencial; a partir dos 30 anos começam a perder força. Toca no cabeçalho de uma coluna para ordenar.',
   },
+  balneario: {
+    titulo: 'Balneário',
+    texto: 'Cada jogador tem moral e cansaço. Quem espera jogar e fica no banco desanima; quem joga sem parar cansa e lesiona-se mais. Escolhe o capitão, cumpre as promessas e responde aos conflitos antes da jornada seguinte.',
+  },
   mercado: {
     titulo: 'Mercado',
     texto: 'Só compras e vendes com a janela aberta. Vê o salário que o jogador pede: a massa salarial paga-se todas as jornadas, ganhes ou percas.',

@@ -178,7 +178,7 @@ describe('castigos, lesões e marcadores', () => {
     expect(e.indisponiveis[expulsoDireto]).toEqual({ jogos: 2, motivo: 'castigo' })
     expect(e.indisponiveis[segundoAmarelo]).toEqual({ jogos: 1, motivo: 'castigo' })
     expect(e.amarelos[segundoAmarelo]).toBe(2)
-    expect(e.indisponiveis[lesionado]).toEqual({ jogos: 3, motivo: 'lesao' })
+    expect(e.indisponiveis[lesionado]).toMatchObject({ jogos: 3, motivo: 'lesao' })
     expect(e.marcadores[marcador]).toBe(2)
     expect(indisponiveisDe(m, e, p0.casaId)).toEqual(new Set([amarelado, expulsoDireto]))
     expect(indisponiveisDe(m, e, p0.foraId)).toEqual(new Set([segundoAmarelo, lesionado]))
@@ -189,7 +189,7 @@ describe('castigos, lesões e marcadores', () => {
     expect(e.indisponiveis[amarelado]).toBeUndefined()
     expect(e.indisponiveis[segundoAmarelo]).toBeUndefined()
     expect(e.indisponiveis[expulsoDireto]).toEqual({ jogos: 1, motivo: 'castigo' })
-    expect(e.indisponiveis[lesionado]).toEqual({ jogos: 2, motivo: 'lesao' })
+    expect(e.indisponiveis[lesionado]).toMatchObject({ jogos: 2, motivo: 'lesao' })
 
     jogarJornadaAMao(m, e)
     concluirJornada(m, e, 3)

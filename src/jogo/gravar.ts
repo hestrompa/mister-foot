@@ -6,6 +6,7 @@ import { garantirStaff, staffIA } from '../core/staff-ia'
 import { epocaTerminada, fecharEpoca, indisponiveisDe, novaEpoca } from '../core/epoca'
 import { registarCampeao, type JogoComTaca } from '../core/taca'
 import { avancarDirecao, iniciarEpocaDirecao } from '../core/direcao'
+import { feriasBalneario } from '../core/balneario'
 import { registarFichas } from '../core/fichas'
 import { garantirRivais } from '../core/rivalidades'
 import { avancarImprensa } from '../core/imprensa'
@@ -47,7 +48,7 @@ export function sementeEpoca(jogo: Pick<Jogo, 'mundo'>): number {
 export function prepararEpoca(jogo: Jogo): Jogo {
   // Entre épocas (não num jogo novo), os outros clubes decidem obras e empréstimos.
   garantirRivais(jogo.mundo)
-  if (jogo.epoca) { gestaoIA(jogo.mundo, jogo.clubeId); staffIA(jogo.mundo, jogo.clubeId) }
+  if (jogo.epoca) { gestaoIA(jogo.mundo, jogo.clubeId); staffIA(jogo.mundo, jogo.clubeId); feriasBalneario(jogo.mundo) }
   else garantirStaff(jogo.mundo)
   jogo.epoca = novaEpoca(jogo.mundo, sementeEpoca(jogo))
   jogo.escalacao = escalarAuto(jogo.mundo, jogo.clubeId, indisponiveisDe(jogo.mundo, jogo.epoca, jogo.clubeId), jogo.escalacao?.formacao)
