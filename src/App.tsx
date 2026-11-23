@@ -15,9 +15,11 @@ import { AoVivo } from './ui/AoVivo'
 import { Calendario } from './ui/Calendario'
 import { FimEpoca, type DadosFimEpoca } from './ui/FimEpoca'
 import { TabelaLiga } from './ui/comum'
+import { Mercado, propostasPendentes } from './ui/Mercado'
+import { avancarMercado } from './core/mercado'
 
 type Ecra = 'inicio' | 'escolher' | 'jogo'
-type Separador = 'jogo' | 'plantel' | 'classificacao' | 'calendario' | 'clube' | 'divisoes'
+type Separador = 'jogo' | 'plantel' | 'mercado' | 'classificacao' | 'calendario' | 'clube' | 'divisoes'
 
 export default function App() {
   const [jogo, setJogo] = useState<Jogo | null>(() => carregar())
@@ -158,6 +160,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
   const aposJornada = () => {
     setAoVivo(null)
     setSep('jogo')
+    avancarMercado(jogo)
     if (!epocaTerminada(jogo.epoca)) {
       // Lesionados ou castigados no onze: refaz a escalação mantendo formação e postura.
       const ind = indisponiveisDe(mundo, jogo.epoca, jogo.clubeId)
@@ -201,7 +204,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
     <div className="ecra jogo">
       {cabecalho}
       <nav className="separadores principal-nav">
-        {([['jogo', 'Jogo'], ['plantel', 'Plantel'], ['classificacao', 'Classificação'], ['calendario', 'Calendário'], ['clube', 'Clube'], ['divisoes', 'Divisões']] as [Separador, string][]).map(([k, t]) => (
+        {([['jogo', 'Jogo'], ['plantel', 'Plantel'], ['mercado', `Mercado${propostasPendentes(jogo) ? ` (${propostasPendentes(jogo)})` : ''}`], ['classificacao', 'Classificação'], ['calendario', 'Calendário'], ['clube', 'Clube'], ['divisoes', 'Divisões']] as [Separador, string][]).map(([k, t]) => (
           <button key={k} className={sep === k ? 'ativo' : ''} onClick={() => { setSep(k); setVerClube(null) }}>{t}</button>
         ))}
         <button className="sair" onClick={sair}>Menu</button>
@@ -220,6 +223,8 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
       {sep === 'calendario' && <Calendario jogo={jogo} />}
 
       {sep === 'plantel' && <Plantel mundo={mundo} clubeId={meu.id} />}
+
+      {sep === 'mercado' && <Mercado jogo={jogo} atualizar={atualizar} />}
 
       {sep === 'clube' && (
         <div className="cartoes-info">

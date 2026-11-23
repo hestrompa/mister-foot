@@ -93,6 +93,24 @@ try {
     await foto('4-divisoes.png')
   })
 
+  await passo('mercado: fazer oferta e pôr um jogador em leilão', async () => {
+    await page.getByRole('button', { name: /^Mercado/ }).first().click()
+    await page.getByText('Mercado aberto').first().waitFor({ timeout: 5000 })
+    await page.getByLabel('Divisão').selectOption('4')
+    await page.locator('table.mercado-tab tbody tr').first().click()
+    await page.getByRole('button', { name: 'Fazer oferta' }).click()
+    await page.locator('[role=status]').first().waitFor({ timeout: 5000 })
+    await foto('4b-mercado.png')
+    await page.getByRole('button', { name: 'Vender', exact: true }).click()
+    await page.locator('table.mercado-tab tbody tr').nth(20).click()
+    await page.getByRole('button', { name: 'Leilão', exact: true }).click()
+    await page.getByText(/vai a leilão/).waitFor({ timeout: 5000 })
+    await page.getByRole('button', { name: 'Notícias', exact: true }).click()
+    await page.getByRole('button', { name: 'Procurar', exact: true }).click()
+    await page.getByPlaceholder('Nome do jogador').waitFor({ timeout: 5000 })
+    await foto('4c-procurar.png')
+  })
+
   await passo('recarregar mantém a carreira', async () => {
     await page.reload({ waitUntil: 'networkidle' })
     const plantel = page.getByRole('button', { name: 'Plantel', exact: true }).or(page.getByRole('tab', { name: 'Plantel', exact: true })).first()
