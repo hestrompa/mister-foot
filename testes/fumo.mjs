@@ -149,6 +149,8 @@ try {
   await passo('continuar e ver a jornada 2', async () => {
     await page.getByRole('button', { name: 'Continuar', exact: true }).click()
     await page.getByText(/Jornada 2 de/).waitFor({ timeout: 5000 })
+    const formas = await page.locator('.pj-eq .forma').count()
+    esperar(formas === 2, `forma recente nas duas equipas do próximo jogo (vi ${formas})`)
     await page.getByRole('button', { name: 'Classificação', exact: true }).click()
     await foto('8-classificacao.png')
     await page.getByRole('button', { name: 'Calendário', exact: true }).click()
