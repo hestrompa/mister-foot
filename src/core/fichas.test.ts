@@ -32,7 +32,7 @@ describe('fichas de jogo', () => {
       const golos = f.eventos.filter((e) => e.tipo === 'golo')
       expect(golos.filter((e) => e.lado === 0)).toHaveLength(f.golos[0])
       expect(golos.filter((e) => e.lado === 1)).toHaveLength(f.golos[1])
-      expect(golos.every((e) => e.quem)).toBe(true)
+      expect(golos.every((e) => e.quem && e.quemId !== undefined)).toBe(true)
     }
     expect(fichas[0].ronda).toBe('Jornada 1')
   })

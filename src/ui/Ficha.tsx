@@ -1,6 +1,6 @@
 // Ficha de um jogo: resultado, táticas, onzes, substituições, golos, cartões e estatísticas.
 import type { Jogo } from '../core/types'
-import { fichasDe, posturaFinal, type EquipaFicha, type EventoFicha, type FichaJogo } from '../core/fichas'
+import { fichasDe, posturaFinal, type EquipaFicha, type EventoFicha, type FichaJogo, type JogadorFicha } from '../core/fichas'
 import { lugares } from '../core/formato'
 import { Emblema } from './Emblema'
 import './ficha.css'
@@ -18,21 +18,24 @@ function EmblemaFicha({ e, tamanho = 28 }: { e: EquipaFicha; tamanho?: number })
 
 function Onze({ e, f, lado }: { e: EquipaFicha; f: FichaJogo; lado: 0 | 1 }) {
   const ev = f.eventos.filter((x) => x.lado === lado)
-  const marcas = (nome: string) => {
+  // Pelo id quando a ficha o tem (dois jogadores podem ter o mesmo nome curto); fichas antigas, pelo nome.
+  const ehQuem = (x: EventoFicha, j: JogadorFicha) => (x.quemId !== undefined ? x.quemId === j.id : x.quem === j.nome)
+  const ehOutro = (x: EventoFicha, j: JogadorFicha) => (x.outroId !== undefined ? x.outroId === j.id : x.outro === j.nome)
+  const marcas = (j: JogadorFicha) => {
     const out: { t: EventoFicha['tipo']; m: string }[] = []
     for (const x of ev) {
-      if (x.quem !== nome && !(x.tipo === 'substituicao' && x.outro === nome)) continue
-      if (x.tipo === 'golo' && x.quem === nome) out.push({ t: 'golo', m: `${x.minuto}'` })
-      if (x.tipo === 'amarelo' && x.quem === nome) out.push({ t: 'amarelo', m: `${x.minuto}'` })
-      if (x.tipo === 'vermelho' && x.quem === nome) out.push({ t: 'vermelho', m: `${x.minuto}'` })
-      if (x.tipo === 'lesao' && x.quem === nome) out.push({ t: 'lesao', m: `${x.minuto}'` })
-      if (x.tipo === 'substituicao' && x.quem === nome) out.push({ t: 'substituicao', m: `sai ${x.minuto}'` })
-      if (x.tipo === 'substituicao' && x.outro === nome) out.push({ t: 'substituicao', m: `entra ${x.minuto}'` })
+      const quem = ehQuem(x, j)
+      if (x.tipo === 'substituicao') {
+        if (quem) out.push({ t: 'substituicao', m: `sai ${x.minuto}'` })
+        if (ehOutro(x, j)) out.push({ t: 'substituicao', m: `entra ${x.minuto}'` })
+      } else if (quem && (x.tipo === 'golo' || x.tipo === 'amarelo' || x.tipo === 'vermelho' || x.tipo === 'lesao')) {
+        out.push({ t: x.tipo, m: `${x.minuto}'` })
+      }
     }
     return out.map((o, i) => <span key={i} className="fi-marca"><Icone t={o.t} />{o.m}</span>)
   }
   const fim = posturaFinal(f, lado)
-  const entraram = new Set(ev.filter((x) => x.tipo === 'substituicao').map((x) => x.outro))
+  const entrou = (j: JogadorFicha) => ev.some((x) => x.tipo === 'substituicao' && ehOutro(x, j))
   return (
     <div className="cartao fi-onze">
       <h4 className="fi-onze-tit"><EmblemaFicha e={e} tamanho={24} /> {e.nome}</h4>
@@ -42,7 +45,7 @@ function Onze({ e, f, lado }: { e: EquipaFicha; f: FichaJogo; lado: 0 | 1 }) {
       {e.titulares.length > 0 && (
         <ol className="fi-lista">
           {e.titulares.map((j) => (
-            <li key={j.id}><span className={`pos pos-${j.pos}`}>{j.pos}</span> <span className="fi-nome">{j.nome}</span> <span className="fi-f">{j.forca}</span> <span className="fi-marcas">{marcas(j.nome)}</span></li>
+            <li key={j.id}><span className={`pos pos-${j.pos}`}>{j.pos}</span> <span className="fi-nome">{j.nome}</span> <span className="fi-f">{j.forca}</span> <span className="fi-marcas">{marcas(j)}</span></li>
           ))}
         </ol>
       )}
@@ -51,7 +54,7 @@ function Onze({ e, f, lado }: { e: EquipaFicha; f: FichaJogo; lado: 0 | 1 }) {
           <p className="fi-sup-tit">Suplentes</p>
           <ul className="fi-lista fi-sup">
             {e.suplentes.map((j) => (
-              <li key={j.id} className={entraram.has(j.nome) ? 'entrou' : ''}><span className={`pos pos-${j.pos}`}>{j.pos}</span> <span className="fi-nome">{j.nome}</span> <span className="fi-f">{j.forca}</span> <span className="fi-marcas">{marcas(j.nome)}</span></li>
+              <li key={j.id} className={entrou(j) ? 'entrou' : ''}><span className={`pos pos-${j.pos}`}>{j.pos}</span> <span className="fi-nome">{j.nome}</span> <span className="fi-f">{j.forca}</span> <span className="fi-marcas">{marcas(j)}</span></li>
             ))}
           </ul>
         </>

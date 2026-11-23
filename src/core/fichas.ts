@@ -28,6 +28,9 @@ export interface EventoFicha {
   quem?: string
   /** Assistência ou quem entra. */
   outro?: string
+  /** Ids (fichas novas): identificam o jogador mesmo com nomes curtos iguais. */
+  quemId?: number
+  outroId?: number
 }
 
 export interface FichaJogo {
@@ -92,7 +95,7 @@ export function criarFicha(mundo: Mundo, p: Partida, ano: number, ronda: string)
     porque: p.porque,
     eventos: p.eventos
       .filter((e) => RELEVANTES.includes(e.tipo))
-      .map((e) => ({ minuto: e.minuto, tipo: e.tipo, lado: e.lado === 'casa' ? 0 : 1, texto: e.texto, quem: nome(e.jogadorId), outro: nome(e.outroId) })),
+      .map((e) => ({ minuto: e.minuto, tipo: e.tipo, lado: e.lado === 'casa' ? 0 : 1, texto: e.texto, quem: nome(e.jogadorId), outro: nome(e.outroId), quemId: e.jogadorId, outroId: e.outroId })),
   }
 }
 
