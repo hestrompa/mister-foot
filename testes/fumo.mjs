@@ -151,6 +151,15 @@ try {
     await page.locator('table.plantel').first().waitFor({ timeout: 5000 })
   })
 
+  await passo('conferência de imprensa antes da 1.ª jornada', async () => {
+    await page.getByRole('button', { name: 'Jogo', exact: true }).click()
+    const conf = page.locator('.im-conf')
+    await conf.waitFor({ timeout: 5000 })
+    await foto('5c-conferencia.png')
+    await conf.locator('.im-opcao').nth(1).click()
+    esperar(await page.locator('.im-conf').count() === 0, 'a conferência não fechou depois de responder')
+  })
+
   await passo('jogar jornada ao vivo a 2x', async () => {
     await page.getByRole('button', { name: 'Jogo', exact: true }).click()
     await page.getByRole('button', { name: 'Jogar jornada' }).click()
@@ -227,6 +236,20 @@ try {
     await page.getByRole('button', { name: 'Jogo', exact: true }).click()
   })
 
+  await passo('notícias da jornada e história (recordes, rivais)', async () => {
+    await page.getByRole('button', { name: /^Imprensa( \(\d+\))?$/ }).click()
+    await page.locator('.im-noticia').first().waitFor({ timeout: 5000 })
+    const n = await page.locator('.im-noticia').count()
+    esperar(n >= 2, `esperava notícias da jornada e da conferência (vi ${n})`)
+    await foto('8c-noticias.png')
+    await page.getByRole('button', { name: 'História', exact: true }).click()
+    await page.locator('.historia').waitFor({ timeout: 5000 })
+    const rivais = await page.locator('.historia table').first().locator('tbody tr').count()
+    esperar(rivais >= 4, `esperava os rivais da região (vi ${rivais})`)
+    await foto('8d-historia.png')
+    await page.getByRole('button', { name: 'Jogo', exact: true }).click()
+  })
+
   await passo('dicas de primeiros passos fecham-se', async () => {
     const dica = page.locator('.dica-cartao')
     esperar(await dica.count() === 1, 'falta a dica no separador Jogo')
@@ -257,7 +280,7 @@ try {
   await passo('telemóvel: todos os separadores sem scroll horizontal', async () => {
     await page.getByRole('button', { name: 'Continuar', exact: true }).click()
     await page.getByText(/Jornada 3 de/).waitFor({ timeout: 5000 })
-    const seps = ['Plantel', 'Staff', 'Mercado', 'Taça', 'Classificação', 'Calendário', 'Clube', 'Carreira', 'Divisões', 'Jogo']
+    const seps = ['Plantel', 'Staff', 'Mercado', 'Taça', 'Classificação', 'Calendário', 'Clube', 'Carreira', 'Divisões', 'Imprensa', 'História', 'Jogo']
     const largos = []
     for (const [i, nome] of seps.entries()) {
       await page.getByRole('button', { name: new RegExp(`^${nome}( \\(\\d+\\))?$`) }).click()

@@ -4,6 +4,7 @@ import type { LinhaTabela, Partida } from './partida'
 import { lotacaoAtual, avancarObra } from './estadio'
 import { cobrarPrestacao } from './banco'
 import { custoStaffPorJornada } from './staff'
+import { rivalidade } from './rivalidades'
 
 /** Receitas fixas por jornada (TV e patrocínios), por divisão. */
 export const RECEITA_FIXA = [50_000, 15_000, 5_000, 5_000]
@@ -40,6 +41,8 @@ export function publicoEsperado(casa: Clube, fora: Clube, posCasa: number, total
   let procura = tamanho * (0.35 + casa.reputacao / 160)
   // Adversário com mais nome atrai mais gente.
   procura *= 0.85 + fora.reputacao / 250
+  // Dérbis e clássicos enchem o estádio.
+  procura *= rivalidade(casa, fora)?.publico ?? 1
   // Equipa nos lugares de cima enche mais; no fundo, menos.
   const frac = totalClubes > 1 ? posCasa / (totalClubes - 1) : 0.5
   procura *= 1.15 - 0.3 * frac
