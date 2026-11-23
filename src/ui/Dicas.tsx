@@ -18,6 +18,10 @@ export const DICAS: Record<string, { titulo: string; texto: string }> = {
     titulo: 'Mercado',
     texto: 'Só compras e vendes com a janela aberta. Vê o salário que o jogador pede: a massa salarial paga-se todas as jornadas, ganhes ou percas.',
   },
+  taca: {
+    titulo: 'Taça',
+    texto: 'Os jogos da Taça são a eliminar e metem-se entre as jornadas. Ir longe dá prémios em dinheiro.',
+  },
   classificacao: {
     titulo: 'Classificação',
     texto: 'Os 3 primeiros sobem e os 3 últimos descem. Na 1.ª divisão, o primeiro é campeão.',
