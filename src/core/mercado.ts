@@ -34,6 +34,8 @@ export interface Noticia {
   paraId: number
   valor: number
   leilao?: boolean
+  /** saiu = fim de contrato (paraId 0); livre = assinou sem clube (deId 0); renovou = ficou mais tempo. */
+  tipo?: 'saiu' | 'livre' | 'renovou'
 }
 
 export interface EstadoMercado {
@@ -46,6 +48,8 @@ export interface EstadoMercado {
   /** Jogadores cujo clube já recusou uma oferta minha nesta jornada (uma tentativa por jornada). */
   recusados: number[]
   proximaProposta: number
+  /** Jogadores sem clube (clubeId 0), que assinam sem custo de transferência. */
+  livres?: number[]
 }
 
 export type JogoComMercado = Jogo & { mercado?: EstadoMercado }
@@ -57,6 +61,8 @@ const MIN_POS: Record<Posicao, number> = { GR: 2, DEF: 5, MED: 5, AV: 3 }
 /** Quantos titulares de cada posição um clube quer ter bons (para decidir se um jogador interessa). */
 const TITULARES: Record<Posicao, number> = { GR: 1, DEF: 4, MED: 4, AV: 2 }
 const MAX_NOTICIAS = 40
+/** Plantel normal de um clube da IA, por posição. */
+const IDEAL: Record<Posicao, number> = { GR: 3, DEF: 8, MED: 8, AV: 5 }
 
 function mistura(...partes: number[]): number {
   let h = 0x9e3779b9
@@ -163,10 +169,19 @@ export function estadoMercado(jogo: JogoComMercado): EstadoMercado {
   const ano = jogo.epoca.ano
   if (!jogo.mercado || jogo.mercado.ano !== ano) {
     const antigas = jogo.mercado?.noticias ?? []
-    jogo.mercado = { ano, jornada: jogo.epoca.jornada, lista: [], propostas: [], noticias: antigas.slice(-10), recusados: [], proximaProposta: 1 }
+    // Livres da época passada continuam; os de 35 ou mais retiram-se.
+    const livres = (jogo.mercado?.livres ?? []).filter((id) => (jogo.mundo.jogadores[id]?.idade ?? 99) < 35 && jogo.mundo.jogadores[id]?.clubeId === 0)
+    jogo.mercado = { ano, jornada: jogo.epoca.jornada, lista: [], propostas: [], noticias: antigas.slice(-10), recusados: [], proximaProposta: 1, livres }
+    fimDeContratos(jogo, rngDe(jogo.mundo, ano, 0, 0xc047))
     renovarLista(jogo, rngDe(jogo.mundo, ano, 0, 0x115a))
   }
   return jogo.mercado
+}
+
+/** Jogadores sem clube. */
+export function livres(jogo: JogoComMercado): Jogador[] {
+  const st = estadoMercado(jogo)
+  return (st.livres ?? []).map((id) => jogo.mundo.jogadores[id]).filter((j) => j && j.clubeId === 0)
 }
 
 /** Jogadores da IA à venda (sem os meus). */
@@ -272,6 +287,7 @@ export function comprar(jogo: JogoComMercado, jogadorId: number, oferta: number,
   const j = mundo.jogadores[jogadorId]
   const meu = mundo.clubes[jogo.clubeId]
   if (!j || j.clubeId === jogo.clubeId) return { ok: false, texto: 'Esse jogador já é teu.' }
+  if (j.clubeId === 0) return { ok: false, texto: 'Esse jogador está livre: contrata-o em Livres.' }
   if (!janelaAberta(jogo.epoca)) return { ok: false, texto: 'O mercado está fechado.' }
   if (meu.plantel.length >= PLANTEL_MAX) return { ok: false, texto: `O plantel já tem ${PLANTEL_MAX} jogadores. Vende alguém primeiro.` }
   if (oferta > meu.dinheiro) return { ok: false, texto: 'Não tens dinheiro para essa oferta.' }
@@ -478,10 +494,135 @@ function passoMercado(jogo: JogoComMercado, jornada: number) {
     feitas++
   }
 
+  // 3a. Clubes da IA assinam jogadores livres de que precisem.
+  assinarLivresIA(jogo, rng)
+
   // 3b. Clubes com dinheiro vão às compras: o melhor reforço que conseguem pagar, mesmo que não esteja à venda.
   comprasAtivas(jogo, rng, rng.int(3, 7))
 
   // 4. Anúncios antigos saem às vezes; entram novos.
   st.lista = st.lista.filter((a) => a.meu || rng.chance(0.85))
   renovarLista(jogo, rng)
+}
+
+// ---------- Contratos ----------
+
+/** Salário que o jogador pede para renovar. */
+export function pedidoRenovacao(mundo: Mundo, j: Jogador): number {
+  const c = mundo.clubes[j.clubeId]
+  return arredonda(Math.max(j.salario * 1.1, salarioDe(j.forca, c?.divisao ?? 4)) * (j.craque ? 1.25 : 1))
+}
+
+/** Máximo de anos de contrato que o jogador aceita. */
+export function anosMaximos(j: Jogador): number {
+  return j.idade >= 33 ? 1 : j.idade >= 30 ? 2 : 4
+}
+
+/** Renovar o contrato de um jogador meu (pelo salário que ele pede). */
+export function renovar(jogo: JogoComMercado, jogadorId: number, anos: number): Resultado {
+  const j = jogo.mundo.jogadores[jogadorId]
+  if (!j || j.clubeId !== jogo.clubeId) return { ok: false, texto: 'Esse jogador não é teu.' }
+  if (j.contrato > 2) return { ok: false, texto: `${j.curto} ainda tem ${j.contrato} anos de contrato.` }
+  const max = anosMaximos(j)
+  const a = Math.max(1, Math.min(max, Math.round(anos)))
+  j.salario = pedidoRenovacao(jogo.mundo, j)
+  j.contrato = a
+  return { ok: true, texto: `${j.curto} renovou por ${a} ${a === 1 ? 'ano' : 'anos'} (${j.salario.toLocaleString('pt-PT')} € por mês).` }
+}
+
+/** Salário que um jogador livre pede (nunca menos do que ganhava). */
+export function pedidoLivre(mundo: Mundo, j: Jogador, clubeId: number): number {
+  return arredonda(Math.max(j.salario, salarioDe(j.forca, mundo.clubes[clubeId].divisao)) * 1.1)
+}
+
+/** Prémio de assinatura de um livre: dois meses de salário. */
+export function premioAssinatura(salario: number): number {
+  return salario * 2
+}
+
+function assinarLivre(jogo: JogoComMercado, j: Jogador, clubeId: number, salario: number, anos: number) {
+  const st = estadoMercado(jogo)
+  const c = jogo.mundo.clubes[clubeId]
+  c.plantel.push(j.id)
+  c.dinheiro -= premioAssinatura(salario)
+  j.clubeId = clubeId
+  j.salario = salario
+  j.contrato = anos
+  st.livres = (st.livres ?? []).filter((id) => id !== j.id)
+  noticiar(st, { jornada: jogo.epoca.jornada, jogadorId: j.id, deId: 0, paraId: clubeId, valor: 0, tipo: 'livre' })
+}
+
+/** Contratar um jogador livre para o meu clube. */
+export function contratarLivre(jogo: JogoComMercado, jogadorId: number, salario: number, anos: number): Resultado {
+  const { mundo } = jogo
+  const j = mundo.jogadores[jogadorId]
+  const meu = mundo.clubes[jogo.clubeId]
+  if (!j || j.clubeId !== 0) return { ok: false, texto: 'Esse jogador já não está livre.' }
+  if (!janelaAberta(jogo.epoca)) return { ok: false, texto: 'O mercado está fechado.' }
+  if (meu.plantel.length >= PLANTEL_MAX) return { ok: false, texto: `O plantel já tem ${PLANTEL_MAX} jogadores. Vende alguém primeiro.` }
+  const pede = pedidoLivre(mundo, j, jogo.clubeId)
+  if (salario < pede) return { ok: false, texto: `${j.curto} quer ganhar pelo menos ${pede.toLocaleString('pt-PT')} € por mês.` }
+  if (premioAssinatura(salario) > meu.dinheiro) return { ok: false, texto: 'Não tens dinheiro para o prémio de assinatura.' }
+  const a = Math.max(1, Math.min(anosMaximos(j), Math.round(anos)))
+  assinarLivre(jogo, j, jogo.clubeId, salario, a)
+  return { ok: true, texto: `${j.nome} assinou por ${a} ${a === 1 ? 'ano' : 'anos'}, a custo zero!` }
+}
+
+/** No arranque da época: quem ficou sem contrato renova ou sai a custo zero. */
+function fimDeContratos(jogo: JogoComMercado, rng: Rng) {
+  const { mundo } = jogo
+  const st = jogo.mercado!
+  const ids = Object.keys(mundo.clubes).map(Number).sort((a, b) => a - b)
+  for (const cid of ids) {
+    const c = mundo.clubes[cid]
+    for (const id of c.plantel.slice()) {
+      const j = mundo.jogadores[id]
+      if (j.contrato > 0) continue
+      let fica: boolean
+      if (cid === jogo.clubeId) fica = false
+      else {
+        const p = j.idade >= 34 ? 0.3 : ganho(mundo, cid, j) > 0 || j.craque ? 0.9 : 0.55
+        fica = rng.chance(p)
+      }
+      if (!fica && impedeSaida(mundo, j)) fica = true
+      if (fica) {
+        j.salario = pedidoRenovacao(mundo, j)
+        j.contrato = cid === jogo.clubeId ? 1 : rng.int(1, anosMaximos(j))
+        if (cid === jogo.clubeId) noticiar(st, { jornada: jogo.epoca.jornada, jogadorId: id, deId: cid, paraId: cid, valor: 0, tipo: 'renovou' })
+        continue
+      }
+      c.plantel = c.plantel.filter((x) => x !== id)
+      j.clubeId = 0
+      j.craque = false
+      st.livres = [...(st.livres ?? []), id]
+      noticiar(st, { jornada: jogo.epoca.jornada, jogadorId: id, deId: cid, paraId: 0, valor: 0, tipo: 'saiu' })
+    }
+  }
+  corrigirEscalacao(jogo)
+}
+
+function assinarLivresIA(jogo: JogoComMercado, rng: Rng) {
+  const { mundo } = jogo
+  const lista = livres(jogo).sort((a, b) => b.forca - a.forca || a.id - b.id)
+  for (const j of lista) {
+    if (!rng.chance(0.5)) continue
+    let melhor: { cid: number; g: number; sal: number } | null = null
+    for (const d of mundo.divisoes) {
+      for (const cid of d.clubes) {
+        if (cid === jogo.clubeId) continue
+        const c = mundo.clubes[cid]
+        if (c.plantel.length >= PLANTEL_MAX - 2) continue
+        const g = ganho(mundo, cid, j)
+        // Interessa se melhora o onze, ou se o plantel está curto nessa posição.
+        const falta = c.plantel.length < 22 && contaPos(mundo, cid)[j.posicao] < IDEAL[j.posicao]
+        if (g < 1 && !falta) continue
+        const sal = pedidoLivre(mundo, j, cid)
+        if (c.dinheiro < premioAssinatura(sal) + (RESERVA[c.divisao - 1] ?? 0)) continue
+        // Clubes mais altos primeiro; dentro da divisão, quem mais ganha com ele.
+        const nota = g + (falta ? 5 : 0) - c.divisao * 10
+        if (!melhor || nota > melhor.g) melhor = { cid, g: nota, sal }
+      }
+    }
+    if (melhor) assinarLivre(jogo, j, melhor.cid, melhor.sal, rng.int(1, anosMaximos(j)))
+  }
 }

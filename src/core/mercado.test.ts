@@ -134,3 +134,46 @@ function pedidoRecusado(j: JogoComMercado, id: number) {
   const x = j.mundo.jogadores[id]
   return j.mundo.clubes[x.clubeId].reputacao - j.mundo.clubes[j.clubeId].reputacao > 35 || j.mundo.clubes[j.clubeId].divisao - j.mundo.clubes[x.clubeId].divisao >= 2
 }
+
+describe('contratos', () => {
+  it('no fim da época, os meus sem contrato saem livres e a IA renova a maioria', async () => {
+    const { fecharEpoca, epocaTerminada } = await import('./epoca')
+    const { livres, contratarLivre, renovar } = await import('./mercado')
+    const j = novoJogo(13, 3)
+    const meu = j.mundo.clubes[j.clubeId]
+    const acaba = meu.plantel.map((id) => j.mundo.jogadores[id]).filter((x) => x.contrato === 1)
+    expect(acaba.length).toBeGreaterThan(1)
+    // Renovo um, deixo os outros acabar.
+    const fica = acaba[0]
+    expect(renovar(j, fica.id, 2).ok).toBe(true)
+    expect(fica.contrato).toBe(2)
+    let n = 0
+    while (!epocaTerminada(j.epoca)) { concluirJornada(j.mundo, j.epoca, 500 + n++); avancarMercado(j) }
+    fecharEpoca(j.mundo, j.epoca)
+    j.epoca = novaEpoca(j.mundo, 99)
+    const st = estadoMercado(j)
+    expect(fica.clubeId).toBe(j.clubeId)
+    const sairam = acaba.slice(1).filter((x) => x.clubeId === 0)
+    expect(sairam.length).toBeGreaterThan(0)
+    for (const x of sairam) expect(meu.plantel).not.toContain(x.id)
+    const l = livres(j)
+    expect(l.length).toBeGreaterThan(20)
+    expect(st.noticias.some((x) => x.tipo === 'saiu')).toBe(true)
+    // Ninguém fica com contrato 0 dentro de um clube.
+    for (const c of Object.values(j.mundo.clubes)) for (const id of c.plantel) expect(j.mundo.jogadores[id].contrato).toBeGreaterThan(0)
+    expect(j.escalacao.titulares.every((id) => meu.plantel.includes(id))).toBe(true)
+    // Contratar um livre: sem custo de transferência, só o prémio de assinatura.
+    meu.dinheiro = 10_000_000
+    const alvo = l[0]
+    const sal = (await import('./mercado')).pedidoLivre(j.mundo, alvo, j.clubeId)
+    expect(contratarLivre(j, alvo.id, sal - 100, 2).ok).toBe(false)
+    const r = contratarLivre(j, alvo.id, sal, 2)
+    expect(r.ok, r.texto).toBe(true)
+    expect(meu.dinheiro).toBe(10_000_000 - sal * 2)
+    expect(alvo.clubeId).toBe(j.clubeId)
+    // A IA vai buscando livres durante a janela.
+    const antes = livres(j).length
+    for (let k = 0; k < 6; k++) { concluirJornada(j.mundo, j.epoca, 900 + k); avancarMercado(j) }
+    expect(livres(j).length).toBeLessThan(antes)
+  })
+})

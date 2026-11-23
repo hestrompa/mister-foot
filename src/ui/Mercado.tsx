@@ -4,12 +4,13 @@ import { euros } from '../core/formato'
 import {
   aceitarProposta, comprar, estadoMercado, janelaAberta, listaIA, pedidoSalarial, porAVenda, precoPedido,
   recusaDoJogador, recusarProposta, retirarDaVenda, textoJanela, PLANTEL_MAX, type JogoComMercado, type Resultado,
+  anosMaximos, contratarLivre, livres, pedidoLivre, pedidoRenovacao, premioAssinatura, renovar,
 } from '../core/mercado'
 import { Emblema } from './Emblema'
 import { Forca } from './Plantel'
 import './mercado.css'
 
-type Sub = 'lista' | 'procurar' | 'propostas' | 'vender' | 'noticias'
+type Sub = 'lista' | 'procurar' | 'livres' | 'propostas' | 'vender' | 'contratos' | 'noticias'
 const POS: (Posicao | 'todas')[] = ['todas', 'GR', 'DEF', 'MED', 'AV']
 const MAX_LINHAS = 60
 
@@ -34,12 +35,14 @@ export function Mercado({ jogo, atualizar }: { jogo: JogoComMercado; atualizar: 
         <span className="janela-txt">Dinheiro: <b>{euros(meu.dinheiro)}</b> · Plantel: <b>{meu.plantel.length}/{PLANTEL_MAX}</b></span>
       </div>
       <nav className="separadores sub-sep" aria-label="Mercado">
-        {([['lista', 'À venda'], ['procurar', 'Procurar'], ['propostas', `Propostas${st.propostas.length ? ` (${st.propostas.length})` : ''}`], ['vender', 'Vender'], ['noticias', 'Notícias']] as [Sub, string][]).map(([k, t]) => (
+        {([['lista', 'À venda'], ['procurar', 'Procurar'], ['livres', 'Livres'], ['propostas', `Propostas${st.propostas.length ? ` (${st.propostas.length})` : ''}`], ['vender', 'Vender'], ['contratos', `Contratos${aAcabar(jogo) ? ` (${aAcabar(jogo)})` : ''}`], ['noticias', 'Notícias']] as [Sub, string][]).map(([k, t]) => (
           <button key={k} className={sub === k ? 'ativo' : ''} onClick={() => { setSub(k); setMsg(null) }}>{t}</button>
         ))}
       </nav>
       {msg && <p className={msg.ok ? 'msg-ok' : 'erro'} role="status">{msg.texto}</p>}
       {(sub === 'lista' || sub === 'procurar') && <Comprar key={sub} jogo={jogo} soLista={sub === 'lista'} feito={feito} />}
+      {sub === 'livres' && <Livres jogo={jogo} feito={feito} />}
+      {sub === 'contratos' && <Contratos jogo={jogo} feito={feito} />}
       {sub === 'propostas' && <Propostas jogo={jogo} feito={feito} />}
       {sub === 'vender' && <Vender jogo={jogo} feito={feito} />}
       {sub === 'noticias' && <Noticias jogo={jogo} />}
@@ -86,7 +89,7 @@ function Comprar({ jogo, soLista, feito }: { jogo: JogoComMercado; soLista: bool
   const linhas = useMemo(() => {
     const base: { j: Jogador; preco: number; leilao?: boolean }[] = soLista
       ? listaIA(jogo).map((a) => ({ j: mundo.jogadores[a.jogadorId], preco: a.preco, leilao: a.leilao }))
-      : Object.values(mundo.jogadores).filter((j) => j.clubeId !== jogo.clubeId).map((j) => ({ j, preco: precoPedido(jogo, j.id) }))
+      : Object.values(mundo.jogadores).filter((j) => j.clubeId !== jogo.clubeId && j.clubeId !== 0).map((j) => ({ j, preco: precoPedido(jogo, j.id) }))
     const q = nome.trim().toLowerCase()
     return base
       .filter(({ j, preco }) =>
@@ -292,6 +295,15 @@ function Noticias({ jogo }: { jogo: JogoComMercado }) {
       {lista.map((n, i) => {
         const j = mundo.jogadores[n.jogadorId]
         const minha = n.deId === jogo.clubeId || n.paraId === jogo.clubeId
+        if (n.tipo === 'saiu') {
+          return <li key={i} className={minha ? 'minha' : ''}><span className="dica">J{n.jornada}</span> <span className={`pos pos-${j?.posicao}`}>{j?.posicao}</span> <b>{j?.curto}</b> ({j?.forca}) acabou contrato com <ClubeCurto jogo={jogo} id={n.deId} /> e ficou livre</li>
+        }
+        if (n.tipo === 'livre') {
+          return <li key={i} className={minha ? 'minha' : ''}><span className="dica">J{n.jornada}</span> <span className={`pos pos-${j?.posicao}`}>{j?.posicao}</span> <b>{j?.curto}</b> ({j?.forca}) assinou pelo <ClubeCurto jogo={jogo} id={n.paraId} /> a custo zero</li>
+        }
+        if (n.tipo === 'renovou') {
+          return <li key={i} className="minha"><span className="dica">J{n.jornada}</span> <b>{j?.curto}</b> renovou por 1 ano: sem ele o plantel ficava curto.</li>
+        }
         if (n.deId === n.paraId) {
           return <li key={i} className="minha"><span className="dica">J{n.jornada}</span> Leilão de <b>{j?.curto}</b> sem lances suficientes: continua no plantel.</li>
         }
@@ -303,5 +315,124 @@ function Noticias({ jogo }: { jogo: JogoComMercado }) {
         )
       })}
     </ul>
+  )
+}
+
+/** Quantos jogadores meus acabam contrato no fim desta época. */
+function aAcabar(jogo: JogoComMercado): number {
+  return jogo.mundo.clubes[jogo.clubeId].plantel.filter((id) => jogo.mundo.jogadores[id].contrato <= 1).length
+}
+
+function Contratos({ jogo, feito }: { jogo: JogoComMercado; feito: (r: Resultado) => void }) {
+  const { mundo } = jogo
+  const [sel, setSel] = useState<number | null>(null)
+  const [anos, setAnos] = useState(2)
+  const plantel = mundo.clubes[jogo.clubeId].plantel.map((id) => mundo.jogadores[id]).sort((a, b) => a.contrato - b.contrato || b.forca - a.forca)
+  const j = sel != null ? mundo.jogadores[sel] : null
+  return (
+    <>
+      <p className="nota">Quem chega ao fim do contrato sai a custo zero no fim da época. Renova a tempo os que queres manter (é possível com 2 anos ou menos de contrato).</p>
+      {j && j.clubeId === jogo.clubeId && (
+        <div className="cartao negociar">
+          <div className="neg-topo">
+            <span className={`pos pos-${j.posicao}`}>{j.posicao}</span>
+            <span className="neg-nome">{j.nome}</span>
+            <Forca valor={j.forca} />
+            <button className="botao fantasma fechar" onClick={() => setSel(null)}>Fechar</button>
+          </div>
+          <p className="nota">{j.idade} anos · ganha {euros(j.salario)}/mês · contrato {j.contrato} {j.contrato === 1 ? 'ano' : 'anos'}</p>
+          {j.contrato > 2 ? <p className="nota">Ainda é cedo para renovar.</p> : (
+            <>
+              <p>Pede <b>{euros(pedidoRenovacao(mundo, j))}</b> por mês.</p>
+              <div className="grupo-botoes">
+                {Array.from({ length: anosMaximos(j) }, (_, k) => k + 1).map((a) => (
+                  <button key={a} className={`botao ${Math.min(anos, anosMaximos(j)) === a ? 'ativo' : ''}`} onClick={() => setAnos(a)}>{a} {a === 1 ? 'ano' : 'anos'}</button>
+                ))}
+              </div>
+              <button className="botao principal" onClick={() => { feito(renovar(jogo, j.id, Math.min(anos, anosMaximos(j)))); setSel(null) }}>Renovar</button>
+            </>
+          )}
+        </div>
+      )}
+      <div className="tabela-wrap">
+        <table className="tabela mercado-tab">
+          <thead><tr><th>Pos</th><th>Nome</th><th className="num">Idade</th><th>Força</th><th className="num esconde-m">Salário</th><th className="num">Contrato</th></tr></thead>
+          <tbody>
+            {plantel.map((x) => (
+              <tr key={x.id} className={`clicavel ${sel === x.id ? 'meu' : ''}`} onClick={() => setSel(x.id)}>
+                <td><span className={`pos pos-${x.posicao}`}>{x.posicao}</span></td>
+                <td><span className="nome-jogador">{x.curto}</span>{x.craque && <span className="craque">craque</span>}</td>
+                <td className="num">{x.idade}</td>
+                <td><Forca valor={x.forca} /></td>
+                <td className="num esconde-m">{euros(x.salario)}</td>
+                <td className={`num ${x.contrato <= 1 ? 'acaba' : ''}`}>{x.contrato <= 1 ? 'acaba' : `${x.contrato} anos`}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  )
+}
+
+function Livres({ jogo, feito }: { jogo: JogoComMercado; feito: (r: Resultado) => void }) {
+  const { mundo } = jogo
+  const [pos, setPos] = useState<Posicao | 'todas'>('todas')
+  const [sel, setSel] = useState<number | null>(null)
+  const lista = livres(jogo).filter((j) => pos === 'todas' || j.posicao === pos).sort((a, b) => b.forca - a.forca).slice(0, MAX_LINHAS)
+  const j = sel != null ? mundo.jogadores[sel] : null
+  return (
+    <>
+      <p className="nota">Jogadores sem clube, que acabaram contrato. Não pagas transferência, só o salário e um prémio de assinatura de dois meses.</p>
+      <div className="grupo-botoes">
+        {POS.map((p) => <button key={p} className={`botao ${pos === p ? 'ativo' : ''}`} onClick={() => setPos(p)}>{p === 'todas' ? 'Todas' : p}</button>)}
+      </div>
+      {j && j.clubeId === 0 && <AssinarLivre key={j.id} jogo={jogo} j={j} fechar={() => setSel(null)} feito={(r) => { if (r.ok) setSel(null); feito(r) }} />}
+      {lista.length === 0 ? <p className="nota">Não há jogadores livres{pos !== 'todas' ? ' nesta posição' : ''}. Aparecem no início de cada época.</p> : (
+        <div className="tabela-wrap">
+          <table className="tabela mercado-tab">
+            <thead><tr><th>Pos</th><th>Nome</th><th className="num">Idade</th><th>Força</th><th className="num">Pede</th></tr></thead>
+            <tbody>
+              {lista.map((x) => (
+                <tr key={x.id} className={`clicavel ${sel === x.id ? 'meu' : ''}`} onClick={() => setSel(x.id)}>
+                  <td><span className={`pos pos-${x.posicao}`}>{x.posicao}</span></td>
+                  <td><span className="nome-jogador">{x.curto}</span></td>
+                  <td className="num">{x.idade}</td>
+                  <td><Forca valor={x.forca} /></td>
+                  <td className="num">{euros(pedidoLivre(mundo, x, jogo.clubeId))}/mês</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>
+  )
+}
+
+function AssinarLivre({ jogo, j, fechar, feito }: { jogo: JogoComMercado; j: Jogador; fechar: () => void; feito: (r: Resultado) => void }) {
+  const pede = pedidoLivre(jogo.mundo, j, jogo.clubeId)
+  const [salario, setSalario] = useState(pede)
+  const [anos, setAnos] = useState(Math.min(2, anosMaximos(j)))
+  const aberta = janelaAberta(jogo.epoca)
+  return (
+    <div className="cartao negociar">
+      <div className="neg-topo">
+        <span className={`pos pos-${j.posicao}`}>{j.posicao}</span>
+        <span className="neg-nome">{j.nome}</span>
+        <Forca valor={j.forca} />
+        <button className="botao fantasma fechar" onClick={fechar}>Fechar</button>
+      </div>
+      <p className="nota">{j.idade} anos · livre · ganhava {euros(j.salario)}/mês</p>
+      <div className="neg-ajustes">
+        <Ajuste rotulo="Salário por mês" valor={salario} setValor={setSalario} base={pede} dica={`Pede ${euros(pede)} · prémio ${euros(premioAssinatura(salario))}`} />
+      </div>
+      <div className="grupo-botoes">
+        {Array.from({ length: anosMaximos(j) }, (_, k) => k + 1).map((a) => (
+          <button key={a} className={`botao ${anos === a ? 'ativo' : ''}`} onClick={() => setAnos(a)}>{a} {a === 1 ? 'ano' : 'anos'}</button>
+        ))}
+      </div>
+      <button className="botao principal" disabled={!aberta} onClick={() => feito(contratarLivre(jogo, j.id, salario, anos))}>{aberta ? 'Contratar' : 'Mercado fechado'}</button>
+    </div>
   )
 }

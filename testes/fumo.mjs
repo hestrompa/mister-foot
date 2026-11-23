@@ -109,6 +109,13 @@ try {
     await page.getByRole('button', { name: 'Procurar', exact: true }).click()
     await page.getByPlaceholder('Nome do jogador').waitFor({ timeout: 5000 })
     await foto('4c-procurar.png')
+    await page.getByRole('button', { name: /^Contratos/ }).click()
+    await page.locator('table.mercado-tab tbody tr').first().click()
+    await page.getByRole('button', { name: 'Renovar', exact: true }).click()
+    await page.getByText(/renovou por/).waitFor({ timeout: 5000 })
+    await foto('4d-contratos.png')
+    await page.getByRole('button', { name: 'Livres', exact: true }).click()
+    await page.getByText(/Jogadores sem clube/).waitFor({ timeout: 5000 })
   })
 
   await passo('recarregar mantém a carreira', async () => {
