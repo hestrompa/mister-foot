@@ -53,12 +53,21 @@ describe('Taça Nacional', () => {
     expect(t.historico).toHaveLength(1)
     const final = t.rondas[6].jogos[0]
     expect(t.historico[0].vencedorId).toBe(vencedorDe(final))
-    // Na taça não há empates: quem empata vai aos penáltis.
+    // Na taça não há empates: quem empata aos 90 vai a prolongamento e, se persistir, a penáltis.
+    let prolongados = 0, decididosNoProlongamento = 0
     for (const r of t.rondas) for (const p of r.jogos) {
       expect(p.jogada).toBe(true)
-      if (p.golos[0] === p.golos[1]) expect(p.penaltis![0]).not.toBe(p.penaltis![1])
-      else expect(p.penaltis).toBeUndefined()
+      if (p.prolongamento) prolongados++
+      if (p.golos[0] === p.golos[1]) {
+        expect(p.prolongamento).toBe(true)
+        expect(p.penaltis![0]).not.toBe(p.penaltis![1])
+      } else {
+        expect(p.penaltis).toBeUndefined()
+        if (p.prolongamento) decididosNoProlongamento++
+      }
     }
+    expect(prolongados).toBeGreaterThan(5)
+    expect(decididosNoProlongamento).toBeGreaterThan(0)
     // Joga em casa o clube da divisão mais baixa (menos na final, em campo neutro).
     for (const r of t.rondas.slice(0, 6)) for (const p of r.jogos) {
       expect(jogo.mundo.clubes[p.casaId].divisao).toBeGreaterThanOrEqual(jogo.mundo.clubes[p.foraId].divisao)

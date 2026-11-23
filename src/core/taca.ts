@@ -1,9 +1,9 @@
 // Taça Nacional: eliminatórias a uma mão com os 72 clubes, jogadas a meio da semana entre jornadas da liga.
-// Empate no fim dos 90 minutos decide-se nos penáltis. O clube da divisão mais baixa joga em casa; a final é em campo neutro.
+// Empate no fim dos 90 minutos dá prolongamento (30 minutos) e, se persistir, penáltis. O clube da divisão mais baixa joga em casa; a final é em campo neutro.
 import type { Jogo, Mundo } from './types'
-import type { Escalacao, EstatJogo, Partida } from './partida'
+import type { Escalacao, EstatJogo, EventoJogo, Partida } from './partida'
 import { createRng, type Rng } from './rng'
-import { simularJogo } from './motor'
+import { avancarMinuto, iniciarJogo, type EstadoJogo } from './motor'
 import { escalarIA } from './tatica'
 import { publicoEsperado } from './financas'
 
@@ -206,6 +206,37 @@ export function indisponiveisTaca(jogo: JogoComTaca, clubeId: number): Set<numbe
   return fora
 }
 
+/** O jogo acabou empatado nos 90 minutos e ainda não teve prolongamento. */
+export function precisaProlongamento(e: EstadoJogo): boolean {
+  const p = e.partida
+  return p.jogada && p.golos[0] === p.golos[1] && !p.prolongamento
+}
+
+/** Reabre um jogo empatado para 30 minutos de prolongamento (minutos 91 a 120). */
+export function prolongar(e: EstadoJogo): EventoJogo {
+  const x = e as unknown as { fimMinuto: number; posseAcum: number }
+  // A posse é a média por minuto: reescala o acumulado para os 90 minutos de base.
+  x.posseAcum *= 90 / Math.max(90, e.minuto)
+  e.minuto = 90
+  x.fimMinuto = 120
+  e.partida.jogada = false
+  e.partida.prolongamento = true
+  const ev: EventoJogo = { minuto: 90, tipo: 'intervalo', lado: 'casa', texto: `Empate ao fim dos 90 minutos: vai haver prolongamento.` }
+  e.partida.eventos.push(ev)
+  return ev
+}
+
+/** Joga um jogo da taça inteiro, com prolongamento se empatar (os penáltis vêm depois). */
+export function simularJogoTaca(mundo: Mundo, p: Partida, casa: Escalacao, fora: Escalacao, semente: number): Partida {
+  const e = iniciarJogo(mundo, p, casa, fora, semente)
+  let guarda = 0
+  while (!e.partida.jogada && guarda++ < 300) {
+    avancarMinuto(mundo, e)
+    if (precisaProlongamento(e)) prolongar(e)
+  }
+  return e.partida
+}
+
 /** Escalação da IA para a taça. */
 export function escalacaoTaca(jogo: JogoComTaca, p: Partida, clubeId: number): Escalacao {
   const emCasa = clubeId === p.casaId
@@ -264,7 +295,7 @@ export function vencedorDe(p: Partida): number {
 
 /** Resultado em texto (ex.: "1-1 (4-3 g.p.)"). */
 export function textoResultado(p: Partida): string {
-  return `${p.golos[0]}-${p.golos[1]}${p.penaltis ? ` (${p.penaltis[0]}-${p.penaltis[1]} g.p.)` : ''}`
+  return `${p.golos[0]}-${p.golos[1]}${p.penaltis ? ` (${p.penaltis[0]}-${p.penaltis[1]} g.p.)` : p.prolongamento ? ' a.p.' : ''}`
 }
 
 function noticia(t: EstadoTaca, texto: string, minha = false) {
@@ -314,7 +345,7 @@ export function jogarRondaTaca(jogo: JogoComTaca, jogadas: { partida: Partida; e
     if (p.jogada) return
     const casa = escalacaoTaca(jogo, p, p.casaId)
     const fora = escalacaoTaca(jogo, p, p.foraId)
-    const res = simularJogo(mundo, p, casa, fora, mistura(semente, i))
+    const res = simularJogoTaca(mundo, p, casa, fora, mistura(semente, i))
     const saiu = new Set(res.eventos.filter((e) => e.tipo === 'vermelho' || e.tipo === 'lesao' || e.tipo === 'substituicao').map((e) => e.jogadorId))
     const entrou = res.eventos.filter((e) => e.tipo === 'substituicao').map((e) => e.outroId!)
     const lado = (esc: Escalacao, l: 'casa' | 'fora') => [...esc.titulares, ...entrou.filter((id) => mundo.jogadores[id]?.clubeId === (l === 'casa' ? p.casaId : p.foraId))].filter((id) => !saiu.has(id))
@@ -387,7 +418,7 @@ export function jogarRondaTaca(jogo: JogoComTaca, jogadas: { partida: Partida; e
     if (final) {
       noticia(t, `${nome(v)} vence a ${NOME_TACA}! Final: ${nome(p.casaId)} ${res} ${nome(p.foraId)}.`, v === jogo.clubeId || perde === jogo.clubeId)
       const [a, b] = v === p.casaId ? [p.golos[0], p.golos[1]] : [p.golos[1], p.golos[0]]
-      const pen = p.penaltis ? (v === p.casaId ? ` (${p.penaltis[0]}-${p.penaltis[1]} g.p.)` : ` (${p.penaltis[1]}-${p.penaltis[0]} g.p.)`) : ''
+      const pen = p.penaltis ? (v === p.casaId ? ` (${p.penaltis[0]}-${p.penaltis[1]} g.p.)` : ` (${p.penaltis[1]}-${p.penaltis[0]} g.p.)`) : p.prolongamento ? ' a.p.' : ''
       t.historico.push({ ano: t.ano, vencedorId: v, finalistaId: perde, resultado: `${a}-${b}${pen}` })
     } else if (v === jogo.clubeId) {
       noticia(t, `${nome(v)} segue em frente na taça (${ronda.nome}): ${nome(p.casaId)} ${res} ${nome(p.foraId)}. Prémio de ${Math.round(premioRonda(t, r) / 1000)} mil €.`, true)

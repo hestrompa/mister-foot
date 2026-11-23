@@ -84,6 +84,8 @@ export interface Partida {
   publico?: number
   receita?: number
   /** Taça: desempate por penáltis (casa, fora) e a série [lado 0/1, jogadorId, marcou]. */
+  /** Taça: houve prolongamento (até ao minuto 120). */
+  prolongamento?: boolean
   penaltis?: [number, number]
   serie?: [0 | 1, number, boolean][]
 }

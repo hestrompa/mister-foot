@@ -5,7 +5,7 @@ import type { Lado, Partida } from '../core/partida'
 import { avancarMinuto, definirAutoSub, iniciarJogo, type EstadoJogo } from '../core/motor'
 import { euros } from '../core/formato'
 import {
-  NOME_TACA, PREMIO_FINALISTA, escalacaoTaca, garantirTaca, indisponiveisTaca, jogarRondaTaca, meuJogoNaRonda,
+  NOME_TACA, PREMIO_FINALISTA, precisaProlongamento, prolongar, escalacaoTaca, garantirTaca, indisponiveisTaca, jogarRondaTaca, meuJogoNaRonda,
   minhaSituacao, premioRonda, vencedorDe, type JogoComTaca, type RondaTaca,
 } from '../core/taca'
 import { Emblema } from './Emblema'
@@ -148,11 +148,16 @@ export function AoVivoTaca({ jogo, guardar, continuar }: { jogo: JogoComTaca; gu
   const [resumo, setResumo] = useState<ResumoTaca | null>(null)
   const terminou = (e: EstadoJogo) => e.partida.jogada || feitos.current.has(e.partida.id)
 
-  const passo = (): 'intervalo' | 'lesao' | null => {
-    let pausa: 'intervalo' | 'lesao' | null = null
+  const passo = (): 'intervalo' | 'lesao' | 'pausa' | null => {
+    let pausa: 'intervalo' | 'lesao' | 'pausa' | null = null
     for (const e of estados) {
       if (terminou(e)) continue
       for (const ev of avancarMinuto(mundo, e)) {
+        if (ev.tipo === 'fim' && precisaProlongamento(e)) {
+          prolongar(e)
+          if (e === meu && !pausa) pausa = 'pausa'
+          continue
+        }
         if (ev.tipo === 'fim') feitos.current.add(e.partida.id)
         if (e === meu && ev.tipo === 'intervalo') pausa = 'intervalo'
         if (e === meu && ev.tipo === 'lesao' && ev.lado === meuLado && meu.subs[meuLado] < 5 && !pausa) { pausa = 'lesao'; setLesionado(ev.jogadorId ?? null) }
@@ -206,13 +211,13 @@ export function AoVivoTaca({ jogo, guardar, continuar }: { jogo: JogoComTaca; gu
       <div className="av-principal">
         <div className="cartao meu-jogo">
           <div className="pj-cab">{NOME_TACA} · {ronda.nome}</div>
-          <div className="mj-min">{terminou(meu) ? 'Final' : fase === 'intervalo' ? 'Intervalo' : `${meu.minuto}'`}</div>
+          <div className="mj-min">{terminou(meu) ? 'Final' : fase === 'intervalo' ? 'Intervalo' : `${meu.minuto}'${mp.prolongamento ? ' · prolongamento' : ''}`}</div>
           <div className="mj-placar">
             <div className="mj-eq"><Emblema clube={casa} tamanho={40} /><span>{casa.nome}</span></div>
             <div className="mj-golos">{mp.golos[0]}<span>-</span>{mp.golos[1]}</div>
             <div className="mj-eq"><Emblema clube={fora} tamanho={40} /><span>{fora.nome}</span></div>
           </div>
-          {terminou(meu) && mp.golos[0] === mp.golos[1] && <p className="dica">Empate: decide-se nos penáltis.</p>}
+          {terminou(meu) && mp.golos[0] === mp.golos[1] && <p className="dica">Empate depois do prolongamento: decide-se nos penáltis.</p>}
         </div>
         <div className="controlos">
           {[1, 2, 4].map((v) => <button key={v} className={`botao ${vel === v ? 'ativo' : ''}`} onClick={() => setVel(v)}>{v}x</button>)}
@@ -273,6 +278,7 @@ function ResumoRonda({ jogo, r, continuar }: { jogo: JogoComTaca; r: ResumoTaca;
           <div className="mj-golos">{p.golos[0]}<span>-</span>{p.golos[1]}</div>
           <div className="mj-eq"><Emblema clube={mundo.clubes[p.foraId]} tamanho={40} /><span>{mundo.clubes[p.foraId].nome}</span></div>
         </div>
+        {p.prolongamento && !p.penaltis && <p className="dica">Decidido no prolongamento.</p>}
         {p.penaltis && p.serie && (
           <div className="penaltis">
             <b>Penáltis {p.penaltis[0]}-{p.penaltis[1]}</b>
