@@ -200,8 +200,19 @@ export function estadoMercado(jogo: JogoComMercado): EstadoMercado {
   const ano = jogo.epoca.ano
   if (!jogo.mercado || jogo.mercado.ano !== ano) {
     const antigas = jogo.mercado?.noticias ?? []
-    // Livres da época passada continuam; os de 35 ou mais retiram-se.
-    const livres = (jogo.mercado?.livres ?? []).filter((id) => (jogo.mundo.jogadores[id]?.idade ?? 99) < 35 && jogo.mundo.jogadores[id]?.clubeId === 0)
+    // Livres que passaram uma época inteira sem clube retiram-se (só os muito jovens tentam mais um ano).
+    const guardar = new Set(antigas.slice(-10).map((n) => n.jogadorId))
+    const livres: number[] = []
+    for (const id of jogo.mercado?.livres ?? []) {
+      const j = jogo.mundo.jogadores[id]
+      if (j && j.clubeId === 0 && j.idade <= 21) livres.push(id)
+    }
+    // Quem está sem clube e não fica na lista de livres (reformados, livres esquecidos) sai do mundo, para o save não crescer.
+    const ficam = new Set(livres)
+    for (const k of Object.keys(jogo.mundo.jogadores)) {
+      const id = Number(k)
+      if (jogo.mundo.jogadores[id].clubeId === 0 && !ficam.has(id) && !guardar.has(id)) delete jogo.mundo.jogadores[id]
+    }
     jogo.mercado = { ano, jornada: jogo.epoca.jornada, lista: [], propostas: [], noticias: antigas.slice(-10), recusados: [], proximaProposta: 1, livres }
     fimDeContratos(jogo, rngDe(jogo.mundo, ano, 0, 0xc047))
     formarJuniores(jogo, rngDe(jogo.mundo, ano, 0, 0x1a7))
@@ -627,6 +638,14 @@ function fimDeContratos(jogo: JogoComMercado, rng: Rng) {
     const c = mundo.clubes[cid]
     for (const id of c.plantel.slice()) {
       const j = mundo.jogadores[id]
+      // Aos 36 anos retiram-se, com ou sem contrato (se o plantel não ficar curto).
+      if (j.idade >= 36 && !impedeSaida(mundo, j)) {
+        c.plantel = c.plantel.filter((x) => x !== id)
+        j.clubeId = 0
+        j.craque = false
+        noticiar(st, { jornada: jogo.epoca.jornada, jogadorId: id, deId: cid, paraId: 0, valor: 0, tipo: 'reformou' })
+        continue
+      }
       if (j.contrato > 0) continue
       let fica: boolean
       if (cid === jogo.clubeId) fica = false
@@ -699,8 +718,8 @@ function formarJuniores(jogo: JogoComMercado, rng: Rng) {
       st.juniores = Array.from({ length: JUNIORES_POR_EPOCA }, () => gerarJunior(mundo, rng, cid).id)
       continue
     }
-    const n = rng.int(2, 4)
-    for (let k = 0; k < n && c.plantel.length < 26; k++) {
+    const n = rng.int(1, 3)
+    for (let k = 0; k < n && c.plantel.length < 25; k++) {
       const j = gerarJunior(mundo, rng, cid)
       j.clubeId = cid
       j.contrato = rng.int(2, 3)

@@ -61,11 +61,15 @@ export function gerarJunior(mundo: Mundo, rng: Rng, clubeId: number): Jogador {
   return j
 }
 
-/** Estimativa do potencial, como a daria um olheiro: nunca o número exato. */
-export function potencialTexto(j: Jogador): string {
-  const m = j.potencial - j.forca
-  if (j.potencial >= 75 || m >= 28) return 'Pérola'
-  if (m >= 14) return 'Alto'
-  if (m >= 8) return 'Médio'
+/**
+ * Estimativa do potencial, como a daria um olheiro: nunca o número exato.
+ * Comparada com a força do clube de referência (o meu): Pérola chega bem acima do onze atual.
+ */
+export function potencialTexto(j: Jogador, mundo?: Mundo, clubeId?: number): string {
+  const ref = mundo && clubeId != null && mundo.clubes[clubeId] ? forcaClube(mundo, clubeId) : j.forca + 15
+  const d = j.potencial - ref
+  if (d >= 10) return 'Pérola'
+  if (d >= 2) return 'Alto'
+  if (d >= -6) return 'Médio'
   return 'Baixo'
 }

@@ -459,7 +459,7 @@ function Juniores({ jogo, feito }: { jogo: JogoComMercado; feito: (r: Resultado)
                 <span className="neg-nome">{j.nome}</span>
                 <Forca valor={j.forca} />
               </div>
-              <p className="nota">{j.idade} anos · potencial <b className={`pot pot-${potencialTexto(j)}`}>{potencialTexto(j)}</b> · ganharia {euros(salarioDe(j.forca, div))}/mês</p>
+              <p className="nota">{j.idade} anos · potencial <b className={`pot pot-${potencialTexto(j, jogo.mundo, jogo.clubeId)}`}>{potencialTexto(j, jogo.mundo, jogo.clubeId)}</b> · ganharia {euros(salarioDe(j.forca, div))}/mês</p>
               <div className="grupo-botoes">
                 <button className="botao principal" onClick={() => feito(promoverJunior(jogo, j.id))}>Promover</button>
                 <button className="botao" onClick={() => feito(dispensarJunior(jogo, j.id))}>Dispensar</button>
