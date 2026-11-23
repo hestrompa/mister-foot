@@ -152,9 +152,13 @@ export function textoMoral(m: number): string {
 export type ClubeComCapitao = import('./types').Clube & { capitaoId?: number }
 
 /** Liderança 0-1: experiência pesa mais, ser dos melhores do plantel ajuda. */
-export function lideranca(mundo: Mundo, j: Jogador): number {
-  const c = mundo.clubes[j.clubeId]
-  const media = c && c.plantel.length ? c.plantel.reduce((s, id) => s + (mundo.jogadores[id]?.forca ?? 0), 0) / c.plantel.length : j.forca
+function mediaPlantel(mundo: Mundo, clubeId: number): number | undefined {
+  const c = mundo.clubes[clubeId]
+  return c && c.plantel.length ? c.plantel.reduce((s, id) => s + (mundo.jogadores[id]?.forca ?? 0), 0) / c.plantel.length : undefined
+}
+
+export function lideranca(mundo: Mundo, j: Jogador, mediaDoPlantel?: number): number {
+  const media = mediaDoPlantel ?? mediaPlantel(mundo, j.clubeId) ?? j.forca
   const exp = clamp((j.idade - 20) / 12, 0, 1)
   const nivel = clamp((j.forca - media) / 20 + 0.5, 0, 1)
   return Math.round((exp * 0.6 + nivel * 0.4) * 100) / 100
@@ -165,10 +169,11 @@ export function liderNatural(mundo: Mundo, clubeId: number): number | undefined 
   const c = mundo.clubes[clubeId]
   let melhor: Jogador | undefined
   let mv = -1
+  const media = mediaPlantel(mundo, clubeId)
   for (const id of c?.plantel ?? []) {
     const j = mundo.jogadores[id]
     if (!j) continue
-    const v = lideranca(mundo, j)
+    const v = lideranca(mundo, j, media)
     if (v > mv || (v === mv && melhor && j.id < melhor.id)) { melhor = j; mv = v }
   }
   return melhor?.id

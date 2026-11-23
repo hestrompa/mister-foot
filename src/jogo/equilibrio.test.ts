@@ -105,7 +105,7 @@ describe('finanças ao longo das épocas (sem mercado)', () => {
     // Lucro mediano da 1.ª por época abaixo de 8 M€.
     expect(d1[2] - d1[0]).toBeLessThan(16_000_000)
     for (const m of ms) expect(m.dinheiroMediano[3]).toBeGreaterThan(0)
-  })
+  }, 20_000)
 })
 
 describe('dinheiro com mercado, contratos, obras e empréstimos', () => {

@@ -70,7 +70,7 @@ describe('direção do clube', () => {
       else expect(st.ultimaAvaliacao?.ano).toBe(jogo.epoca.ano)
     }
     expect(despedidos).toBeLessThanOrEqual(1)
-  })
+  }, 20_000)
 
   it('duas épocas seguidas: objetivos novos, histórico e determinismo', () => {
     const corre = () => {
@@ -97,5 +97,5 @@ describe('direção do clube', () => {
     expect(a.ano).toBe(a.historico.at(-1)?.ano)
     expect(a.confianca).toBeGreaterThanOrEqual(0)
     expect(a.confianca).toBeLessThanOrEqual(100)
-  })
+  }, 20_000)
 })

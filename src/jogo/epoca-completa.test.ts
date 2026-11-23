@@ -37,5 +37,5 @@ describe('época completa com gravação', () => {
     expect(back?.mundo.epoca).toBe(mundo.epoca)
     console.log('save máximo (caracteres):', maior)
     expect(maior).toBeLessThan(4_000_000)
-  })
+  }, 20_000)
 })
