@@ -164,7 +164,9 @@ describe('contratos', () => {
     expect(j.escalacao.titulares.every((id) => meu.plantel.includes(id))).toBe(true)
     // Contratar um livre: sem custo de transferência, só o prémio de assinatura.
     meu.dinheiro = 10_000_000
-    const alvo = l[0]
+    // Um livre que aceite vir (os bons esperam por clubes do seu nível).
+    const { recusaDoLivre } = await import('./mercado')
+    const alvo = l.find((x) => !recusaDoLivre(j.mundo, x, j.clubeId, j.epoca.jornada))!
     const sal = (await import('./mercado')).pedidoLivre(j.mundo, alvo, j.clubeId)
     expect(contratarLivre(j, alvo.id, sal - 100, 2).ok).toBe(false)
     const r = contratarLivre(j, alvo.id, sal, 2)
