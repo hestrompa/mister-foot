@@ -102,3 +102,14 @@ describe('finanças ao longo das épocas (sem mercado)', () => {
     for (const m of ms) expect(m.dinheiroMediano[3]).toBeGreaterThan(0)
   })
 })
+
+describe('dinheiro com mercado, contratos, obras e empréstimos', () => {
+  it('sem falências em massa, salários sem inflação e sem dinheiro a explodir', async () => {
+    const { medirDinheiro } = await import('./medir')
+    const ms = medirDinheiro(21, 4)
+    for (const m of ms) expect(m.vermelho).toBeLessThanOrEqual(6)
+    const [a, z] = [ms[0], ms[ms.length - 1]]
+    for (let d = 1; d < 4; d++) expect(z.salarios[d]).toBeLessThan(a.salarios[d] * 1.6)
+    expect((z.total - a.total) / (ms.length - 1)).toBeLessThan(100_000_000)
+  }, 30_000)
+})
