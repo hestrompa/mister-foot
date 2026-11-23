@@ -147,6 +147,21 @@ try {
     await foto('10-resumo-telemovel.png')
   })
 
+  await passo('telemóvel: todos os separadores sem scroll horizontal', async () => {
+    await page.getByRole('button', { name: 'Continuar', exact: true }).click()
+    await page.getByText(/Jornada 3 de/).waitFor({ timeout: 5000 })
+    const seps = ['Plantel', 'Classificação', 'Calendário', 'Clube', 'Divisões', 'Jogo']
+    const largos = []
+    for (const [i, nome] of seps.entries()) {
+      await page.getByRole('button', { name: nome, exact: true }).click()
+      await page.waitForTimeout(150)
+      await foto(`11-${i + 1}-telemovel-${nome.normalize('NFD').replace(/[^a-zA-Z]/g, '').toLowerCase()}.png`)
+      const { sw, iw } = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }))
+      if (sw > iw + 1) largos.push(`${nome} ${sw}`)
+    }
+    esperar(largos.length === 0, `scroll horizontal em: ${largos.join(', ')}`)
+  })
+
   await ctx.close()
 } finally {
   await browser.close()

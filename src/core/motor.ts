@@ -272,7 +272,7 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
     const atacantes = campo[atac].filter((c) => c.pos !== 'GR')
     const remC = origem === 'penalti'
       ? atacantes.slice().sort((a, b) => b.j.forca - a.j.forca)[0]
-      : pesado(rng, atacantes, (c) => PESO_REMATE[c.pos] * c.ef)
+      : pesado(rng, atacantes, (c) => PESO_REMATE[c.pos] * Math.pow(c.ef, 0.6))
     if (remC) {
       const pasC = origem === 'penalti' || origem === 'livre' ? undefined
         : pesado(rng, atacantes.filter((c) => c !== remC), (c) => PESO_PASSE[c.pos] * c.ef)
@@ -315,7 +315,8 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
     const cl = campo[lado].filter((c) => !estado.fora.includes(c.j.id))
     if (!cl.length) continue
     if (rng.chance(0.0195)) {
-      const c = pesado(rng, cl, (c) => PESO_FALTA[c.pos])!
+      // Quem já tem amarelo joga com cuidado: arrisca muito menos a falta.
+      const c = pesado(rng, cl, (c) => PESO_FALTA[c.pos] * (x.amarelosJogo[c.j.id] ? 0.3 : 1))!
       const id = c.j.id
       x.amarelosJogo[id] = (x.amarelosJogo[id] ?? 0) + 1
       p.estat.amarelos[il]++
@@ -327,7 +328,7 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
       } else {
         evs.push({ minuto: min, tipo: 'amarelo', lado, jogadorId: id, texto: `Amarelo para ${c.j.curto} (${sigla(lado)}).` })
       }
-    } else if (rng.chance(0.0006)) {
+    } else if (rng.chance(0.0004)) {
       const c = pesado(rng, cl, (c) => PESO_FALTA[c.pos])!
       p.estat.vermelhos[il]++
       x.expulsos.push(c.j.id)

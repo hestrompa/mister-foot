@@ -242,3 +242,11 @@ h1, h2, h3 { margin: 0; }
 .balanco .negativo { color: var(--f-fraca); }
 .bilhete-ctl { display: flex; align-items: center; gap: 12px; }
 .bilhete-ctl .botao { padding: 2px 12px; font-size: 18px; }
+
+/* ---- Telemóvel: nomes longos cortados com reticências para as colunas de números caberem ---- */
+@media (max-width: 640px) {
+  .separadores button { padding: 10px 10px; }
+  .tabela td:has(> .clube-linha) { width: 100%; max-width: 0; overflow: hidden; }
+  .tabela .clube-linha { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tabela .clube-linha > .emblema, .tabela .clube-linha > svg, .tabela .clube-linha > img { vertical-align: middle; margin-right: 6px; }
+}
