@@ -6,6 +6,7 @@ import { escalarAuto } from './motor'
 import { indisponiveisDe } from './epoca'
 import type { EstadoEpoca } from './partida'
 import { gerarJunior } from './juniores'
+import { juniorExtra } from './staff'
 import { RECEITA_FIXA, salariosPorJornada } from './financas'
 import type { Jogador, Jogo, Mundo, Posicao } from './types'
 
@@ -729,10 +730,10 @@ function formarJuniores(jogo: JogoComMercado, rng: Rng) {
   for (const cid of ids) {
     const c = mundo.clubes[cid]
     if (cid === jogo.clubeId) {
-      st.juniores = Array.from({ length: JUNIORES_POR_EPOCA }, () => gerarJunior(mundo, rng, cid).id)
+      st.juniores = Array.from({ length: JUNIORES_POR_EPOCA + juniorExtra(c) }, () => gerarJunior(mundo, rng, cid).id)
       continue
     }
-    const n = rng.int(1, 3)
+    const n = rng.int(1, 3) + juniorExtra(c)
     for (let k = 0; k < n && c.plantel.length < 25; k++) {
       const j = gerarJunior(mundo, rng, cid)
       j.clubeId = cid

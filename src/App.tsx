@@ -19,13 +19,14 @@ import { TabelaLiga } from './ui/comum'
 import { Mercado, propostasPendentes } from './ui/Mercado'
 import { avancarMercado } from './core/mercado'
 import { avancarTaca, meuJogoPendente, registarCampeao, type JogoComTaca } from './core/taca'
+import { Staff } from './ui/Staff'
 import { AoVivoTaca, TacaSeparador, avisoTaca } from './ui/Taca'
 
 import { avancarDirecao } from './core/direcao'
 import { AvisoDirecao, Carreira, Despedido, despedido, ofertasPendentes } from './ui/Carreira'
 
 type Ecra = 'inicio' | 'escolher' | 'jogo'
-type Separador = 'jogo' | 'plantel' | 'mercado' | 'taca' | 'classificacao' | 'calendario' | 'clube' | 'carreira' | 'divisoes'
+type Separador = 'jogo' | 'plantel' | 'staff' | 'mercado' | 'taca' | 'classificacao' | 'calendario' | 'clube' | 'carreira' | 'divisoes'
 
 export default function App() {
   const [jogo, setJogo] = useState<Jogo | null>(() => carregar())
@@ -235,7 +236,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
     <div className="ecra jogo">
       {cabecalho}
       <nav className="separadores principal-nav">
-        {([['jogo', 'Jogo'], ['plantel', 'Plantel'], ['mercado', `Mercado${propostasPendentes(jogo) ? ` (${propostasPendentes(jogo)})` : ''}`], ['taca', pendTaca ? 'Taça (!)' : 'Taça'], ['classificacao', 'Classificação'], ['calendario', 'Calendário'], ['clube', 'Clube'], ['carreira', `Carreira${ofertasPendentes(jogo) ? ` (${ofertasPendentes(jogo)})` : ''}`], ['divisoes', 'Divisões']] as [Separador, string][]).map(([k, t]) => (
+        {([['jogo', 'Jogo'], ['plantel', 'Plantel'], ['staff', 'Staff'], ['mercado', `Mercado${propostasPendentes(jogo) ? ` (${propostasPendentes(jogo)})` : ''}`], ['taca', pendTaca ? 'Taça (!)' : 'Taça'], ['classificacao', 'Classificação'], ['calendario', 'Calendário'], ['clube', 'Clube'], ['carreira', `Carreira${ofertasPendentes(jogo) ? ` (${ofertasPendentes(jogo)})` : ''}`], ['divisoes', 'Divisões']] as [Separador, string][]).map(([k, t]) => (
           <button key={k} className={sep === k ? 'ativo' : ''} onClick={() => { setSep(k); setVerClube(null) }}>{t}</button>
         ))}
         <button className="sair" onClick={sair}>Menu</button>
@@ -263,6 +264,8 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
       {sep === 'carreira' && <Carreira jogo={jogo} atualizar={atualizar} mudouClube={mudouClube} />}
 
       {sep === 'plantel' && <Plantel mundo={mundo} clubeId={meu.id} />}
+
+      {sep === 'staff' && <Staff jogo={jogo} atualizar={atualizar} />}
 
       {sep === 'mercado' && <Mercado jogo={jogo} atualizar={atualizar} />}
 

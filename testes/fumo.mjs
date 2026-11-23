@@ -131,6 +131,18 @@ try {
     await page.getByText(/sobe ao plantel principal/).waitFor({ timeout: 5000 })
   })
 
+  await passo('separador Staff: treino, foco e contratar', async () => {
+    await page.getByRole('button', { name: 'Staff', exact: true }).click()
+    await page.getByRole('region', { name: 'Treinador adjunto' }).waitFor({ timeout: 5000 })
+    await page.getByRole('radio', { name: 'Médios' }).click()
+    await page.getByText(/médios evoluem mais depressa/).waitFor({ timeout: 5000 })
+    const adj = page.getByRole('region', { name: 'Olheiro' })
+    await adj.getByRole('button', { name: /^(Trocar|Contratar)$/ }).click()
+    await adj.locator('.st-candidatos li').first().getByRole('button', { name: 'Contratar' }).click()
+    await page.getByText(/é o novo olheiro/).waitFor({ timeout: 5000 })
+    await foto('4f-staff.png')
+  })
+
   await passo('recarregar mantém a carreira', async () => {
     await page.reload({ waitUntil: 'networkidle' })
     const plantel = page.getByRole('button', { name: 'Plantel', exact: true }).or(page.getByRole('tab', { name: 'Plantel', exact: true })).first()
@@ -218,7 +230,7 @@ try {
   await passo('telemóvel: todos os separadores sem scroll horizontal', async () => {
     await page.getByRole('button', { name: 'Continuar', exact: true }).click()
     await page.getByText(/Jornada 3 de/).waitFor({ timeout: 5000 })
-    const seps = ['Plantel', 'Mercado', 'Taça', 'Classificação', 'Calendário', 'Clube', 'Carreira', 'Divisões', 'Jogo']
+    const seps = ['Plantel', 'Staff', 'Mercado', 'Taça', 'Classificação', 'Calendário', 'Clube', 'Carreira', 'Divisões', 'Jogo']
     const largos = []
     for (const [i, nome] of seps.entries()) {
       await page.getByRole('button', { name: new RegExp(`^${nome}( \\(\\d+\\))?$`) }).click()

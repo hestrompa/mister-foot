@@ -241,8 +241,8 @@ describe('fim de época (sem motor)', () => {
       expect(j.forca).toBeLessThanOrEqual(99)
       if (j.idade >= 34) expect(j.forca).toBeLessThan(a.forca)
       if (j.idade < 30 && a.forca < a.potencial) {
-        // Até aos 25 cresce sempre; dos 26 aos 29 pode estabilizar.
-        if (j.idade <= 25) expect(j.forca).toBeGreaterThan(a.forca)
+        // O grosso da evolução vem agora do treino durante a época; no fecho, até aos 21 ainda cresce sempre.
+        if (j.idade <= 21) expect(j.forca).toBeGreaterThan(a.forca)
         else expect(j.forca).toBeGreaterThanOrEqual(a.forca)
         expect(j.forca).toBeLessThanOrEqual(a.potencial)
       }

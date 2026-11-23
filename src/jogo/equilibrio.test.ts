@@ -7,6 +7,7 @@ import { concluirJornada, epocaTerminada, novaEpoca, tabela } from '../core/epoc
 import { escalarAuto } from '../core/motor'
 import type { Jogo } from '../core/types'
 import { carregar, gravar } from './gravar'
+import { garantirStaff } from '../core/staff-ia'
 
 function memoria() {
   const mem: Record<string, string> = {}
@@ -56,6 +57,7 @@ describe('gravar e carregar a meio da época', () => {
     memoria()
     const jogar = (comGravacao: boolean) => {
       const mundo = gerarMundo(909)
+      garantirStaff(mundo)
       const clubeId = mundo.divisoes[1].clubes[5]
       const epoca = novaEpoca(mundo, 5)
       let jogo: Jogo = { mundo, epoca, escalacao: escalarAuto(mundo, clubeId, new Set()), treinador: 'T', clubeId, criado: '' }

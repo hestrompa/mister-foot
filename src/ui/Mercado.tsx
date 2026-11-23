@@ -9,7 +9,13 @@ import {
 } from '../core/mercado'
 import { Emblema } from './Emblema'
 import { Forca } from './Plantel'
-import { potencialTexto } from '../core/juniores'
+import { estimativaPotencial } from '../core/staff'
+
+function PotencialJunior({ jogo, id }: { jogo: JogoComMercado; id: number }) {
+  const j = jogo.mundo.jogadores[id]
+  const e = estimativaPotencial(jogo.mundo, jogo.clubeId, j)
+  return <>{j.idade} anos · potencial <b className={`pot pot-${e.texto}`}>{e.texto}</b> ({e.min === e.max ? e.min : `${e.min}–${e.max}`}, segundo o olheiro)</>
+}
 import { salarioDe } from '../core/mundo'
 import './mercado.css'
 
@@ -459,7 +465,7 @@ function Juniores({ jogo, feito }: { jogo: JogoComMercado; feito: (r: Resultado)
                 <span className="neg-nome">{j.nome}</span>
                 <Forca valor={j.forca} />
               </div>
-              <p className="nota">{j.idade} anos · potencial <b className={`pot pot-${potencialTexto(j, jogo.mundo, jogo.clubeId)}`}>{potencialTexto(j, jogo.mundo, jogo.clubeId)}</b> · ganharia {euros(salarioDe(j.forca, div))}/mês</p>
+              <p className="nota"><PotencialJunior jogo={jogo} id={j.id} /> · ganharia {euros(salarioDe(j.forca, div))}/mês</p>
               <div className="grupo-botoes">
                 <button className="botao principal" onClick={() => feito(promoverJunior(jogo, j.id))}>Promover</button>
                 <button className="botao" onClick={() => feito(dispensarJunior(jogo, j.id))}>Dispensar</button>

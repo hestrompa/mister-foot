@@ -6,6 +6,7 @@ import { createRng } from './rng'
 import { simularJogo } from './motor'
 import { escalarIA } from './tatica'
 import { valorDe } from './mundo'
+import { duracaoLesao, evoluirFimEpoca, treinarJornada } from './staff'
 
 /** Quantos clubes sobem e descem entre divisões vizinhas. */
 const TROCAS = 3
@@ -206,7 +207,7 @@ export function concluirJornada(mundo: Mundo, epoca: EstadoEpoca, semente: numbe
           castigar(epoca, id, amarelosNoJogo.has(id) ? 1 : 2)
           break
         case 'lesao':
-          juntarBaixa(epoca, id, { jogos: Math.max(1, Math.round(ev.duracao ?? 1)), motivo: 'lesao' })
+          juntarBaixa(epoca, id, { jogos: duracaoLesao(mundo.clubes[mundo.jogadores[id]?.clubeId], Math.max(1, Math.round(ev.duracao ?? 1))), motivo: 'lesao' })
           break
         case 'golo':
           epoca.marcadores[id] = (epoca.marcadores[id] ?? 0) + 1
@@ -216,6 +217,10 @@ export function concluirJornada(mundo: Mundo, epoca: EstadoEpoca, semente: numbe
       }
     }
   }
+
+  // 4. Treino da semana: quem não está lesionado pode ganhar força (depende do staff e do foco).
+  const lesionados = new Set(Object.keys(epoca.indisponiveis).map(Number).filter((id) => epoca.indisponiveis[id].motivo === 'lesao'))
+  treinarJornada(mundo, jogaram, lesionados, mistura(semente, epoca.ano, j, 0x7e1), epoca.ano)
 
   epoca.jornada += 1
 }
@@ -274,10 +279,6 @@ export function epocaTerminada(epoca: EstadoEpoca): boolean {
   return epoca.jornada > epoca.totalJornadas
 }
 
-function clamp(v: number, lo: number, hi: number) {
-  return Math.max(lo, Math.min(hi, v))
-}
-
 /**
  * Fecha a época: 3 sobem e 3 descem entre divisões vizinhas (atualiza mundo.divisoes e clube.divisao),
  * jogadores envelhecem 1 ano (com pequena evolução/declínio de força pela idade e potencial),
@@ -334,17 +335,7 @@ export function fecharEpoca(mundo: Mundo, epoca: EstadoEpoca): ResumoEpoca {
   for (const id of ids) {
     const j = mundo.jogadores[id]
     j.idade += 1
-    let forca = j.forca
-    // Os jovens crescem depressa em direção ao potencial; dos 26 aos 29 quase estabilizam; depois declinam.
-    if (j.idade >= 34) {
-      forca -= rng.int(2, 5)
-    } else if (j.idade >= 30) {
-      forca -= rng.int(1, 3)
-    } else if (forca < j.potencial) {
-      const passo = j.idade <= 21 ? rng.int(2, 6) : j.idade <= 25 ? rng.int(1, 3) : rng.int(0, 2)
-      forca = Math.min(j.potencial, forca + passo)
-    }
-    j.forca = clamp(forca, 1, 99)
+    evoluirFimEpoca(mundo, j, rng)
     j.valor = valorDe(j.forca, j.idade)
     j.contrato = Math.max(0, j.contrato - 1)
   }

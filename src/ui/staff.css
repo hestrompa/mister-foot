@@ -1,0 +1,24 @@
+.staff { display: flex; flex-direction: column; gap: 10px; }
+.st-grelha { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
+.st-cartao, .st-treino { display: flex; flex-direction: column; gap: 8px; }
+.st-cartao p, .st-treino p { margin: 0; }
+.st-cartao .sub-tit, .st-treino .sub-tit { margin: 0; }
+.st-pessoa { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.st-vazio { color: var(--texto-2); font-style: italic; }
+.st-sal { color: var(--texto-2); font-size: 13px; }
+.st-nivel { display: inline-flex; gap: 3px; }
+.st-nivel span { width: 9px; height: 9px; border-radius: 50%; border: 1px solid var(--verde); }
+.st-nivel span.on { background: var(--verde); }
+.st-candidatos { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.st-candidatos li { display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--linha); }
+.st-candidatos .botao { padding: 6px 10px; }
+.st-cand-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-sub { margin: 6px 0 0; font-size: 15px; }
+.st-evol { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px 12px; }
+.st-evol li { display: flex; align-items: center; gap: 6px; }
+.st-mais { color: var(--verde); font-weight: 700; }
+@media (max-width: 480px) {
+  .st-candidatos li { grid-template-columns: 1fr auto; }
+  .st-candidatos .botao { grid-column: 1 / -1; }
+  .st-int { display: block; }
+}

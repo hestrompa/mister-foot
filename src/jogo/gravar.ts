@@ -2,6 +2,7 @@ import type { Jogo } from '../core/types'
 import type { EstadoEpoca, Partida } from '../core/partida'
 import { escalarAuto } from '../core/motor'
 import { gestaoIA } from '../core/ia-financas'
+import { garantirStaff, staffIA } from '../core/staff-ia'
 import { epocaTerminada, fecharEpoca, indisponiveisDe, novaEpoca } from '../core/epoca'
 import { registarCampeao, type JogoComTaca } from '../core/taca'
 import { avancarDirecao, iniciarEpocaDirecao } from '../core/direcao'
@@ -41,7 +42,8 @@ export function sementeEpoca(jogo: Pick<Jogo, 'mundo'>): number {
 /** Cria época e escalação para um jogo novo ou para uma gravação antiga. */
 export function prepararEpoca(jogo: Jogo): Jogo {
   // Entre épocas (não num jogo novo), os outros clubes decidem obras e empréstimos.
-  if (jogo.epoca) gestaoIA(jogo.mundo, jogo.clubeId)
+  if (jogo.epoca) { gestaoIA(jogo.mundo, jogo.clubeId); staffIA(jogo.mundo, jogo.clubeId) }
+  else garantirStaff(jogo.mundo)
   jogo.epoca = novaEpoca(jogo.mundo, sementeEpoca(jogo))
   jogo.escalacao = escalarAuto(jogo.mundo, jogo.clubeId, indisponiveisDe(jogo.mundo, jogo.epoca, jogo.clubeId), jogo.escalacao?.formacao)
   iniciarEpocaDirecao(jogo)
@@ -57,6 +59,7 @@ export function carregar(): Jogo | null {
     let mudou = false
     if (!j.epoca) { prepararEpoca(j); mudou = true }
     else if (epocaTerminada(j.epoca)) { avancarDirecao(j); registarCampeao(j as JogoComTaca, fecharEpoca(j.mundo, j.epoca).campeoes); prepararEpoca(j); mudou = true }
+    if (garantirStaff(j.mundo)) mudou = true
     if (!j.escalacao) {
       j.escalacao = escalarAuto(j.mundo, j.clubeId, indisponiveisDe(j.mundo, j.epoca, j.clubeId))
       mudou = true

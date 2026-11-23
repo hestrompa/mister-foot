@@ -4,6 +4,7 @@ import { concluirJornada, epocaTerminada, fecharEpoca, novaEpoca, tabela } from 
 import type { Jogo, Mundo } from '../core/types'
 import { avancarMercado, type JogoComMercado } from '../core/mercado'
 import { prepararEpoca } from './gravar'
+import { garantirStaff, staffIA } from '../core/staff-ia'
 import { salariosPorJornada } from '../core/financas'
 
 export interface MedidaEpoca {
@@ -82,7 +83,11 @@ export function medirEpoca(mundo: Mundo, semente: number): MedidaEpoca {
 export function medirCarreira(semente: number, epocas: number): MedidaEpoca[] {
   const mundo = gerarMundo(semente)
   const out: MedidaEpoca[] = []
-  for (let e = 0; e < epocas; e++) out.push(medirEpoca(mundo, semente * 13 + e + 1))
+  garantirStaff(mundo)
+  for (let e = 0; e < epocas; e++) {
+    if (e > 0) staffIA(mundo, -1)
+    out.push(medirEpoca(mundo, semente * 13 + e + 1))
+  }
   return out
 }
 
