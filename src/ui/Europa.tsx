@@ -441,7 +441,7 @@ export function jogosEuropaCalendario(jogo: Jogo, j: number): { p: Partida; nome
 }
 
 /** Linhas do calendário para os jogos europeus depois da jornada `j`. */
-export function LinhasEuropa({ jogo, j }: { jogo: Jogo; j: number }) {
+export function LinhasEuropa({ jogo, j, abrir }: { jogo: Jogo; j: number; abrir?: (p: Partida, ronda: string) => void }) {
   const lista = jogosEuropaCalendario(jogo, j)
   if (!lista.length) return null
   const e = (jogo as JogoComEuropa).europa!
@@ -453,7 +453,7 @@ export function LinhasEuropa({ jogo, j }: { jogo: Jogo; j: number }) {
         const [a, b] = p.casaId === jogo.clubeId ? p.golos : [p.golos[1], p.golos[0]]
         const res = ko ? (vencedorEuropa(p, ida) === jogo.clubeId ? 'V' : 'D') : a > b ? 'V' : a < b ? 'D' : 'E'
         return (
-          <tr key={p.id} className="linha-taca linha-europa">
+          <tr key={p.id} className={`linha-taca linha-europa ${p.jogada ? 'clicavel' : ''}`} onClick={() => abrir?.(p, nome)}>
             <td className="num">E</td>
             <td><span className="casa-fora">{comp.rondas[dia].fase === 'final' ? 'N' : p.casaId === jogo.clubeId ? 'C' : 'F'}</span></td>
             <td><span className="clube-linha">{c && <Emblema clube={c} tamanho={22} />} {c?.nome ?? '?'} <span className="dica">{nome}</span></span></td>

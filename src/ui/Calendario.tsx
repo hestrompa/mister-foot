@@ -7,13 +7,14 @@ import type { Partida } from '../core/partida'
 import { criarFicha, fichaPorId, type FichaJogo } from '../core/fichas'
 import { Ficha, JogosAnteriores } from './Ficha'
 import { LinhasEuropa } from './Europa'
+import { mundoEuropa } from '../core/europa'
 
 export function Calendario({ jogo }: { jogo: Jogo }) {
   const { mundo, epoca, clubeId } = jogo
   const [ver, setVer] = useState<FichaJogo | null>(null)
   if (ver) return <Ficha f={ver} voltar={() => setVer(null)} />
   /** Ficha guardada, ou feita na hora a partir da partida (jogos de versões antigas). */
-  const abrir = (p: Partida, ronda: string) => { if (p.jogada) setVer(fichaPorId(jogo, p.id) ?? criarFicha(mundo, p, epoca.ano, ronda)) }
+  const abrir = (p: Partida, ronda: string) => { if (p.jogada) setVer(fichaPorId(jogo, p.id) ?? criarFicha(p.competicao === 'europa' ? mundoEuropa(jogo) : mundo, p, epoca.ano, ronda)) }
   const linhas = []
   const sup = (jogo as JogoComTaca).taca?.supertaca
   const ps = sup && meuJogoNaRonda(jogo, sup)
@@ -70,7 +71,7 @@ export function Calendario({ jogo }: { jogo: Jogo }) {
         </tr>,
       )
     }
-    linhas.push(<LinhasEuropa key={`e${j}`} jogo={jogo} j={j} />)
+    linhas.push(<LinhasEuropa key={`e${j}`} jogo={jogo} j={j} abrir={abrir} />)
   }
   return (
     <>

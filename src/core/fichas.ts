@@ -4,6 +4,7 @@ import type { Jogo, Mundo, Posicao } from './types'
 import type { EstatJogo, Formacao, Partida, Postura, TipoEvento } from './partida'
 import { posicaoDoLugar } from './motor'
 import type { JogoComTaca } from './taca'
+import { COMPETICOES, mundoEuropa, type JogoComEuropa } from './europa'
 
 export interface JogadorFicha { id: number; nome: string; pos: Posicao; forca: number }
 
@@ -95,8 +96,8 @@ export function criarFicha(mundo: Mundo, p: Partida, ano: number, ronda: string)
   }
 }
 
-/** Jogos já jogados do meu clube que ainda não têm ficha (liga e taça). */
-function jogosPorRegistar(jogo: JogoComTaca): { p: Partida; ronda: string }[] {
+/** Jogos já jogados do meu clube que ainda não têm ficha (liga, taça e Europa). */
+function jogosPorRegistar(jogo: JogoComTaca & JogoComEuropa): { p: Partida; ronda: string }[] {
   const out: { p: Partida; ronda: string }[] = []
   const meu = (p: Partida) => p.jogada && (p.casaId === jogo.clubeId || p.foraId === jogo.clubeId)
   for (const div of jogo.epoca.calendario) for (const jornada of div) for (const p of jornada) if (meu(p)) out.push({ p, ronda: `Jornada ${p.jornada}` })
@@ -105,18 +106,23 @@ function jogosPorRegistar(jogo: JogoComTaca): { p: Partida; ronda: string }[] {
     if (t.supertaca) for (const p of t.supertaca.jogos) if (meu(p)) out.push({ p, ronda: 'Supertaça' })
     for (const r of t.rondas) for (const p of r.jogos) if (meu(p)) out.push({ p, ronda: `Taça · ${r.nome}` })
   }
+  const e = jogo.europa
+  if (e && e.ano === jogo.epoca.ano) {
+    for (const c of e.comps) for (const r of c.rondas) for (const p of r.jogos) if (meu(p)) out.push({ p, ronda: `${COMPETICOES[c.id].nome} · ${r.nome.replace('Fase de grupos · ', 'Grupos, ')}` })
+  }
   return out
 }
 
 /** Regista as fichas que faltam. Idempotente. Devolve quantas fichas novas. */
 export function registarFichas(jogo: Jogo): number {
-  const j = jogo as JogoComFichas & JogoComTaca
+  const j = jogo as JogoComFichas & JogoComTaca & JogoComEuropa
   const fichas = (j.fichas ??= [])
   const tem = new Set(fichas.map((f) => f.id))
   let n = 0
+  let m: Mundo | null = null
   for (const { p, ronda } of jogosPorRegistar(j)) {
     if (tem.has(p.id)) continue
-    fichas.push(criarFicha(jogo.mundo, p, jogo.epoca.ano, ronda))
+    fichas.push(criarFicha(p.competicao === 'europa' ? (m ??= mundoEuropa(j)) : jogo.mundo, p, jogo.epoca.ano, ronda))
     tem.add(p.id)
     n++
   }

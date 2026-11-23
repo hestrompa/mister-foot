@@ -574,7 +574,7 @@ export function jogarDiaEuropa(jogo: JogoComEuropa, jogadas: { partida: Partida;
     }
     r.jogada = true
     // Relatos antigos ocupam espaço: guardam-se só os golos, menos no meu jogo.
-    r.jogos = r.jogos.map((p) => (eMeu(p, jogo.clubeId) ? p : { ...p, eventos: p.eventos.filter((ev) => ev.tipo === 'golo') }))
+    r.jogos = r.jogos.map((p) => (eMeu(p, jogo.clubeId) ? p : { ...p, eventos: p.eventos.filter((ev) => ev.tipo === 'golo'), onzes: undefined }))
     avancarFase(jogo, e, comp, d, m, createRng(mistura(semente, ci, 0x50)))
   })
 

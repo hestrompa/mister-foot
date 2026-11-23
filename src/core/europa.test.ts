@@ -8,6 +8,7 @@ import {
   COMPETICOES, avancarEuropa, datasEuropa, diaPendente, garantirEuropa, jogarDiaEuropa, meuJogoEuropa, minhaSituacaoEuropa,
   qualificarEuropa, tabelaGrupo, type JogoComEuropa,
 } from './europa'
+import { fichasDe, registarFichas } from './fichas'
 
 function novoJogo(semente: number, div = 1, i = 0): JogoComEuropa {
   const mundo = gerarMundo(semente)
@@ -150,4 +151,19 @@ describe('Competições europeias', () => {
     expect(vitoriasLiga).toBeLessThanOrEqual(8)
     expect(quartosTaca).toBeGreaterThan(0)
   }, 30_000)
+
+  it('os meus jogos europeus ficam com ficha, com os nomes dos estrangeiros', () => {
+    const jogo = novoJogo(41)
+    const e = garantirEuropa(jogo)
+    const comp = e.comps.find((c) => c.clubes.includes(jogo.clubeId))!
+    jogarDiaEuropa(jogo)
+    registarFichas(jogo)
+    registarFichas(jogo)
+    const fs = fichasDe(jogo).filter((f) => f.competicao === 'europa')
+    expect(fs).toHaveLength(1)
+    expect(fs[0].ronda).toContain(COMPETICOES[comp.id].nome)
+    const adv = fs[0].casa.id === jogo.clubeId ? fs[0].fora : fs[0].casa
+    expect(adv.nome).not.toBe('?')
+    expect(adv.titulares).toHaveLength(11)
+  })
 })
