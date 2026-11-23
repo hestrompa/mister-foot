@@ -35,7 +35,9 @@ export function valorDe(forca: number, idade: number): number {
 /** Salário mensal em euros. */
 export function salarioDe(forca: number, divisao: number): number {
   const minimo = [3000, 1500, 900, 600][divisao - 1] ?? 600
-  return arredonda(Math.max(minimo, 120 * Math.pow(1.085, forca - 20)))
+  // As divisões de cima pagam mais pela mesma força (é para onde vai a receita da bilheteira e da TV).
+  const fator = [3, 1.6, 1.1, 1][divisao - 1] ?? 1
+  return arredonda(Math.max(minimo, 120 * fator * Math.pow(1.085, forca - 20)))
 }
 
 function arredonda(v: number): number {

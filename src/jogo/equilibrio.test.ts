@@ -91,3 +91,14 @@ describe('gravar e carregar a meio da época', () => {
     }
   })
 })
+
+describe('finanças ao longo das épocas (sem mercado)', () => {
+  it('ninguém de meio da tabela vai à falência e a 1.ª não acumula sem limite', () => {
+    const ms = medirCarreira(55, 3)
+    for (const m of ms) expect(m.falidos).toBeLessThanOrEqual(2)
+    const d1 = ms.map((m) => m.dinheiroMediano[0])
+    // Lucro mediano da 1.ª por época abaixo de 8 M€.
+    expect(d1[2] - d1[0]).toBeLessThan(16_000_000)
+    for (const m of ms) expect(m.dinheiroMediano[3]).toBeGreaterThan(0)
+  })
+})

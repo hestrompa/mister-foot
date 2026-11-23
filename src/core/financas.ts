@@ -5,7 +5,7 @@ import { lotacaoAtual, avancarObra } from './estadio'
 import { cobrarPrestacao } from './banco'
 
 /** Receitas fixas por jornada (TV e patrocínios), por divisão. */
-export const RECEITA_FIXA = [90_000, 15_000, 4_000, 3_000]
+export const RECEITA_FIXA = [50_000, 15_000, 5_000, 5_000]
 
 /** Preço "normal" do bilhete em cada divisão: acima disto vai menos gente. */
 export const BILHETE_NORMAL = [15, 10, 7, 5]
