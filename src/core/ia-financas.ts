@@ -27,8 +27,11 @@ export function gestaoIA(mundo: Mundo, excluir: number): DecisaoIA[] {
     }
     // 3. Estádio que enche num jogo normal e dinheiro de sobra: aumenta à medida da procura.
     if (!c.estadio.obra) {
-      const procura = publicoEsperado(c, c, 8, 18)
-      if (procura >= c.estadio.lugares * 0.97) {
+      // Procura num jogo a meio da tabela contra um adversário com a reputação média da divisão.
+      const div = mundo.divisoes[c.divisao - 1]?.clubes ?? []
+      const repMedia = div.length ? div.reduce((t, i) => t + mundo.clubes[i].reputacao, 0) / div.length : c.reputacao
+      const procura = publicoEsperado(c, { ...c, reputacao: repMedia }, 8, 18)
+      if (procura >= c.estadio.lugares * 0.85) {
         const alvo = OBRAS.filter((n) => c.estadio.lugares + n <= LOTACAO_MAX && c.dinheiro >= 3 * custoObra(n) && n <= c.estadio.lugares * 0.5)
         const n = alvo[alvo.length - 1]
         if (n && iniciarObra(c, n)) out.push({ clubeId: id, tipo: 'obra', valor: n })

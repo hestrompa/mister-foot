@@ -92,7 +92,7 @@ export interface MedidaDinheiro {
   ano: number
   /** Por divisão: percentis 10/50/90 do dinheiro em caixa no fim da época. */
   p10: number[]; p50: number[]; p90: number[]
-  /** Clubes no vermelho, com empréstimo, e com obra. */
+  /** Clubes no vermelho, com empréstimo, e com obra feita ou a decorrer. */
   vermelho: number; emprestimo: number; obras: number
   /** Massa salarial anual mediana por divisão. */
   salarios: number[]
@@ -132,7 +132,7 @@ export function medirDinheiro(semente: number, epocas: number, divUtilizador = 3
         const c = mundo.clubes[id]
         if (c.dinheiro < 0) m.vermelho++
         if (c.emprestimo) m.emprestimo++
-        if (c.estadio.obra) m.obras++
+        if (c.estadio.obra || (c.estadio.base !== undefined && c.estadio.lugares > c.estadio.base)) m.obras++
         m.total += c.dinheiro
         m.plantelMin = Math.min(m.plantelMin, c.plantel.length)
         m.plantelMax = Math.max(m.plantelMax, c.plantel.length)
