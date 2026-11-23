@@ -45,13 +45,26 @@ export interface CenaRepeticao {
   /** quadros[k][i] = [x, y] da carica i no instante k * dt. */
   quadros: [number, number][][]
   bola: PontoBola[]
-  /** Momentos a assinalar no desenho (finta, carrinho falhado). */
+  /** Momentos a assinalar no desenho (finta, carrinho falhado, falta para penálti). */
   acoes: AcaoRep[]
+  /** Mudanças de plano (s): o desenho escurece e as caricas saltam para a nova posição. */
+  cortes: number[]
+  /**
+   * Desenhar ao contrário (rodado 180°): a casa ataca para a direita na 1.ª parte e
+   * para a esquerda na 2.ª (e troca outra vez no prolongamento).
+   */
+  espelhar: boolean
+}
+
+/** Em que parte do jogo está um minuto (0 = 1.ª parte, 1 = 2.ª, 2 e 3 = prolongamento). */
+export function parteDoJogo(minuto: number): number {
+  return minuto <= 45 ? 0 : minuto <= 90 ? 1 : minuto <= 105 ? 2 : 3
 }
 
 /** Uma finta do condutor e o carrinho falhado do adversário que a sofre. */
 export interface AcaoRep {
-  tipo: 'finta'
+  /** 'finta': o autor finta e a vítima vai ao chão; 'falta': o autor derruba a vítima (penálti). */
+  tipo: 'finta' | 'falta'
   /** Instante da finta. */
   t: number
   /** Quem finta e quem vai ao chão. */
@@ -150,6 +163,8 @@ interface Guiao {
   acoes: AcaoRep[]
   /** Os outros não entram na área (penáltis). */
   foraDaArea: boolean
+  /** Instante do corte para a marcação do penálti. */
+  corte?: number
   /** A defesa foi apanhada em contra-ataque (chega atrasada). */
   contra: boolean
 }
@@ -186,7 +201,8 @@ export function criarRepeticao(ev: EventoJogo, emCampo: Record<Lado, EmCampoRep>
     rematadorId: rem.id, ...(pas ? { passadorId: pas.id } : {}),
     tRemate: g.tRemate, tFim: g.tFim, duracao, dt: DT,
     caricas: todos.map(({ id, lado, num, pos }) => ({ id, lado, num, pos })),
-    quadros, bola: g.bola, acoes: g.acoes,
+    quadros, bola: g.bola, acoes: g.acoes, cortes: g.corte != null ? [g.corte] : [],
+    espelhar: (atac === 'casa') !== (parteDoJogo(ev.minuto) % 2 === 0),
   }
 }
 
@@ -323,11 +339,31 @@ function guiao(rng: Rng, l: Lance, rem: Lugar, pas: Lugar | undefined, dfs: Luga
       break
     }
     case 'penalti': {
+      // Primeiro a jogada que dá penálti: o rematador entra na área e o defesa derruba-o.
+      const lado = sinal()
+      const A = { x: 76 + r() * 5, y: 34 + lado * (6 + r() * 8) }
+      const F = { x: 89.5 + r() * 2.5, y: 34 + lado * (3 + r() * 5) }
+      const tF = 1.9, C = 3.0
+      const rola = { x: F.x + 3 + r() * 2, y: F.y - lado * (1 + r() * 2) }
+      const caido = { x: F.x + 1.1, y: F.y - lado * 0.3 }
+      bola.push({ t: 0, ...A, z: 0 }, { t: tF, ...F, z: 0 }, { t: tF + 0.8, ...rola, z: 0 }, { t: C - 0.01, ...rola, z: 0 })
+      if (dfs) {
+        const ini = { x: F.x + 5, y: clamp(F.y - lado * 3, 2, 66) }
+        const toque = { x: F.x + 0.8, y: F.y - lado * 1.2 }
+        const chao = { x: F.x - 0.2, y: F.y - lado * 1.6 }
+        fixos.set(dfs.id, [{ t: 0, ...ini }, { t: tF - 0.1, ...toque }, { t: tF + 0.3, ...chao }, { t: C - 0.01, ...chao }])
+        g.acoes.push({ tipo: 'falta', t: tF, autorId: dfs.id, vitimaId: rem.id, de: toque, ate: chao })
+      }
+      // Depois do corte: a marcação do penálti.
       S = { x: 94, y: 34 }
-      bola.push({ t: 0, ...S, z: 0 })
-      fixos.set(rem.id, [{ t: 0, x: 89.5, y: 32.5 }, { t: 1.0, x: 89.5, y: 32.5 }, { t: 1.6, x: 93.3, y: 33.8 }])
-      g.tRemate = 1.6
-      tS = 1.6
+      bola.push({ t: C, ...S, z: 0 })
+      fixos.set(rem.id, [
+        { t: 0, x: A.x - 0.9, y: A.y }, { t: tF, x: F.x - 0.9, y: F.y }, { t: tF + 0.4, ...caido }, { t: C - 0.01, ...caido },
+        { t: C, x: 89.5, y: 32.5 }, { t: C + 1.0, x: 89.5, y: 32.5 }, { t: C + 1.6, x: 93.3, y: 33.8 },
+      ])
+      g.corte = C
+      g.tRemate = C + 1.6
+      tS = g.tRemate
       bola.push({ t: g.tRemate, ...S, z: 0 })
       g.foraDaArea = true
       forcaRemate = 25
@@ -450,7 +486,7 @@ function simular(rng: Rng, g: Guiao, la: Lugar[], ld: Lugar[], rem: Lugar, pas: 
         y = c.by * 0.7 + b.y * 0.3
       }
     }
-    if (g.foraDaArea && c !== gr && c !== rem) {
+    if (g.foraDaArea && t >= (g.corte ?? 0) && c !== gr && c !== rem) {
       // Fora da área e da meia-lua no penálti.
       x = Math.min(x, 86.5 - (i % 3) * 2.6)
     }
@@ -475,6 +511,7 @@ function simular(rng: Rng, g: Guiao, la: Lugar[], ld: Lugar[], rem: Lugar, pas: 
   for (let k = 0; k < n; k++) {
     const t = k * DT
     const fixo = todos.map(() => false)
+    const corteAgora = g.corte != null && t >= g.corte - 1e-6 && t - DT < g.corte - 1e-6
     todos.forEach((c, i) => {
       const f = g.fixos.get(c.id)
       if (f && t <= f[f.length - 1].t) {
@@ -492,6 +529,7 @@ function simular(rng: Rng, g: Guiao, la: Lugar[], ld: Lugar[], rem: Lugar, pas: 
         return
       }
       const a = alvo(c, i, t)
+      if (corteAgora) { pos[i] = { ...a }; return }
       const depois = t > g.tFim + 0.3
       const vmax = (c === rem && festa && depois ? 8 : depois ? 4.5 : 7) * DT
       const dx = a.x - pos[i].x, dy = a.y - pos[i].y

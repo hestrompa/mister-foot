@@ -15,3 +15,4 @@
 .pl-ver { border: 1px solid var(--linha); background: var(--fundo-2); border-radius: 6px; padding: 1px 4px; color: inherit; font: inherit; font-weight: 800; cursor: pointer; }
 .pl-ver:hover { border-color: var(--verde); }
 .placar-rep { list-style: none; padding: 6px 0; }
+.rep-direto { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; padding: 1px 6px; border-radius: 4px; background: #e5675c; color: #fff; }

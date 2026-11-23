@@ -38,8 +38,11 @@ export function coresJogo(casa: Clube, fora: Clube): Record<Lado, [string, strin
  * Repetição de um lance em caricas, vista de cima. Toca sozinha; `fim` é chamado quando acaba
  * (ou ao carregar em "Continuar"/"Saltar").
  */
-export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continuar', velocidade = 1, autoFim = true, outroJogo }: {
+export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continuar', velocidade = 1, autoFim = true, outroJogo, emDireto = false, revelar }: {
   cena: CenaRepeticao; mundo: Mundo; casa: Clube; fora: Clube; fim: () => void; rotuloFim?: string; velocidade?: number; autoFim?: boolean
+  /** Em direto: o desfecho só aparece quando a bola chega ao fim (`revelar` é chamado nesse instante). */
+  emDireto?: boolean
+  revelar?: () => void
   /** Quando é a repetição de outro jogo: o resultado desse jogo. */
   outroJogo?: string
 }) {
@@ -49,6 +52,12 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
   const [acabou, setAcabou] = useState(false)
   const fimRef = useRef(fim)
   useEffect(() => { fimRef.current = fim }, [fim])
+  const revelarRef = useRef(revelar)
+  useEffect(() => { revelarRef.current = revelar }, [revelar])
+  /** 0 = lance a decorrer, 1 = já houve a falta do penálti, 2 = desfecho conhecido. */
+  const [direto] = useState(emDireto)
+  const [marco, setMarco] = useState(emDireto ? 0 : 2)
+  const marcoRef = useRef(marco)
 
   useEffect(() => {
     const cv = tela.current, cx = caixa.current
@@ -65,11 +74,15 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
     // Em ecrãs estreitos mostra-se só a parte do campo onde o lance acontece (caricas maiores).
     const xMinLance = Math.min(...cena.bola.map((p) => p.x))
     let x0 = -MARGEM
+    const esp = cena.espelhar === true
     const medir = () => {
       dpr = Math.min(2, window.devicePixelRatio || 1)
       w = cx.clientWidth
-      x0 = w < 640 ? Math.max(-MARGEM, Math.min(52, xMinLance - 10)) : -MARGEM
-      const largM = COMPRIMENTO + MARGEM - x0
+      // Janela visível em coordenadas do ecrã (depois de rodar o campo, se for o caso).
+      const corte = w < 640 ? Math.max(-MARGEM, Math.min(52, xMinLance - 10)) : -MARGEM
+      x0 = esp ? -MARGEM : corte
+      const x1 = esp ? COMPRIMENTO - corte : COMPRIMENTO + MARGEM
+      const largM = x1 - x0
       h = Math.round((w * ALT_M) / largM)
       cv.width = Math.round(w * dpr)
       cv.height = Math.round(h * dpr)
@@ -77,11 +90,15 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
       esc = (w / largM) * dpr
     }
     medir()
-    const X = (x: number) => (x - x0) * esc
-    const Y = (y: number) => (y + MARGEM) * esc
+    // SX/SY: ecrã (o campo é simétrico); X/Y: posições do lance, rodadas 180° quando a equipa ataca para a esquerda.
+    const SX = (x: number) => (x - x0) * esc
+    const SY = (y: number) => (y + MARGEM) * esc
+    const X = (x: number) => SX(esp ? COMPRIMENTO - x : x)
+    const Y = (y: number) => SY(esp ? LARGURA - y : y)
     const rasto: { x: number; y: number }[] = []
 
     const campo = () => {
+      const X = SX, Y = SY
       const faixas = 12
       for (let i = 0; i < faixas; i++) {
         ctx.fillStyle = i % 2 ? '#2f8a43' : '#2a7f3d'
@@ -212,6 +229,27 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
         ctx.fillText('Finta!', X(ps[iA][0]), Y(ps[iA][1]) + r * 3 - sobe)
         ctx.restore()
       }
+      // Falta que dá penálti: apito e "Penálti!".
+      for (const f of cena.acoes ?? []) {
+        if (f.tipo !== 'falta' || t < f.t || t > (cena.cortes?.[0] ?? f.t + 1.2)) continue
+        const iV = cena.caricas.findIndex((c) => c.id === f.vitimaId)
+        if (iV < 0) continue
+        const r = Math.max(6 * dpr, RAIO * esc)
+        ctx.save()
+        ctx.font = `800 ${Math.round(r * 1.5)}px system-ui, sans-serif`
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+        ctx.lineWidth = Math.max(2, r * 0.3); ctx.strokeStyle = '#10141a'; ctx.fillStyle = '#ff6b5e'
+        ctx.strokeText('Penálti!', X(ps[iV][0]), Y(ps[iV][1]) + r * 3.2)
+        ctx.fillText('Penálti!', X(ps[iV][0]), Y(ps[iV][1]) + r * 3.2)
+        ctx.restore()
+      }
+      // Corte para a marcação: escurece e volta.
+      for (const tc of cena.cortes ?? []) {
+        const d = Math.abs(t - tc)
+        if (d > 0.35) continue
+        ctx.fillStyle = `rgba(6,10,14,${(1 - d / 0.35).toFixed(3)})`
+        ctx.fillRect(0, 0, cv.width, cv.height)
+      }
       // Grande "GOLO!" no fim.
       if (cena.desfecho === 'golo' && t > cena.tFim) {
         const f = Math.min(1, (t - cena.tFim) / 0.35)
@@ -232,12 +270,20 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
       ultimo = agora
       if (!parado) {
         t += dtR * velocidade
+        const falta = cena.acoes?.find((a) => a.tipo === 'falta')
+        const m = t >= cena.tFim ? 2 : falta && t >= falta.t ? 1 : 0
+        if (m > marcoRef.current) {
+          marcoRef.current = m
+          setMarco(m)
+          if (m === 2) revelarRef.current?.()
+        }
         if (t >= cena.duracao) { t = cena.duracao; parado = true; setAcabou(true) }
       }
       desenhar()
       if (!parado) raf = requestAnimationFrame(passo)
     }
     setAcabou(false)
+    if (marcoRef.current === 2) setMarco(2)
     raf = requestAnimationFrame(passo)
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => { medir(); if (parado) desenhar() }) : null
     ro?.observe(cx)
@@ -252,13 +298,20 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
   }, [acabou, autoFim])
 
   const lado = cena.atacante === 'casa' ? casa : fora
+  const TEASER: Record<CenaRepeticao['origem'], string> = {
+    jogada: `Ataque perigoso do ${lado.nome}...`, contra: `Contra-ataque do ${lado.nome}!`, canto: `Canto para o ${lado.nome}...`,
+    livre: `Livre perigoso para o ${lado.nome}...`, longe: `O ${lado.nome} arrisca de longe...`, penalti: `O ${lado.nome} entra na área...`,
+  }
+  const tipo = cena.origem === 'penalti' && marco === 0 ? 'Jogada' : ORIGEM[cena.origem]
+  const texto = marco === 2 ? cena.texto : cena.origem === 'penalti' && marco === 1 ? `Penálti para o ${lado.nome}!` : TEASER[cena.origem]
   return (
     <div className="cartao repeticao" data-testid="repeticao">
       <div className="rep-cab">
         <span className="rep-min">{cena.minuto}'</span>
-        <span className="rep-tipo">{ORIGEM[cena.origem]} · {lado.sigla}</span>
+        {direto && <span className="rep-direto">{marco === 2 ? 'Repetição' : 'Em direto'}</span>}
+        <span className="rep-tipo">{tipo} · {lado.sigla}</span>
         {outroJogo && <span className="rep-outro">Noutro jogo: {outroJogo}</span>}
-        <span className="rep-texto">{cena.texto}</span>
+        <span className="rep-texto">{texto}</span>
       </div>
       <div className="rep-tela" ref={caixa}><canvas ref={tela} /></div>
       <div className="rep-botoes">

@@ -1,7 +1,7 @@
 import { euros } from '../core/formato'
 import { useEffect, useRef, useState } from 'react'
 import type { Jogo } from '../core/types'
-import type { Lado, LinhaTabela, Partida, Postura } from '../core/partida'
+import type { EventoJogo, Lado, LinhaTabela, Partida, Postura } from '../core/partida'
 import { escalarIA } from '../core/tatica'
 import { avancarMinuto, definirAutoSub, iniciarJogo, mudarPostura, substituir, type EstadoJogo } from '../core/motor'
 import { concluirJornada, indisponiveisDe, partidasDaJornada, tabela } from '../core/epoca'
@@ -104,6 +104,18 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
   const repPend = useRef<CenaRepeticao | null>(null)
   const depoisRep = useRef<Fase | null>(null)
   const saltando = useRef(false)
+  /** Lance do meu jogo a passar em direto: o golo só conta no marcador e no relato quando a bola entra. */
+  const escondido = useRef<{ ev: EventoJogo; golo: boolean } | null>(null)
+  const revelar = () => {
+    const x = escondido.current
+    if (!x) return
+    escondido.current = null
+    if (x.golo) {
+      meu.partida.golos[x.ev.lado === 'casa' ? 0 : 1]++
+      flash.current[meu.partida.id] = tickRef.current
+    }
+    setTick((t) => t + 1)
+  }
 
   const terminou = (e: EstadoJogo) => e.partida.jogada || feitos.current.has(e.partida.id)
 
@@ -133,7 +145,15 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
             if (cena) {
               cenas.current.push(cena)
               const m = modoRepRef.current
-              if (!saltando.current && (m === 'tudo' || (m === 'golos' && ev.tipo === 'golo'))) repPend.current = cena
+              if (!saltando.current && (m === 'tudo' || (m === 'golos' && ev.tipo === 'golo'))) {
+                repPend.current = cena
+                // Em direto: esconder o desfecho até a jogada acabar.
+                if (ev.tipo === 'golo') {
+                  meu.partida.golos[ev.lado === 'casa' ? 0 : 1]--
+                  delete flash.current[meu.partida.id]
+                }
+                escondido.current = { ev, golo: ev.tipo === 'golo' }
+              }
             }
           }
           if (ev.tipo === 'intervalo') pausa = 'intervalo'
@@ -156,6 +176,7 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
 
   const concluir = () => {
     if (concluido.current) return
+    revelar()
     concluido.current = true
     const jornada = epoca.jornada
     const cal = epoca.calendario[div - 1][jornada - 1]
@@ -178,8 +199,9 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
     const t = setInterval(() => {
       if (concluido.current) return
       const pausa = passo()
+      // Uma pausa (repetição, intervalo) vem antes de fechar a jornada, mesmo no último minuto.
+      if (pausa) { setFase(pausa); setTick(tickRef.current); return }
       if (estados.every(terminou)) { clearInterval(t); concluir(); return }
-      if (pausa) setFase(pausa)
       setTick(tickRef.current)
     }, MS_MINUTO / vel)
     return () => clearInterval(t)
@@ -189,6 +211,7 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
   const saltar = () => {
     let guarda = 0
     saltando.current = true
+    revelar()
     while (!estados.every(terminou) && guarda++ < 200) passo()
     setRep(null)
     setLesionado(null)
@@ -201,7 +224,7 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
   const mp = meu.partida
   const lances = mp.eventos.filter((e) => e.tipo === 'golo' || e.tipo === 'oportunidade')
   const rem = [lances.filter((e) => e.lado === 'casa').length, lances.filter((e) => e.lado === 'fora').length]
-  const feed = [...mp.eventos].reverse()
+  const feed = [...mp.eventos].filter((ev) => ev !== escondido.current?.ev).reverse()
   const casa = mundo.clubes[mp.casaId], fora = mundo.clubes[mp.foraId]
   const recente = (p: Partida) => flash.current[p.id] != null && tickRef.current - flash.current[p.id] < 5 * vel
 
@@ -241,7 +264,8 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
           <Repeticao2D key={`${rep.minuto}-${rep.rematadorId}`} cena={rep} mundo={mundo}
             casa={mundo.clubes[(repJogo ?? mp).casaId]} fora={mundo.clubes[(repJogo ?? mp).foraId]} velocidade={vel > 1 ? 1.5 : 1}
             outroJogo={repJogo != null && repJogo.id !== mp.id ? `${mundo.clubes[repJogo.casaId].sigla} ${repJogo.golos[0]}-${repJogo.golos[1]} ${mundo.clubes[repJogo.foraId].sigla}` : undefined}
-            fim={() => { setRep(null); setFase(depoisRep.current ?? 'jogo'); depoisRep.current = null }} />
+            emDireto={escondido.current != null && repJogo?.id === mp.id} revelar={revelar}
+            fim={() => { revelar(); setRep(null); setFase(depoisRep.current ?? 'jogo'); depoisRep.current = null }} />
         )}
 
         {(fase === 'intervalo' || fase === 'lesao' || fase === 'pausa') && (

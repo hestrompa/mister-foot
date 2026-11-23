@@ -26,6 +26,26 @@ function evento(origem: Lance['origem'], desfecho: Lance['desfecho'], corredor: 
 }
 
 describe('repetição 2D', () => {
+  it('cada equipa ataca para a sua baliza e troca ao intervalo', () => {
+    const e = evento('jogada', 'golo', 0, 'casa')
+    expect(criarRepeticao({ ...e, minuto: 20 }, emCampo, 3)!.espelhar).toBe(false)
+    expect(criarRepeticao({ ...e, minuto: 70 }, emCampo, 3)!.espelhar).toBe(true)
+    const f = evento('jogada', 'golo', 0, 'fora')
+    expect(criarRepeticao({ ...f, minuto: 20 }, emCampo, 3)!.espelhar).toBe(true)
+    expect(criarRepeticao({ ...f, minuto: 70 }, emCampo, 3)!.espelhar).toBe(false)
+  })
+
+  it('penálti: primeiro a falta, depois o corte para a marcação', () => {
+    const c = criarRepeticao(evento('penalti', 'golo', 1), emCampo, 9)!
+    const falta = c.acoes.find((a) => a.tipo === 'falta')!
+    expect(falta).toBeDefined()
+    expect(falta.t).toBeLessThan(c.cortes[0])
+    expect(c.cortes[0]).toBeLessThan(c.tRemate)
+    // A falta é dentro da área.
+    const b = bolaEm(c, falta.t)
+    expect(b.x).toBeGreaterThan(88.5)
+  })
+
   it('é determinística', () => {
     const e = evento('jogada', 'golo', 1)
     expect(criarRepeticao(e, emCampo, 5)).toEqual(criarRepeticao(e, emCampo, 5))
@@ -64,6 +84,7 @@ describe('repetição 2D', () => {
           }
           // Ninguém se teletransporta nem sai do mapa.
           for (let k = 1; k < c.quadros.length; k++) {
+            if (c.cortes.some((tc) => (k - 1) * c.dt < tc - 1e-6 && k * c.dt >= tc - 1e-6)) continue
             for (let i = 0; i < 22; i++) {
               const [x0, y0] = c.quadros[k - 1][i], [x1, y1] = c.quadros[k][i]
               const salto = Math.hypot(x1 - x0, y1 - y0)
@@ -73,7 +94,7 @@ describe('repetição 2D', () => {
             }
           }
           // Finta: o adversário chega à bola na altura da finta e o condutor fica com ela.
-          for (const f of c.acoes) {
+          for (const f of c.acoes.filter((a) => a.tipo === 'finta')) {
             const ps = caricasEm(c, f.t)
             const bt = bolaEm(c, f.t)
             const iV = c.caricas.findIndex((k) => k.id === f.vitimaId)
