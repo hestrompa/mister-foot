@@ -23,6 +23,7 @@ import { Staff } from './ui/Staff'
 import { AoVivoTaca, TacaSeparador, avisoTaca } from './ui/Taca'
 
 import { avancarDirecao } from './core/direcao'
+import { registarFichas } from './core/fichas'
 import { AvisoDirecao, Carreira, Despedido, despedido, ofertasPendentes } from './ui/Carreira'
 
 type Ecra = 'inicio' | 'escolher' | 'jogo'
@@ -169,6 +170,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
   const aposJornada = () => {
     setAoVivo(null)
     setSep('jogo')
+    registarFichas(jogo)
     avancarMercado(jogo)
     avancarTaca(jogo as JogoComTaca)
     avancarDirecao(jogo)
@@ -212,6 +214,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
           setTacaVivo(null)
           setSep('jogo')
           avancarTaca(jogo as JogoComTaca)
+          registarFichas(jogo)
           const ind = indisponiveisDe(mundo, jogo.epoca, jogo.clubeId)
           if (jogo.escalacao.titulares.some((id) => ind.has(id))) {
             atualizar({ ...jogo, escalacao: { ...escalarAuto(mundo, jogo.clubeId, ind, jogo.escalacao.formacao), postura: jogo.escalacao.postura } })

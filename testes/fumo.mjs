@@ -200,6 +200,18 @@ try {
     await page.getByRole('button', { name: 'Jogo', exact: true }).click()
   })
 
+  await passo('ficha do jogo 1: táticas e onzes das duas equipas', async () => {
+    await page.getByRole('button', { name: 'Calendário', exact: true }).click()
+    await page.locator('.calendario tr.clicavel').first().click()
+    await page.locator('.ficha').waitFor({ timeout: 5000 })
+    const onzes = await page.locator('.fi-onze .fi-lista:not(.fi-sup) li').count()
+    esperar(onzes === 22, `22 titulares na ficha (vi ${onzes})`)
+    esperar(await page.locator('.fi-tatica').count() === 2, 'falta a tática de uma das equipas')
+    await foto('8b-ficha-jogo.png')
+    await page.getByRole('button', { name: 'Voltar', exact: true }).click()
+    await page.getByRole('button', { name: 'Jogo', exact: true }).click()
+  })
+
   await passo('dicas de primeiros passos fecham-se', async () => {
     const dica = page.locator('.dica-cartao')
     esperar(await dica.count() === 1, 'falta a dica no separador Jogo')

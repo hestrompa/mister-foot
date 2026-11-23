@@ -6,6 +6,7 @@ import { garantirStaff, staffIA } from '../core/staff-ia'
 import { epocaTerminada, fecharEpoca, indisponiveisDe, novaEpoca } from '../core/epoca'
 import { registarCampeao, type JogoComTaca } from '../core/taca'
 import { avancarDirecao, iniciarEpocaDirecao } from '../core/direcao'
+import { registarFichas } from '../core/fichas'
 
 const CHAVE = 'mister-foot:jogo'
 
@@ -15,8 +16,8 @@ function compactar(epoca: EstadoEpoca): EstadoEpoca {
   const calendario = epoca.calendario.map((div) =>
     div.map((jornada) =>
       jornada.map((p): Partida =>
-        p.jornada < limite && p.eventos.some((e) => e.tipo !== 'golo')
-          ? { ...p, eventos: p.eventos.filter((e) => e.tipo === 'golo') }
+        p.jornada < limite && (p.onzes || p.eventos.some((e) => e.tipo !== 'golo'))
+          ? { ...p, eventos: p.eventos.filter((e) => e.tipo === 'golo'), onzes: undefined }
           : p,
       ),
     ),
@@ -57,6 +58,7 @@ export function carregar(): Jogo | null {
     const j = JSON.parse(s) as Jogo
     if (j?.mundo?.versao !== 1) return null
     let mudou = false
+    if (j.epoca && registarFichas(j)) mudou = true
     if (!j.epoca) { prepararEpoca(j); mudou = true }
     else if (epocaTerminada(j.epoca)) { avancarDirecao(j); registarCampeao(j as JogoComTaca, fecharEpoca(j.mundo, j.epoca).campeoes); prepararEpoca(j); mudou = true }
     if (garantirStaff(j.mundo)) mudou = true

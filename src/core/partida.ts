@@ -88,6 +88,8 @@ export interface Partida {
   prolongamento?: boolean
   penaltis?: [number, number]
   serie?: [0 | 1, number, boolean][]
+  /** Escalações iniciais (casa, fora), para a ficha do jogo. */
+  onzes?: [Escalacao, Escalacao]
 }
 
 export interface LinhaTabela {

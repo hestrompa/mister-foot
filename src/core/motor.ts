@@ -126,7 +126,7 @@ export function iniciarJogo(_mundo: Mundo, partida: Partida, casa: Escalacao, fo
     fimMinuto: 90,
   }
   return {
-    partida: { ...partida, golos: [0, 0], eventos: [], estat: estatVazia(), jogada: false, porque: undefined },
+    partida: { ...partida, golos: [0, 0], eventos: [], estat: estatVazia(), jogada: false, porque: undefined, onzes: [copia(casa), copia(fora)] },
     minuto: 0,
     escalacoes: { casa: copia(casa), fora: copia(fora) },
     subs: { casa: 0, fora: 0 },
