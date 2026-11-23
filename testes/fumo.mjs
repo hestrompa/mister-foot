@@ -158,6 +158,13 @@ try {
     await page.getByRole('button', { name: 'Jogo', exact: true }).click()
   })
 
+  await passo('dicas de primeiros passos fecham-se', async () => {
+    const dica = page.locator('.dica-cartao')
+    esperar(await dica.count() === 1, 'falta a dica no separador Jogo')
+    await dica.getByRole('button', { name: 'Percebido' }).click()
+    esperar(await page.locator('.dica-cartao').count() === 0, 'a dica não fechou')
+  })
+
   await passo('telemóvel 390x844 sem scroll horizontal', async () => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.waitForTimeout(300)
@@ -181,10 +188,10 @@ try {
   await passo('telemóvel: todos os separadores sem scroll horizontal', async () => {
     await page.getByRole('button', { name: 'Continuar', exact: true }).click()
     await page.getByText(/Jornada 3 de/).waitFor({ timeout: 5000 })
-    const seps = ['Plantel', 'Taça', 'Classificação', 'Calendário', 'Clube', 'Divisões', 'Jogo']
+    const seps = ['Plantel', 'Mercado', 'Taça', 'Classificação', 'Calendário', 'Clube', 'Divisões', 'Jogo']
     const largos = []
     for (const [i, nome] of seps.entries()) {
-      await page.getByRole('button', { name: nome, exact: true }).click()
+      await page.getByRole('button', { name: new RegExp(`^${nome}( \\(\\d+\\))?$`) }).click()
       await page.waitForTimeout(150)
       await foto(`11-${i + 1}-telemovel-${nome.normalize('NFD').replace(/[^a-zA-Z]/g, '').toLowerCase()}.png`)
       const { sw, iw } = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }))

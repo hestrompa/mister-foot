@@ -9,6 +9,7 @@ import { epocaTerminada, fecharEpoca, indisponiveisDe, tabela } from './core/epo
 import { escalarAuto } from './core/motor'
 import { apagar, carregar, gravar, prepararEpoca } from './jogo/gravar'
 import { Emblema } from './ui/Emblema'
+import { Dicas } from './ui/Dicas'
 import { Forca, Plantel } from './ui/Plantel'
 import { PreJogo } from './ui/PreJogo'
 import { AoVivo } from './ui/AoVivo'
@@ -229,6 +230,8 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
         ))}
         <button className="sair" onClick={sair}>Menu</button>
       </nav>
+
+      <Dicas sep={sep} />
 
       {sep === 'jogo' && (pendTaca
         ? <PreJogo key="taca" jogo={jogo} mudar={mudarEscalacao} outro={avisoTaca(jogo as JogoComTaca, pendTaca.ronda, pendTaca.partida)} jogar={() => setTacaVivo(`${jogo.epoca.ano}-${pendTaca.partida.id}`)} />

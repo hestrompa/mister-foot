@@ -246,6 +246,8 @@ h1, h2, h3 { margin: 0; }
 /* ---- Telemóvel: nomes longos cortados com reticências para as colunas de números caberem ---- */
 @media (max-width: 640px) {
   .separadores button { padding: 10px 10px; }
+  .cartoes-info { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .cartoes-info .info-v { font-size: 18px; overflow-wrap: anywhere; }
   .tabela td:has(> .clube-linha) { width: 100%; max-width: 0; overflow: hidden; }
   .tabela .clube-linha { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tabela .clube-linha > .emblema, .tabela .clube-linha > svg, .tabela .clube-linha > img { vertical-align: middle; margin-right: 6px; }
