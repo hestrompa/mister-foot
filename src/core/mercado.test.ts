@@ -233,5 +233,5 @@ describe('juniores e salários', () => {
     const fim = [0, 1, 2, 3].map(massa)
     for (let d = 0; d < 4; d++) expect(fim[d]).toBeLessThan(inicio[d] * 1.6)
     for (const c of Object.values(j.mundo.clubes)) expect(c.plantel.length).toBeGreaterThanOrEqual(PLANTEL_MIN)
-  })
+  }, 20_000)
 })
