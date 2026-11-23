@@ -68,7 +68,7 @@ export interface EstatJogo {
 
 export interface Partida {
   id: string
-  competicao: 'liga' | 'taca'
+  competicao: 'liga' | 'taca' | 'europa'
   /** Na taça é 0. */
   divisao: number
   jornada: number

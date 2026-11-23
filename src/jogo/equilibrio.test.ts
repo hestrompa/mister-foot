@@ -121,3 +121,15 @@ describe('dinheiro com mercado, contratos, obras e empréstimos', () => {
     for (let d = 0; d < 3; d++) expect(z.forcaMedia[d] - z.forcaMedia[d + 1]).toBeGreaterThanOrEqual(7)
   }, 30_000)
 })
+
+describe('dinheiro com a taça e a Europa', () => {
+  it('as provas a meio da semana não fazem o dinheiro da 1.ª explodir', async () => {
+    const { medirDinheiro } = await import('./medir')
+    const ms = medirDinheiro(33, 3, 3, true)
+    for (const m of ms) expect(m.vermelho).toBeLessThanOrEqual(6)
+    const [a, z] = [ms[0], ms[ms.length - 1]]
+    // Os 10% mais ricos da 1.ª não ganham mais de 25 M€ por época, nem o mundo mais de 120 M€.
+    expect((z.p90[0] - a.p90[0]) / (ms.length - 1)).toBeLessThan(25_000_000)
+    expect((z.total - a.total) / (ms.length - 1)).toBeLessThan(120_000_000)
+  }, 40_000)
+})

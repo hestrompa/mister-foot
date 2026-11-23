@@ -6,6 +6,7 @@ import { useState } from 'react'
 import type { Partida } from '../core/partida'
 import { criarFicha, fichaPorId, type FichaJogo } from '../core/fichas'
 import { Ficha, JogosAnteriores } from './Ficha'
+import { LinhasEuropa } from './Europa'
 
 export function Calendario({ jogo }: { jogo: Jogo }) {
   const { mundo, epoca, clubeId } = jogo
@@ -69,6 +70,7 @@ export function Calendario({ jogo }: { jogo: Jogo }) {
         </tr>,
       )
     }
+    linhas.push(<LinhasEuropa key={`e${j}`} jogo={jogo} j={j} />)
   }
   return (
     <>

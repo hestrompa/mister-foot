@@ -280,7 +280,7 @@ try {
   await passo('telemóvel: todos os separadores sem scroll horizontal', async () => {
     await page.getByRole('button', { name: 'Continuar', exact: true }).click()
     await page.getByText(/Jornada 3 de/).waitFor({ timeout: 5000 })
-    const seps = ['Plantel', 'Staff', 'Mercado', 'Taça', 'Classificação', 'Calendário', 'Clube', 'Carreira', 'Divisões', 'Imprensa', 'História', 'Jogo']
+    const seps = ['Plantel', 'Staff', 'Mercado', 'Taça', 'Europa', 'Classificação', 'Calendário', 'Clube', 'Carreira', 'Divisões', 'Imprensa', 'História', 'Jogo']
     const largos = []
     for (const [i, nome] of seps.entries()) {
       await page.getByRole('button', { name: new RegExp(`^${nome}( \\(\\d+\\))?$`) }).click()
@@ -320,6 +320,24 @@ try {
     esperar(sw <= iw + 1, `scrollWidth ${sw} > innerWidth ${iw}`)
     await page.setViewportSize({ width: 1280, height: 800 })
     await foto('12e-taca-separador-pc.png')
+  })
+
+  await passo('Europa: grupos das duas provas, jornadas já jogadas e notícias', async () => {
+    await page.getByRole('button', { name: /^Europa/ }).click()
+    await page.getByText('Notícias da Europa').waitFor({ timeout: 5000 })
+    const grupos = await page.locator('.eu-grupo').count()
+    esperar(grupos === 4, `esperava 4 grupos, vi ${grupos}`)
+    await foto('13a-europa-pc.png')
+    await page.getByRole('button', { name: 'Taça Continental' }).click()
+    await page.waitForTimeout(150)
+    const jogos = await page.locator('.taca-jogo').count()
+    esperar(jogos >= 8, `esperava 8 jogos da jornada europeia, vi ${jogos}`)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await foto('13b-europa-telemovel.png')
+    const { sw, iw } = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }))
+    esperar(sw <= iw + 1, `scrollWidth ${sw} > innerWidth ${iw}`)
+    await page.getByRole('button', { name: 'Calendário' }).click()
+    await foto('13c-calendario-telemovel.png')
   })
 
   await ctx.close()

@@ -9,6 +9,7 @@ import { avancarDirecao, iniciarEpocaDirecao } from '../core/direcao'
 import { registarFichas } from '../core/fichas'
 import { garantirRivais } from '../core/rivalidades'
 import { avancarImprensa } from '../core/imprensa'
+import { qualificarEuropa, type JogoComEuropa } from '../core/europa'
 
 const CHAVE = 'mister-foot:jogo'
 
@@ -64,7 +65,7 @@ export function carregar(): Jogo | null {
     let mudou = false
     if (j.epoca && registarFichas(j)) mudou = true
     if (!j.epoca) { prepararEpoca(j); mudou = true }
-    else if (epocaTerminada(j.epoca)) { avancarDirecao(j); avancarImprensa(j); registarCampeao(j as JogoComTaca, fecharEpoca(j.mundo, j.epoca).campeoes); prepararEpoca(j); mudou = true }
+    else if (epocaTerminada(j.epoca)) { avancarDirecao(j); avancarImprensa(j); qualificarEuropa(j as JogoComEuropa); registarCampeao(j as JogoComTaca, fecharEpoca(j.mundo, j.epoca).campeoes); prepararEpoca(j); mudou = true }
     if (garantirStaff(j.mundo)) mudou = true
     if (garantirRivais(j.mundo)) mudou = true
     if (!j.escalacao) {

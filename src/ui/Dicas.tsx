@@ -22,6 +22,10 @@ export const DICAS: Record<string, { titulo: string; texto: string }> = {
     titulo: 'Taça',
     texto: 'Os jogos da Taça são a eliminar e metem-se entre as jornadas. Ir longe dá prémios em dinheiro.',
   },
+  europa: {
+    titulo: 'Europa',
+    texto: 'Os 2 primeiros da 1.ª Divisão vão à Liga Continental; o 3.º, o 4.º e o vencedor da Taça vão à Taça Continental. Jogos a meio da semana, sem salários, com prémios e bilheteira.',
+  },
   classificacao: {
     titulo: 'Classificação',
     texto: 'Os 3 primeiros sobem e os 3 últimos descem. Na 1.ª divisão, o primeiro é campeão.',

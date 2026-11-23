@@ -6,6 +6,8 @@ import { avancarMercado, type JogoComMercado } from '../core/mercado'
 import { prepararEpoca } from './gravar'
 import { garantirStaff, staffIA } from '../core/staff-ia'
 import { salariosPorJornada } from '../core/financas'
+import { avancarTaca, jogarRondaTaca, meuJogoPendente, registarCampeao, type JogoComTaca } from '../core/taca'
+import { avancarEuropa, jogarDiaEuropa, meuJogoEuropa, qualificarEuropa, type JogoComEuropa } from '../core/europa'
 
 export interface MedidaEpoca {
   ano: number
@@ -110,8 +112,21 @@ export interface MedidaDinheiro {
 
 const pct = (v: number[], p: number) => { const s = v.slice().sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(p * s.length))] }
 
-/** Joga `epocas` épocas como a app (o clube do utilizador não faz nada: só joga). */
-export function medirDinheiro(semente: number, epocas: number, divUtilizador = 3): MedidaDinheiro[] {
+/** Taça e Europa como na app (os jogos do utilizador também simulados). */
+function competicoes(jogo: JogoComTaca & JogoComEuropa) {
+  avancarTaca(jogo)
+  avancarEuropa(jogo)
+  for (let g = 0; g < 6; g++) {
+    if (meuJogoPendente(jogo)) jogarRondaTaca(jogo)
+    else if (meuJogoEuropa(jogo)) jogarDiaEuropa(jogo)
+    else break
+    avancarTaca(jogo)
+    avancarEuropa(jogo)
+  }
+}
+
+/** Joga `epocas` épocas como a app (o clube do utilizador não faz nada: só joga). Com `taca`, joga também a taça e a Europa. */
+export function medirDinheiro(semente: number, epocas: number, divUtilizador = 3, taca = false): MedidaDinheiro[] {
   const mundo = gerarMundo(semente)
   const clubeId = mundo.divisoes[divUtilizador].clubes[9]
   const jogo = prepararEpoca({ mundo, treinador: 'T', clubeId, criado: '' } as Jogo) as JogoComMercado
@@ -120,13 +135,17 @@ export function medirDinheiro(semente: number, epocas: number, divUtilizador = 3
     let n = 0
     const clubeAntes = new Map(Object.values(mundo.jogadores).map((j) => [j.id, j.clubeId]))
     avancarMercado(jogo)
+    if (taca) competicoes(jogo)
     while (!epocaTerminada(jogo.epoca)) {
       concluirJornada(mundo, jogo.epoca, semente * 1000 + e * 50 + n++)
       avancarMercado(jogo)
+      if (taca) competicoes(jogo)
     }
     const ano = jogo.epoca.ano
     const transferencias = Object.values(mundo.jogadores).filter((j) => j.clubeId !== 0 && clubeAntes.has(j.id) && clubeAntes.get(j.id) !== 0 && clubeAntes.get(j.id) !== j.clubeId).length
-    fecharEpoca(mundo, jogo.epoca)
+    if (taca) qualificarEuropa(jogo)
+    const resumo = fecharEpoca(mundo, jogo.epoca)
+    if (taca) registarCampeao(jogo, resumo.campeoes)
     const m: MedidaDinheiro = { ano, p10: [], p50: [], p90: [], vermelho: 0, emprestimo: 0, obras: 0, salarios: [], forcaMedia: [], plantelMin: 99, plantelMax: 0, total: 0, transferencias }
     for (const d of mundo.divisoes) {
       const din = d.clubes.map((id) => mundo.clubes[id].dinheiro)

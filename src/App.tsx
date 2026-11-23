@@ -21,6 +21,8 @@ import { avancarMercado } from './core/mercado'
 import { avancarTaca, meuJogoPendente, registarCampeao, type JogoComTaca } from './core/taca'
 import { Staff } from './ui/Staff'
 import { AoVivoTaca, TacaSeparador, avisoTaca } from './ui/Taca'
+import { avancarEuropa, meuJogoEuropa, mundoEuropa, qualificarEuropa, type JogoComEuropa } from './core/europa'
+import { AoVivoEuropa, EuropaSeparador, avisoEuropa } from './ui/Europa'
 
 import { avancarDirecao } from './core/direcao'
 import { registarFichas } from './core/fichas'
@@ -30,7 +32,7 @@ import { Historia } from './ui/Historia'
 import { AvisoDirecao, Carreira, Despedido, despedido, ofertasPendentes } from './ui/Carreira'
 
 type Ecra = 'inicio' | 'escolher' | 'jogo'
-type Separador = 'jogo' | 'plantel' | 'staff' | 'mercado' | 'taca' | 'classificacao' | 'calendario' | 'clube' | 'carreira' | 'divisoes' | 'noticias' | 'historia'
+type Separador = 'jogo' | 'plantel' | 'staff' | 'mercado' | 'taca' | 'europa' | 'classificacao' | 'calendario' | 'clube' | 'carreira' | 'divisoes' | 'noticias' | 'historia'
 
 export default function App() {
   const [jogo, setJogo] = useState<Jogo | null>(() => carregar())
@@ -166,6 +168,8 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
   const [aoVivo, setAoVivo] = useState<string | null>(null)
   const [tacaVivo, setTacaVivo] = useState<string | null>(null)
   const pendTaca = meuJogoPendente(jogo as JogoComTaca)
+  const [euVivo, setEuVivo] = useState<string | null>(null)
+  const pendEu = pendTaca ? null : meuJogoEuropa(jogo as JogoComEuropa)
   const [fim, setFim] = useState<DadosFimEpoca | null>(null)
 
   const mudarEscalacao = (e: Escalacao) => atualizar({ ...jogo, escalacao: e })
@@ -176,6 +180,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
     registarFichas(jogo)
     avancarMercado(jogo)
     avancarTaca(jogo as JogoComTaca)
+    avancarEuropa(jogo as JogoComEuropa)
     avancarDirecao(jogo)
     avancarImprensa(jogo)
     if (!epocaTerminada(jogo.epoca) && despedido(jogo)) { atualizar(jogo); return }
@@ -189,6 +194,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
     }
     const divisaoAntes = meu.divisao
     const posicao = tabela(mundo, jogo.epoca, divisaoAntes).findIndex((l) => l.clubeId === meu.id) + 1
+    qualificarEuropa(jogo as JogoComEuropa)
     const resumo = fecharEpoca(mundo, jogo.epoca)
     registarCampeao(jogo as JogoComTaca, resumo.campeoes)
     prepararEpoca(jogo)
@@ -219,6 +225,24 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
           setSep('jogo')
           avancarTaca(jogo as JogoComTaca)
           registarFichas(jogo)
+          avancarEuropa(jogo as JogoComEuropa)
+          const ind = indisponiveisDe(mundo, jogo.epoca, jogo.clubeId)
+          if (jogo.escalacao.titulares.some((id) => ind.has(id))) {
+            atualizar({ ...jogo, escalacao: { ...escalarAuto(mundo, jogo.clubeId, ind, jogo.escalacao.formacao), postura: jogo.escalacao.postura } })
+          } else atualizar(jogo)
+        }} />
+      </div>
+    )
+  }
+  if (euVivo) {
+    return (
+      <div className="ecra jogo ecra-vivo">
+        <AoVivoEuropa key={euVivo} jogo={jogo as JogoComEuropa} guardar={() => atualizar(jogo)} continuar={() => {
+          setEuVivo(null)
+          setSep('jogo')
+          avancarEuropa(jogo as JogoComEuropa)
+          avancarTaca(jogo as JogoComTaca)
+          registarFichas(jogo)
           const ind = indisponiveisDe(mundo, jogo.epoca, jogo.clubeId)
           if (jogo.escalacao.titulares.some((id) => ind.has(id))) {
             atualizar({ ...jogo, escalacao: { ...escalarAuto(mundo, jogo.clubeId, ind, jogo.escalacao.formacao), postura: jogo.escalacao.postura } })
@@ -243,7 +267,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
     <div className="ecra jogo">
       {cabecalho}
       <nav className="separadores principal-nav">
-        {([['jogo', 'Jogo'], ['plantel', 'Plantel'], ['staff', 'Staff'], ['mercado', `Mercado${propostasPendentes(jogo) ? ` (${propostasPendentes(jogo)})` : ''}`], ['taca', pendTaca ? 'Taça (!)' : 'Taça'], ['classificacao', 'Classificação'], ['calendario', 'Calendário'], ['clube', 'Clube'], ['carreira', `Carreira${ofertasPendentes(jogo) ? ` (${ofertasPendentes(jogo)})` : ''}`], ['divisoes', 'Divisões'], ['noticias', `Imprensa${noticiasPorLer(jogo) ? ` (${noticiasPorLer(jogo)})` : ''}`], ['historia', 'História']] as [Separador, string][]).map(([k, t]) => (
+        {([['jogo', 'Jogo'], ['plantel', 'Plantel'], ['staff', 'Staff'], ['mercado', `Mercado${propostasPendentes(jogo) ? ` (${propostasPendentes(jogo)})` : ''}`], ['taca', pendTaca ? 'Taça (!)' : 'Taça'], ['europa', pendEu ? 'Europa (!)' : 'Europa'], ['classificacao', 'Classificação'], ['calendario', 'Calendário'], ['clube', 'Clube'], ['carreira', `Carreira${ofertasPendentes(jogo) ? ` (${ofertasPendentes(jogo)})` : ''}`], ['divisoes', 'Divisões'], ['noticias', `Imprensa${noticiasPorLer(jogo) ? ` (${noticiasPorLer(jogo)})` : ''}`], ['historia', 'História']] as [Separador, string][]).map(([k, t]) => (
           <button key={k} className={sep === k ? 'ativo' : ''} onClick={() => { setSep(k); setVerClube(null) }}>{t}</button>
         ))}
         <button className="sair" onClick={sair}>Menu</button>
@@ -252,12 +276,16 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
       <Dicas sep={sep} />
 
       {sep === 'jogo' && <AvisoDirecao jogo={jogo} abrir={() => setSep('carreira')} />}
-      {sep === 'jogo' && !pendTaca && <><AvisoRival jogo={jogo} /><ConferenciaCartao jogo={jogo} atualizar={atualizar} /></>}
+      {sep === 'jogo' && !pendTaca && !pendEu && <><AvisoRival jogo={jogo} /><ConferenciaCartao jogo={jogo} atualizar={atualizar} /></>}
       {sep === 'jogo' && (pendTaca
         ? <PreJogo key="taca" jogo={jogo} mudar={mudarEscalacao} outro={avisoTaca(jogo as JogoComTaca, pendTaca.ronda, pendTaca.partida)} jogar={() => setTacaVivo(`${jogo.epoca.ano}-${pendTaca.partida.id}`)} />
-        : <PreJogo jogo={jogo} mudar={mudarEscalacao} jogar={() => setAoVivo(`${jogo.epoca.ano}-${jogo.epoca.jornada}`)} />)}
+        : pendEu
+          ? <PreJogo key="europa" jogo={{ ...jogo, mundo: mundoEuropa(jogo as JogoComEuropa) }} mudar={mudarEscalacao} outro={avisoEuropa(jogo as JogoComEuropa, pendEu.comp, pendEu.ronda, pendEu.partida, pendEu.dia)} jogar={() => setEuVivo(`${jogo.epoca.ano}-${pendEu.partida.id}`)} />
+          : <PreJogo jogo={jogo} mudar={mudarEscalacao} jogar={() => setAoVivo(`${jogo.epoca.ano}-${jogo.epoca.jornada}`)} />)}
 
       {sep === 'taca' && <TacaSeparador jogo={jogo as JogoComTaca} />}
+
+      {sep === 'europa' && <EuropaSeparador jogo={jogo as JogoComEuropa} />}
 
       {sep === 'classificacao' && (
         <>

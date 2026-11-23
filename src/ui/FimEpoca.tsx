@@ -4,6 +4,7 @@ import { NOMES_DIVISAO } from '../core/mundo'
 import { Emblema } from './Emblema'
 import { vencedorTacaDe } from './Taca'
 import { NOME_TACA } from '../core/taca'
+import { EuropaFimEpoca } from './Europa'
 import { BalancoDirecao } from './Carreira'
 
 export interface DadosFimEpoca {
@@ -51,6 +52,7 @@ export function FimEpoca({ jogo, d, continuar }: { jogo: Jogo; d: DadosFimEpoca;
             </div>
           )
         })()}
+        <EuropaFimEpoca jogo={jogo} ano={r.ano} />
         {r.melhorMarcador && (
           <div className="cartao info">
             <span className="info-t">Melhor marcador</span>

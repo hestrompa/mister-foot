@@ -34,7 +34,7 @@ export function validarEscalacao(jogo: Jogo, esc: Escalacao, indisp: ReadonlySet
 }
 
 /** Jogo fora da liga (taça): outra partida, outro título e outras baixas. */
-export interface OutroJogo { partida: Partida; titulo: string; indisp: Set<number>; indispAdv?: Set<number> }
+export interface OutroJogo { partida: Partida; titulo: string; indisp: Set<number>; indispAdv?: Set<number>; botao?: string }
 
 export function PreJogo({ jogo, mudar, jogar, outro }: { jogo: Jogo; mudar: (e: Escalacao) => void; jogar: () => void; outro?: OutroJogo }) {
   const { mundo, epoca, clubeId } = jogo
@@ -66,7 +66,7 @@ export function PreJogo({ jogo, mudar, jogar, outro }: { jogo: Jogo; mudar: (e: 
 
   const estado = (id: number) => {
     const i = epoca.indisponiveis[id]
-    if (outro && indisp.has(id) && (!i || i.motivo !== 'lesao')) return <span className="baixa baixa-castigo">Castigado na taça</span>
+    if (outro && indisp.has(id) && (!i || i.motivo !== 'lesao')) return <span className="baixa baixa-castigo">Castigado nesta prova</span>
     if (!i || i.jogos <= 0 || (outro && i.motivo !== 'lesao')) return null
     return <span className={`baixa baixa-${i.motivo}`}>{i.motivo === 'lesao' ? `Lesionado (${i.jogos})` : `Castigado (${i.jogos})`}</span>
   }
@@ -154,7 +154,7 @@ export function PreJogo({ jogo, mudar, jogar, outro }: { jogo: Jogo; mudar: (e: 
 
       <div className="barra-acao">
         {erro ? <span className="erro">{erro}</span> : <span>{esc.formacao} · {POSTURAS.find((x) => x.v === esc.postura)?.t}</span>}
-        <button className="botao principal grande" disabled={!!erro} onClick={jogar}>{outro ? 'Jogar a taça' : 'Jogar jornada'}</button>
+        <button className="botao principal grande" disabled={!!erro} onClick={jogar}>{outro ? (outro.botao ?? 'Jogar a taça') : 'Jogar jornada'}</button>
       </div>
     </div>
   )

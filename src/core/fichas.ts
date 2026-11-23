@@ -32,7 +32,7 @@ export interface EventoFicha {
 export interface FichaJogo {
   id: string
   ano: number
-  competicao: 'liga' | 'taca'
+  competicao: 'liga' | 'taca' | 'europa'
   /** Ex.: "Jornada 5", "Taça · Oitavos", "Supertaça". */
   ronda: string
   casa: EquipaFicha
