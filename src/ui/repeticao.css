@@ -11,3 +11,7 @@
 .rep-lista { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 8px; }
 .rep-lista .botao { padding: 6px 10px; font-size: 13px; }
 .controlos .modo-rep { flex-basis: 100%; }
+.rep-outro { font-size: 12px; font-weight: 700; color: var(--aviso); }
+.pl-ver { border: 1px solid var(--linha); background: var(--fundo-2); border-radius: 6px; padding: 1px 4px; color: inherit; font: inherit; font-weight: 800; cursor: pointer; }
+.pl-ver:hover { border-color: var(--verde); }
+.placar-rep { list-style: none; padding: 6px 0; }

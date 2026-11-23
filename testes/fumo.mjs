@@ -169,6 +169,11 @@ try {
     await page.waitForTimeout(2500)
     await foto('7b-resumo-repeticao.png')
     await page.getByRole('button', { name: 'Fechar', exact: true }).click()
+    await page.locator('.placares .pl-ver').first().click()
+    await page.getByText(/Noutro jogo/).waitFor({ timeout: 5000 })
+    await page.waitForTimeout(2500)
+    await foto('7c-resumo-outro-jogo.png')
+    await page.getByRole('button', { name: 'Fechar', exact: true }).click()
   })
 
   await passo('continuar e ver a jornada 2', async () => {

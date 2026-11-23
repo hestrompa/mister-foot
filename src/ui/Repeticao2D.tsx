@@ -38,8 +38,10 @@ export function coresJogo(casa: Clube, fora: Clube): Record<Lado, [string, strin
  * Repetição de um lance em caricas, vista de cima. Toca sozinha; `fim` é chamado quando acaba
  * (ou ao carregar em "Continuar"/"Saltar").
  */
-export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continuar', velocidade = 1, autoFim = true }: {
+export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continuar', velocidade = 1, autoFim = true, outroJogo }: {
   cena: CenaRepeticao; mundo: Mundo; casa: Clube; fora: Clube; fim: () => void; rotuloFim?: string; velocidade?: number; autoFim?: boolean
+  /** Quando é a repetição de outro jogo: o resultado desse jogo. */
+  outroJogo?: string
 }) {
   const tela = useRef<HTMLCanvasElement>(null)
   const caixa = useRef<HTMLDivElement>(null)
@@ -227,6 +229,7 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
       <div className="rep-cab">
         <span className="rep-min">{cena.minuto}'</span>
         <span className="rep-tipo">{ORIGEM[cena.origem]} · {lado.sigla}</span>
+        {outroJogo && <span className="rep-outro">Noutro jogo: {outroJogo}</span>}
         <span className="rep-texto">{cena.texto}</span>
       </div>
       <div className="rep-tela" ref={caixa}><canvas ref={tela} /></div>

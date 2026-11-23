@@ -37,6 +37,8 @@ interface Resumo {
   jornada: number
   /** Repetições dos lances do meu jogo. */
   cenas: CenaRepeticao[]
+  /** Repetições dos golos dos outros jogos, por partida. */
+  outrasCenas: Record<string, CenaRepeticao[]>
 }
 
 function clonarLinha(l: LinhaTabela): LinhaTabela {
@@ -96,6 +98,9 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
   const modoRepRef = useRef(modoRep)
   const cenas = useRef<CenaRepeticao[]>([])
   const [rep, setRep] = useState<CenaRepeticao | null>(null)
+  /** Jogo da repetição em curso (o meu ou outro). */
+  const [repJogo, setRepJogo] = useState<Partida | null>(null)
+  const outrasCenas = useRef<Record<string, CenaRepeticao[]>>({})
   const repPend = useRef<CenaRepeticao | null>(null)
   const depoisRep = useRef<Fase | null>(null)
   const saltando = useRef(false)
@@ -112,6 +117,13 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
       for (const ev of evs) {
         if (ev.tipo === 'fim') feitos.current.add(e.partida.id)
         if (ev.tipo === 'golo') flash.current[e.partida.id] = tickRef.current
+        if (e !== meu && ev.tipo === 'golo' && ev.lance) {
+          const cena = criarRepeticao(ev, {
+            casa: { escalacao: e.escalacoes.casa, fora: e.fora },
+            fora: { escalacao: e.escalacoes.fora, fora: e.fora },
+          }, (sementeJornada(jogo, 700 + ev.minuto) ^ (ev.jogadorId ?? 0) ^ e.partida.casaId * 977) >>> 0)
+          if (cena) (outrasCenas.current[e.partida.id] ??= []).push(cena)
+        }
         if (e === meu) {
           if ((ev.tipo === 'golo' || ev.tipo === 'oportunidade') && ev.lance) {
             const cena = criarRepeticao(ev, {
@@ -134,6 +146,7 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
     }
     if (repPend.current) {
       setRep(repPend.current)
+      setRepJogo(meu.partida)
       repPend.current = null
       depoisRep.current = pausa
       return 'repeticao'
@@ -156,7 +169,7 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
     concluirJornada(mundo, epoca, sementeJornada(jogo, 999))
     const depois = tabela(mundo, epoca, div)
     guardar()
-    setResumo({ minha: meu.partida, outras: estados.slice(1).map((e) => e.partida), antes, depois, jornada, cenas: cenas.current.slice() })
+    setResumo({ minha: meu.partida, outras: estados.slice(1).map((e) => e.partida), antes, depois, jornada, cenas: cenas.current.slice(), outrasCenas: { ...outrasCenas.current } })
     setFase('resumo')
   }
 
@@ -225,7 +238,9 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
         </div>
 
         {fase === 'repeticao' && rep && (
-          <Repeticao2D key={`${rep.minuto}-${rep.rematadorId}`} cena={rep} mundo={mundo} casa={casa} fora={fora} velocidade={vel > 1 ? 1.5 : 1}
+          <Repeticao2D key={`${rep.minuto}-${rep.rematadorId}`} cena={rep} mundo={mundo}
+            casa={mundo.clubes[(repJogo ?? mp).casaId]} fora={mundo.clubes[(repJogo ?? mp).foraId]} velocidade={vel > 1 ? 1.5 : 1}
+            outroJogo={repJogo != null && repJogo.id !== mp.id ? `${mundo.clubes[repJogo.casaId].sigla} ${repJogo.golos[0]}-${repJogo.golos[1]} ${mundo.clubes[repJogo.foraId].sigla}` : undefined}
             fim={() => { setRep(null); setFase(depoisRep.current ?? 'jogo'); depoisRep.current = null }} />
         )}
 
@@ -253,10 +268,19 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
           <ul>
             {estados.map((e) => {
               const p = e.partida
+              const golosOutro = outrasCenas.current[p.id]
+              const podeVer = e !== meu && golosOutro?.length && fase !== 'repeticao' && fase !== 'resumo'
               return (
                 <li key={p.id} className={`placar ${e === meu ? 'meu' : ''} ${recente(p) ? 'flash' : ''}`}>
                   <span className="pl-casa"><span className="nm-longo">{mundo.clubes[p.casaId].nome}</span><span className="nm-sigla">{mundo.clubes[p.casaId].sigla}</span></span>
-                  <span className="pl-golos">{p.golos[0]}-{p.golos[1]}</span>
+                  {podeVer
+                    ? <button className="pl-golos pl-ver" title="Ver o último golo" onClick={() => {
+                        depoisRep.current = fase === 'jogo' ? null : fase
+                        setRep(golosOutro[golosOutro.length - 1])
+                        setRepJogo(p)
+                        setFase('repeticao')
+                      }}>{p.golos[0]}-{p.golos[1]}</button>
+                    : <span className="pl-golos">{p.golos[0]}-{p.golos[1]}</span>}
                   <span className="pl-fora"><span className="nm-longo">{mundo.clubes[p.foraId].nome}</span><span className="nm-sigla">{mundo.clubes[p.foraId].sigla}</span></span>
                   <span className="pl-min">{terminou(e) ? 'F' : `${e.minuto}'`}</span>
                 </li>
@@ -364,6 +388,7 @@ function ResumoJornada({ jogo, r, continuar }: { jogo: Jogo; r: Resumo; continua
   const div = mundo.clubes[clubeId].divisao
   const golos = p.eventos.filter((e) => e.tipo === 'golo')
   const [ver, setVer] = useState<CenaRepeticao | null>(null)
+  const [outra, setOutra] = useState<{ p: Partida; c: CenaRepeticao } | null>(null)
   return (
     <div className="resumo-jornada">
       <div className={`cartao resumo-meu res-${res[0]}`}>
@@ -408,10 +433,26 @@ function ResumoJornada({ jogo, r, continuar }: { jogo: Jogo; r: Resumo; continua
         <div className="cartao placares">
           <h3 className="sub-tit">Outros resultados</h3>
           <ul>
+            {outra && (
+              <li className="placar-rep">
+                <Repeticao2D key={`${outra.p.id}-${outra.c.minuto}-${outra.c.rematadorId}`} cena={outra.c} mundo={mundo}
+                  casa={mundo.clubes[outra.p.casaId]} fora={mundo.clubes[outra.p.foraId]} autoFim={false} rotuloFim="Fechar" fim={() => setOutra(null)}
+                  outroJogo={`${mundo.clubes[outra.p.casaId].sigla} ${outra.p.golos[0]}-${outra.p.golos[1]} ${mundo.clubes[outra.p.foraId].sigla}`} />
+                <div className="rep-lista">
+                  {(r.outrasCenas[outra.p.id] ?? []).map((c, i) => (
+                    <button key={i} className={`botao ${outra.c === c ? 'ativo' : ''}`} onClick={() => setOutra({ p: outra.p, c })}>
+                      {c.minuto}' {mundo.jogadores[c.rematadorId]?.curto}
+                    </button>
+                  ))}
+                </div>
+              </li>
+            )}
             {r.outras.map((o) => (
               <li key={o.id} className="placar">
                 <span className="pl-casa"><span className="nm-longo">{mundo.clubes[o.casaId].nome}</span><span className="nm-sigla">{mundo.clubes[o.casaId].sigla}</span></span>
-                <span className="pl-golos">{o.golos[0]}-{o.golos[1]}</span>
+                {r.outrasCenas[o.id]?.length
+                  ? <button className="pl-golos pl-ver" title="Ver os golos" onClick={() => setOutra({ p: o, c: r.outrasCenas[o.id][0] })}>{o.golos[0]}-{o.golos[1]}</button>
+                  : <span className="pl-golos">{o.golos[0]}-{o.golos[1]}</span>}
                 <span className="pl-fora"><span className="nm-longo">{mundo.clubes[o.foraId].nome}</span><span className="nm-sigla">{mundo.clubes[o.foraId].sigla}</span></span>
               </li>
             ))}
