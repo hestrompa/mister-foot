@@ -43,7 +43,7 @@ export function gerarJunior(mundo: Mundo, rng: Rng, clubeId: number): Jogador {
   const idade = rng.int(16, 18)
   const forca = clamp(Math.round(forcaClube(mundo, clubeId) * 0.62 + (idade - 16) * 2 + rng.normal(0, 5)), 8, 70)
   const perola = rng.chance(0.06)
-  const potencial = clamp(forca + rng.int(8, 28) + (perola ? rng.int(15, 30) : 0), forca, 99)
+  const potencial = clamp(forca + rng.int(4, 18) + (perola ? rng.int(15, 30) : 0), forca, 99)
   const j: Jogador = {
     id,
     ...nome(rng),
@@ -64,8 +64,8 @@ export function gerarJunior(mundo: Mundo, rng: Rng, clubeId: number): Jogador {
 /** Estimativa do potencial, como a daria um olheiro: nunca o número exato. */
 export function potencialTexto(j: Jogador): string {
   const m = j.potencial - j.forca
-  if (j.potencial >= 75 || m >= 35) return 'Pérola'
-  if (m >= 22) return 'Alto'
-  if (m >= 12) return 'Médio'
+  if (j.potencial >= 75 || m >= 28) return 'Pérola'
+  if (m >= 14) return 'Alto'
+  if (m >= 8) return 'Médio'
   return 'Baixo'
 }
