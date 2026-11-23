@@ -8,8 +8,25 @@ import { concluirJornada, indisponiveisDe, partidasDaJornada, tabela } from '../
 import { Emblema } from './Emblema'
 import { POSTURAS } from './PreJogo'
 import { sementeJornada, TabelaLiga } from './comum'
+import { criarRepeticao, type CenaRepeticao } from '../core/repeticao'
+import { Repeticao2D } from './Repeticao2D'
 
-type Fase = 'jogo' | 'intervalo' | 'lesao' | 'pausa' | 'resumo'
+type Fase = 'jogo' | 'intervalo' | 'lesao' | 'pausa' | 'resumo' | 'repeticao'
+
+/** Que lances do meu jogo abrem a repetição 2D. */
+type ModoRep = 'tudo' | 'golos' | 'nada'
+const MODOS_REP: Record<ModoRep, string> = { tudo: 'Repetições: golos e ocasiões', golos: 'Repetições: só golos', nada: 'Repetições: desligadas' }
+const CHAVE_REP = 'mister-foot-repeticoes'
+function lerModoRep(): ModoRep {
+  try {
+    const v = localStorage.getItem(CHAVE_REP)
+    if (v === 'tudo' || v === 'golos' || v === 'nada') return v
+  } catch { /* sem armazenamento */ }
+  return 'tudo'
+}
+function gravarModoRep(m: ModoRep): void {
+  try { localStorage.setItem(CHAVE_REP, m) } catch { /* ignora */ }
+}
 const MS_MINUTO = 450
 
 interface Resumo {
@@ -18,6 +35,8 @@ interface Resumo {
   antes: Record<number, number>
   depois: LinhaTabela[]
   jornada: number
+  /** Repetições dos lances do meu jogo. */
+  cenas: CenaRepeticao[]
 }
 
 function clonarLinha(l: LinhaTabela): LinhaTabela {
@@ -73,6 +92,13 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
   const concluido = useRef(false)
   const [lesionado, setLesionado] = useState<number | null>(null)
   const [resumo, setResumo] = useState<Resumo | null>(null)
+  const [modoRep, setModoRep] = useState<ModoRep>(lerModoRep)
+  const modoRepRef = useRef(modoRep)
+  const cenas = useRef<CenaRepeticao[]>([])
+  const [rep, setRep] = useState<CenaRepeticao | null>(null)
+  const repPend = useRef<CenaRepeticao | null>(null)
+  const depoisRep = useRef<Fase | null>(null)
+  const saltando = useRef(false)
 
   const terminou = (e: EstadoJogo) => e.partida.jogada || feitos.current.has(e.partida.id)
 
@@ -87,6 +113,17 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
         if (ev.tipo === 'fim') feitos.current.add(e.partida.id)
         if (ev.tipo === 'golo') flash.current[e.partida.id] = tickRef.current
         if (e === meu) {
+          if ((ev.tipo === 'golo' || ev.tipo === 'oportunidade') && ev.lance) {
+            const cena = criarRepeticao(ev, {
+              casa: { escalacao: e.escalacoes.casa, fora: e.fora },
+              fora: { escalacao: e.escalacoes.fora, fora: e.fora },
+            }, (sementeJornada(jogo, 500 + ev.minuto) ^ (ev.jogadorId ?? 0)) >>> 0)
+            if (cena) {
+              cenas.current.push(cena)
+              const m = modoRepRef.current
+              if (!saltando.current && (m === 'tudo' || (m === 'golos' && ev.tipo === 'golo'))) repPend.current = cena
+            }
+          }
           if (ev.tipo === 'intervalo') pausa = 'intervalo'
           if (ev.tipo === 'lesao' && ev.lado === meuLado && meu.subs[meuLado] < 5 && !pausa) {
             pausa = 'lesao'
@@ -94,6 +131,12 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
           }
         }
       }
+    }
+    if (repPend.current) {
+      setRep(repPend.current)
+      repPend.current = null
+      depoisRep.current = pausa
+      return 'repeticao'
     }
     return pausa
   }
@@ -113,7 +156,7 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
     concluirJornada(mundo, epoca, sementeJornada(jogo, 999))
     const depois = tabela(mundo, epoca, div)
     guardar()
-    setResumo({ minha: meu.partida, outras: estados.slice(1).map((e) => e.partida), antes, depois, jornada })
+    setResumo({ minha: meu.partida, outras: estados.slice(1).map((e) => e.partida), antes, depois, jornada, cenas: cenas.current.slice() })
     setFase('resumo')
   }
 
@@ -132,7 +175,9 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
 
   const saltar = () => {
     let guarda = 0
+    saltando.current = true
     while (!estados.every(terminou) && guarda++ < 200) passo()
+    setRep(null)
     setLesionado(null)
     concluir()
   }
@@ -171,7 +216,18 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
           ))}
           <button className="botao" disabled={fase !== 'jogo'} onClick={() => setFase('pausa')}>Pausa</button>
           <button className="botao" onClick={saltar}>Saltar</button>
+          <button className="botao modo-rep" onClick={() => {
+            const m: ModoRep = modoRep === 'tudo' ? 'golos' : modoRep === 'golos' ? 'nada' : 'tudo'
+            setModoRep(m)
+            modoRepRef.current = m
+            gravarModoRep(m)
+          }}>{MODOS_REP[modoRep]}</button>
         </div>
+
+        {fase === 'repeticao' && rep && (
+          <Repeticao2D key={`${rep.minuto}-${rep.rematadorId}`} cena={rep} mundo={mundo} casa={casa} fora={fora} velocidade={vel > 1 ? 1.5 : 1}
+            fim={() => { setRep(null); setFase(depoisRep.current ?? 'jogo'); depoisRep.current = null }} />
+        )}
 
         {(fase === 'intervalo' || fase === 'lesao' || fase === 'pausa') && (
           <PainelSubs jogo={jogo} estado={meu} lado={meuLado} fase={fase} lesionado={lesionado}
@@ -307,6 +363,7 @@ function ResumoJornada({ jogo, r, continuar }: { jogo: Jogo; r: Resumo; continua
   const posDepois = r.depois.findIndex((l) => l.clubeId === clubeId) + 1
   const div = mundo.clubes[clubeId].divisao
   const golos = p.eventos.filter((e) => e.tipo === 'golo')
+  const [ver, setVer] = useState<CenaRepeticao | null>(null)
   return (
     <div className="resumo-jornada">
       <div className={`cartao resumo-meu res-${res[0]}`}>
@@ -317,6 +374,19 @@ function ResumoJornada({ jogo, r, continuar }: { jogo: Jogo; r: Resumo; continua
           <div className="mj-eq"><Emblema clube={mundo.clubes[p.foraId]} tamanho={40} /><span><span className="nm-longo">{mundo.clubes[p.foraId].nome}</span><span className="nm-sigla">{mundo.clubes[p.foraId].sigla}</span></span></div>
         </div>
         {golos.length > 0 && <ul className="golos-lista">{golos.map((g, i) => <li key={i} className={g.lado}>{g.minuto}' {g.jogadorId != null ? mundo.jogadores[g.jogadorId]?.curto : ''}</li>)}</ul>}
+        {r.cenas.length > 0 && (
+          <div className="rep-lista">
+            {r.cenas.map((c, i) => (
+              <button key={i} className={`botao ${ver === c ? 'ativo' : ''}`} onClick={() => setVer(c)}>
+                {c.desfecho === 'golo' ? 'Golo' : 'Ocasião'} {c.minuto}' · {mundo.jogadores[c.rematadorId]?.curto}
+              </button>
+            ))}
+          </div>
+        )}
+        {ver && (
+          <Repeticao2D key={`${ver.minuto}-${ver.rematadorId}`} cena={ver} mundo={mundo} casa={mundo.clubes[p.casaId]} fora={mundo.clubes[p.foraId]}
+            autoFim={false} rotuloFim="Fechar" fim={() => setVer(null)} />
+        )}
         {p.porque && <p className="porque">{p.porque}</p>}
         {jogo.epoca.ultimoBalanco?.[clubeId] && (() => {
           const b = jogo.epoca.ultimoBalanco![clubeId]

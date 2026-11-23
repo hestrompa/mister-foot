@@ -140,10 +140,26 @@ try {
     esperar(n === 9, `esperava 9 jogos, encontrei ${n}`)
   })
 
+  await passo('repetição 2D em caricas de um lance do meu jogo', async () => {
+    const rep = page.getByTestId('repeticao')
+    await rep.waitFor({ timeout: 45000 })
+    await page.waitForTimeout(1800)
+    await foto('6b-repeticao.png')
+    const desenhado = await rep.locator('canvas').evaluate((c) => c.width > 100 && c.height > 60)
+    esperar(desenhado, 'o canvas da repetição não tem tamanho')
+    await rep.getByRole('button', { name: 'Continuar' }).click()
+    await rep.waitFor({ state: 'detached', timeout: 5000 })
+  })
+
   await passo('saltar e ver o resumo', async () => {
     await page.getByRole('button', { name: 'Saltar' }).click()
     await page.getByText('Outros resultados').waitFor({ timeout: 10000 })
     await foto('7-resumo.png')
+    await page.locator('.rep-lista .botao').first().click()
+    await page.getByTestId('repeticao').waitFor({ timeout: 5000 })
+    await page.waitForTimeout(2500)
+    await foto('7b-resumo-repeticao.png')
+    await page.getByRole('button', { name: 'Fechar', exact: true }).click()
   })
 
   await passo('continuar e ver a jornada 2', async () => {

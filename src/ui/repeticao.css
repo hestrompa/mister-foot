@@ -1,0 +1,13 @@
+/* Repetição 2D em caricas */
+.repeticao { width: 100%; max-width: 780px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; padding: 10px; border-color: var(--aviso); }
+.rep-cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: 14px; }
+.rep-min { font-weight: 800; color: var(--verde); font-variant-numeric: tabular-nums; }
+.rep-tipo { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--texto-2); }
+.rep-texto { flex-basis: 100%; font-weight: 600; }
+.rep-tela { width: 100%; border-radius: 8px; overflow: hidden; background: #2a7f3d; }
+.rep-tela canvas { display: block; width: 100%; }
+.rep-botoes { display: flex; gap: 6px; }
+.rep-botoes .botao { flex: 1; padding: 8px; }
+.rep-lista { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 8px; }
+.rep-lista .botao { padding: 6px 10px; font-size: 13px; }
+.controlos .modo-rep { flex-basis: 100%; }
