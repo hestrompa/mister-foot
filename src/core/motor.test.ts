@@ -138,3 +138,26 @@ describe('motor', () => {
     expect(posse / N).toBeLessThan(40)
   })
 })
+
+describe('mudar formação a meio do jogo', () => {
+  it('mantém os mesmos onze, o guarda-redes à frente e arruma pelas posições', async () => {
+    const { mudarFormacao, posicaoDoLugar } = await import('./motor')
+    const m = gerarMundo(3)
+    const [a, b] = m.divisoes[0].clubes
+    const e = iniciarJogo(m, partidaNova(a, b), escalarAuto(m, a, NADA, '4-4-2'), escalarAuto(m, b, NADA), 5)
+    for (let i = 0; i < 30; i++) avancarMinuto(m, e)
+    const antes = [...e.escalacoes.casa.titulares].sort()
+    const gr = e.escalacoes.casa.titulares[0]
+    mudarFormacao(m, e, 'casa', '3-4-3')
+    const esc = e.escalacoes.casa
+    expect(esc.formacao).toBe('3-4-3')
+    expect([...esc.titulares].sort()).toEqual(antes)
+    expect(esc.titulares[0]).toBe(gr)
+    const avs = esc.titulares.filter((_, i) => posicaoDoLugar('3-4-3', i) === 'AV')
+    expect(avs).toHaveLength(3)
+    expect(e.partida.eventos.at(-1)?.texto).toContain('3-4-3')
+    // O jogo continua normalmente.
+    for (let i = 0; i < 70; i++) avancarMinuto(m, e)
+    expect(e.partida.jogada).toBe(true)
+  })
+})

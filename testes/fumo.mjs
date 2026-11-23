@@ -173,6 +173,20 @@ try {
     await rep.waitFor({ state: 'detached', timeout: 5000 })
   })
 
+  await passo('mexer na equipa sem parar: formação e substituição', async () => {
+    await page.getByTestId('repeticao').waitFor({ state: 'detached', timeout: 20000 }).catch(() => {})
+    await page.getByRole('button', { name: 'Equipa', exact: true }).click()
+    const painel = page.locator('.painel-subs')
+    await painel.getByText('o jogo continua').waitFor({ timeout: 8000 })
+    await painel.locator('select').selectOption('4-3-3')
+    await painel.locator('.lista-jog').first().locator('button').nth(10).click()
+    await painel.locator('.lista-jog').nth(1).locator('button').first().click()
+    await painel.getByText(/Sai .*, entra/).waitFor({ timeout: 3000 })
+    await foto('6a-equipa-ao-vivo.png')
+    await painel.getByRole('button', { name: 'Fechar', exact: true }).click()
+    await page.locator('.relato').getByText(/muda para 4-3-3/).waitFor({ timeout: 5000 })
+  })
+
   await passo('saltar e ver o resumo', async () => {
     await page.getByRole('button', { name: 'Saltar' }).click()
     await page.getByText('Outros resultados').waitFor({ timeout: 10000 })

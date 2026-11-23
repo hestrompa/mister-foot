@@ -1,9 +1,9 @@
 import { euros } from '../core/formato'
 import { useEffect, useRef, useState } from 'react'
 import type { Jogo } from '../core/types'
-import type { EventoJogo, Lado, LinhaTabela, Partida, Postura } from '../core/partida'
+import { FORMACOES, type EventoJogo, type Formacao, type Lado, type LinhaTabela, type Partida, type Postura } from '../core/partida'
 import { escalarIA } from '../core/tatica'
-import { avancarMinuto, definirAutoSub, posseDoMinuto, iniciarJogo, mudarPostura, substituir, type EstadoJogo } from '../core/motor'
+import { avancarMinuto, definirAutoSub, mudarFormacao, posseDoMinuto, iniciarJogo, mudarPostura, substituir, type EstadoJogo } from '../core/motor'
 import { concluirJornada, indisponiveisDe, partidasDaJornada, tabela } from '../core/epoca'
 import { Emblema } from './Emblema'
 import { POSTURAS } from './PreJogo'
@@ -106,6 +106,8 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
   const saltando = useRef(false)
   /** Campo 2D ao vivo do meu jogo: o minuto de agora e de onde continua o seguinte. */
   const [amb, setAmb] = useState<CenaRepeticao | null>(null)
+  /** Painel da equipa aberto com o jogo a correr. */
+  const [painel, setPainel] = useState(false)
   const ultimaCena = useRef<CenaRepeticao | null>(null)
   const pontape = useRef(true)
   /** Lance do meu jogo a passar em direto: o golo só conta no marcador e no relato quando a bola entra. */
@@ -275,6 +277,7 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
           ))}
           <button className="botao" disabled={fase !== 'jogo'} onClick={() => setFase('pausa')}>Pausa</button>
           <button className="botao" onClick={saltar}>Saltar</button>
+          <button className={`botao ${painel ? 'ativo' : ''}`} disabled={terminou(meu)} onClick={() => setPainel((v) => !v)}>Equipa</button>
           <button className="botao modo-rep" onClick={() => {
             const m: ModoRep = modoRep === 'tudo' ? 'golos' : modoRep === 'golos' ? 'nada' : 'tudo'
             setModoRep(m)
@@ -295,6 +298,10 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
             fim={() => { revelar(); setRep(null); setFase(depoisRep.current ?? 'jogo'); depoisRep.current = null }} />
         )}
 
+        {fase === 'jogo' && painel && !terminou(meu) && (
+          <PainelSubs jogo={jogo} estado={meu} lado={meuLado} fase={fase} lesionado={null}
+            retomar={() => setPainel(false)} atualizar={() => setTick((t) => t + 1)} />
+        )}
         {(fase === 'intervalo' || fase === 'lesao' || fase === 'pausa') && (
           <PainelSubs jogo={jogo} estado={meu} lado={meuLado} fase={fase} lesionado={lesionado}
             retomar={() => { setLesionado(null); setFase('jogo') }} atualizar={() => setTick((t) => t + 1)} />
@@ -379,7 +386,7 @@ export function PainelSubs({ jogo, estado, lado, fase, lesionado, retomar, atual
   return (
     <div className="cartao painel-subs">
       <div className="ps-cab">
-        <h3>{fase === 'intervalo' ? 'Intervalo' : fase === 'lesao' ? 'Lesão!' : 'Pausa'}</h3>
+        <h3>{fase === 'intervalo' ? 'Intervalo' : fase === 'lesao' ? 'Lesão!' : fase === 'jogo' ? 'Equipa (o jogo continua)' : 'Pausa'}</h3>
         <span className="dica">{restam} substituições restantes</span>
       </div>
       {fase === 'lesao' && lesionado != null && <p className="aviso-txt">{mundo.jogadores[lesionado].curto} lesionou-se. Escolhe quem entra.</p>}
@@ -389,6 +396,12 @@ export function PainelSubs({ jogo, estado, lado, fase, lesionado, retomar, atual
             onClick={() => { mudarPostura(estado, lado, x.v as Postura); atualizar() }}>{x.t}</button>
         ))}
       </div>
+      <label className="ps-formacao">
+        <span className="dica">Formação</span>
+        <select value={esc.formacao} onChange={(e) => { mudarFormacao(mundo, estado, lado, e.target.value as Formacao); setSai(null); atualizar() }}>
+          {(Object.keys(FORMACOES) as Formacao[]).map((f) => <option key={f} value={f}>{f}</option>)}
+        </select>
+      </label>
       <div className="onze-grelha">
         <ul className="lista-jog">
           {esc.titulares.map((id) => {
@@ -423,7 +436,7 @@ export function PainelSubs({ jogo, estado, lado, fase, lesionado, retomar, atual
         </ul>
       </div>
       {msg && <p className="dica">{msg}</p>}
-      <button className="botao principal grande" onClick={retomar}>{fase === 'intervalo' ? 'Segunda parte' : 'Continuar'}</button>
+      <button className="botao principal grande" onClick={retomar}>{fase === 'intervalo' ? 'Segunda parte' : fase === 'jogo' ? 'Fechar' : 'Continuar'}</button>
     </div>
   )
 }

@@ -468,6 +468,48 @@ export function mudarPostura(estado: EstadoJogo, lado: Lado, postura: Postura): 
   })
 }
 
+/**
+ * Muda a formação a meio do jogo: o guarda-redes fica, os outros dez são arrumados nos
+ * novos lugares (primeiro pela posição natural, depois quem render mais no lugar que sobra).
+ * Expulsos e lesionados continuam fora; não gasta substituições.
+ */
+export function mudarFormacao(mundo: Mundo, estado: EstadoJogo, lado: Lado, formacao: Formacao): void {
+  const esc = estado.escalacoes[lado]
+  if (esc.formacao === formacao || estado.partida.jogada) return
+  const [d, m, a] = FORMACOES[formacao]
+  const lugares: Posicao[] = ['GR', ...Array<Posicao>(d).fill('DEF'), ...Array<Posicao>(m).fill('MED'), ...Array<Posicao>(a).fill('AV')]
+  const gr = esc.titulares[0]
+  const outros = esc.titulares.slice(1)
+  const fora = new Set(estado.fora)
+  const escolha: (number | undefined)[] = lugares.map((_, i) => (i === 0 ? gr : undefined))
+  const usados = new Set<number>([gr])
+  // Os que estão em campo primeiro (os de fora ficam com os lugares que sobrarem).
+  const jog = (id: number) => mundo.jogadores[id]
+  const ordem = outros.filter((id) => !fora.has(id)).sort((x, y) => (jog(y)?.forca ?? 0) - (jog(x)?.forca ?? 0))
+  lugares.forEach((pos, i) => {
+    if (i === 0) return
+    const id = ordem.find((k) => !usados.has(k) && jog(k)?.posicao === pos)
+    if (id != null) { escolha[i] = id; usados.add(id) }
+  })
+  lugares.forEach((pos, i) => {
+    if (escolha[i] !== undefined) return
+    let melhor: number | undefined
+    for (const k of ordem) {
+      if (usados.has(k) || !jog(k)) continue
+      if (melhor == null || forcaNoLugar(jog(k), pos) > forcaNoLugar(jog(melhor), pos)) melhor = k
+    }
+    if (melhor != null) { escolha[i] = melhor; usados.add(melhor) }
+  })
+  const resto = outros.filter((id) => !usados.has(id))
+  lugares.forEach((_, i) => { if (escolha[i] === undefined) escolha[i] = resto.shift() })
+  esc.titulares = escolha.filter((id): id is number => id !== undefined)
+  esc.formacao = formacao
+  estado.partida.eventos.push({
+    minuto: estado.minuto, tipo: 'postura', lado,
+    texto: `${lado === 'casa' ? 'A equipa da casa' : 'A equipa visitante'} muda para ${formacao}.`,
+  })
+}
+
 /** Joga o jogo inteiro de uma vez (para os jogos das outras divisões e para testes). */
 export function simularJogo(mundo: Mundo, partida: Partida, casa: Escalacao, fora: Escalacao, semente: number): Partida {
   const e = iniciarJogo(mundo, partida, casa, fora, semente)
