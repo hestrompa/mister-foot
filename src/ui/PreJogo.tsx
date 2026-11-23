@@ -6,6 +6,7 @@ import { indisponiveisDe, tabela } from '../core/epoca'
 import { Emblema } from './Emblema'
 import { Forca } from './Plantel'
 import { FormaPills, minhaPartida } from './comum'
+import { Antevisao } from './Antevisao'
 
 export const POSTURAS: { v: Postura; t: string }[] = [
   { v: 'defensiva', t: 'Defensiva' }, { v: 'equilibrada', t: 'Equilibrada' }, { v: 'ofensiva', t: 'Ofensiva' },
@@ -97,6 +98,8 @@ export function PreJogo({ jogo, mudar, jogar }: { jogo: Jogo; mudar: (e: Escalac
         </div>
         <button className="botao" onClick={() => { setSel(null); mudar({ ...escalarAuto(mundo, clubeId, indisp, esc.formacao), postura: esc.postura }) }}>Escalação automática</button>
       </div>
+
+      <Antevisao jogo={jogo} />
 
       <p className="nota">{sel == null ? 'Toca num titular e depois num jogador do banco para os trocar.' : `A trocar ${mundo.jogadores[sel].curto}: escolhe quem entra.`}</p>
 

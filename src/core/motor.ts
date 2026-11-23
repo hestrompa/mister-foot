@@ -164,27 +164,41 @@ function emCampo(mundo: Mundo, estado: EstadoJogo, lado: Lado): EmCampo[] {
   return out
 }
 
-interface Setores {
+export interface Setores {
   gr: number
   meio: number
   ataque: number
   defesa: number
 }
 
-function setores(mundo: Mundo, estado: EstadoJogo, lado: Lado, campo: EmCampo[]): Setores {
+function somarSetores(campo: EmCampo[], emCasa: boolean, post: Postura): Setores {
   const s: Record<Posicao, number> = { GR: 0, DEF: 0, MED: 0, AV: 0 }
   for (const c of campo) s[c.pos] += c.ef
-  const casa = lado === 'casa' ? 1.04 : 1
-  const post = estado.escalacoes[lado].postura
+  const casa = emCasa ? 1.04 : 1
   const fa = post === 'ofensiva' ? 1.12 : post === 'defensiva' ? 0.88 : 1
   const fd = post === 'ofensiva' ? 0.88 : post === 'defensiva' ? 1.12 : 1
-  void mundo
   return {
     gr: (s.GR || 20) * casa,
     meio: (s.MED + 0.25 * (s.DEF + s.AV)) * casa,
     ataque: (s.AV + 0.35 * s.MED + 0.1 * s.DEF) * casa * fa,
     defesa: (s.DEF + 0.35 * s.MED + 0.1 * s.AV) * casa * fd,
   }
+}
+
+function setores(_mundo: Mundo, estado: EstadoJogo, lado: Lado, campo: EmCampo[]): Setores {
+  return somarSetores(campo, lado === 'casa', estado.escalacoes[lado].postura)
+}
+
+/** Força de cada setor de uma escalação antes do jogo (para a antevisão). */
+export function forcaSetores(mundo: Mundo, esc: Escalacao, emCasa: boolean): Setores {
+  const campo: EmCampo[] = []
+  esc.titulares.forEach((id, i) => {
+    const j = mundo.jogadores[id]
+    if (!j) return
+    const pos = posicaoDoLugar(esc.formacao, i)
+    campo.push({ j, pos, ef: forcaNoLugar(j, pos) })
+  })
+  return somarSetores(campo, emCasa, esc.postura)
 }
 
 function pesado<T>(rng: Rng, itens: T[], peso: (t: T) => number): T | undefined {
@@ -266,9 +280,15 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
   const sa = set[atac], sd = set[def]
   const q = (sa.ataque + 1) / (sd.defesa + 1)
   const ia = idx(atac)
-  if (rng.chance(clamp(TAXA_REMATE * Math.pow(q, 0.5), 0.05, 0.6))) {
+  // Postura: ao ataque há mais gente na área e mais remates; à defesa, menos.
+  const pAtac = estado.escalacoes[atac].postura
+  const fRemate = pAtac === 'ofensiva' ? 1.06 : pAtac === 'defensiva' ? 0.94 : 1
+  if (rng.chance(clamp(TAXA_REMATE * fRemate * Math.pow(q, 0.5), 0.05, 0.6))) {
+    // Contra-ataques: aparecem mais contra quem sobe as linhas e para quem espera atrás.
+    const pa = pAtac, pd = estado.escalacoes[def].postura
+    const pContra = 0.13 * (pd === 'ofensiva' ? 1.7 : pd === 'defensiva' ? 0.5 : 1) * (pa === 'defensiva' ? 1.35 : pa === 'ofensiva' ? 0.8 : 1)
     const r = rng.next()
-    const origem: Lance['origem'] = r < 0.03 ? 'penalti' : r < 0.11 ? 'livre' : r < 0.23 ? 'canto' : r < 0.36 ? 'contra' : r < 0.5 ? 'longe' : 'jogada'
+    const origem: Lance['origem'] = r < 0.03 ? 'penalti' : r < 0.11 ? 'livre' : r < 0.23 ? 'canto' : r < 0.23 + pContra ? 'contra' : r < 0.37 + pContra ? 'longe' : 'jogada'
     const atacantes = campo[atac].filter((c) => c.pos !== 'GR')
     const remC = origem === 'penalti'
       ? atacantes.slice().sort((a, b) => b.j.forca - a.j.forca)[0]
@@ -350,6 +370,16 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
     }
   }
 
+  // Treinadores da IA mexem na postura conforme o resultado.
+  for (const lado of LADOS) {
+    if (!x.autoSub[lado]) continue
+    const nova = reacaoIA(min, p.golos[idx(lado)] - p.golos[1 - idx(lado)], estado.escalacoes[lado].postura)
+    if (nova) {
+      estado.escalacoes[lado].postura = nova
+      evs.push({ minuto: min, tipo: 'postura', lado, texto: `${mundo.clubes[lado === 'casa' ? p.casaId : p.foraId]?.nome ?? sigla(lado)} ${TEXTO_REACAO[nova]}` })
+    }
+  }
+
   if (min === 45) evs.push({ minuto: 45, tipo: 'intervalo', lado: 'casa', texto: `Intervalo: ${sigla('casa')} ${p.golos[0]}-${p.golos[1]} ${sigla('fora')}.` })
   if (min === 90) x.fimMinuto = 90 + rng.int(0, 4)
   if (min >= 90 && min >= x.fimMinuto) {
@@ -365,6 +395,22 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
   estado.rng = rng.state()
   p.eventos.push(...evs)
   return evs
+}
+
+const TEXTO_REACAO: Record<Postura, string> = {
+  ofensiva: 'arrisca tudo e passa a jogar ao ataque.',
+  defensiva: 'fecha-se atrás para segurar o resultado.',
+  equilibrada: 'volta a jogar de forma equilibrada.',
+}
+
+/** Postura que um treinador da IA escolhe a meio do jogo, ou null para manter. `dif` = golos marcados - sofridos. */
+export function reacaoIA(minuto: number, dif: number, atual: Postura): Postura | null {
+  if (minuto < 60) return null
+  let quer: Postura | null = null
+  if (dif < 0 && dif >= -2) quer = 'ofensiva'
+  else if (dif === 1 && minuto >= 75) quer = 'defensiva'
+  else if (dif >= 3 || dif <= -3) quer = 'equilibrada'
+  return quer && quer !== atual ? quer : null
 }
 
 function explicar(mundo: Mundo, p: Partida): string {

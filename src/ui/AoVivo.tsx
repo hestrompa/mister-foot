@@ -2,7 +2,8 @@ import { euros } from '../core/formato'
 import { useEffect, useRef, useState } from 'react'
 import type { Jogo } from '../core/types'
 import type { Lado, LinhaTabela, Partida, Postura } from '../core/partida'
-import { avancarMinuto, definirAutoSub, escalarAuto, iniciarJogo, mudarPostura, substituir, type EstadoJogo } from '../core/motor'
+import { escalarIA } from '../core/tatica'
+import { avancarMinuto, definirAutoSub, iniciarJogo, mudarPostura, substituir, type EstadoJogo } from '../core/motor'
 import { concluirJornada, indisponiveisDe, partidasDaJornada, tabela } from '../core/epoca'
 import { Emblema } from './Emblema'
 import { POSTURAS } from './PreJogo'
@@ -46,14 +47,14 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
     const partidas = partidasDaJornada(epoca, div)
     const base = tabela(mundo, epoca, div).map(clonarLinha)
     const semente = sementeJornada(jogo)
-    const escDe = (id: number) => {
+    const escDe = (id: number, advId: number, emCasa: boolean) => {
       if (id === clubeId) {
         const ind = indisponiveisDe(mundo, epoca, id)
         return { ...jogo.escalacao, suplentes: jogo.escalacao.suplentes.filter((s) => !ind.has(s)) }
       }
-      return escalarAuto(mundo, id, indisponiveisDe(mundo, epoca, id))
+      return escalarIA(mundo, id, advId, emCasa, indisponiveisDe(mundo, epoca, id))
     }
-    const estados = partidas.map((p, i) => iniciarJogo(mundo, p, escDe(p.casaId), escDe(p.foraId), (semente + i * 7919) >>> 0))
+    const estados = partidas.map((p, i) => iniciarJogo(mundo, p, escDe(p.casaId, p.foraId, true), escDe(p.foraId, p.casaId, false), (semente + i * 7919) >>> 0))
     const mi = estados.findIndex((e) => e.partida.casaId === clubeId || e.partida.foraId === clubeId)
     if (mi > 0) estados.unshift(...estados.splice(mi, 1))
     if (estados[0]) definirAutoSub(estados[0], estados[0].partida.casaId === clubeId ? 'casa' : 'fora', false)

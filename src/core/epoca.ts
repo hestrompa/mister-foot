@@ -3,7 +3,8 @@ import { aplicarFinancas } from './financas'
 import type { Mundo } from './types'
 import type { EstadoEpoca, EstatJogo, Indisponivel, LinhaTabela, Partida, ResumoEpoca } from './partida'
 import { createRng } from './rng'
-import { escalarAuto, simularJogo } from './motor'
+import { simularJogo } from './motor'
+import { escalarIA } from './tatica'
 import { valorDe } from './mundo'
 
 /** Quantos clubes sobem e descem entre divisões vizinhas. */
@@ -155,8 +156,8 @@ export function concluirJornada(mundo: Mundo, epoca: EstadoEpoca, semente: numbe
     if (!partidas) return
     partidas.forEach((p, i) => {
       if (!p.jogada) {
-        const casa = escalarAuto(mundo, p.casaId, indisponiveisDe(mundo, epoca, p.casaId))
-        const fora = escalarAuto(mundo, p.foraId, indisponiveisDe(mundo, epoca, p.foraId))
+        const casa = escalarIA(mundo, p.casaId, p.foraId, true, indisponiveisDe(mundo, epoca, p.casaId))
+        const fora = escalarIA(mundo, p.foraId, p.casaId, false, indisponiveisDe(mundo, epoca, p.foraId))
         const res = simularJogo(mundo, p, casa, fora, mistura(semente, epoca.ano, j, d, i))
         partidas[i] = { ...res, jogada: true }
       }

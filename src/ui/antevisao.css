@@ -1,0 +1,10 @@
+.antevisao { display: flex; flex-direction: column; gap: 10px; }
+.antevisao .sub-tit { margin: 0; }
+.antevisao .dica, .antevisao .nota { margin: 0; }
+.duelo-cab { display: flex; justify-content: space-between; font-weight: 600; font-size: 14px; gap: 8px; }
+.duelo-pc { font-variant-numeric: tabular-nums; }
+.duelo.bom .duelo-pc { color: var(--verde); }
+.duelo.mau .duelo-pc { color: var(--f-fraca); }
+.duelo-barra { height: 8px; border-radius: 4px; background: var(--f-fraca); opacity: 0.85; overflow: hidden; margin: 4px 0 2px; }
+.duelo-barra span { display: block; height: 100%; background: var(--verde); }
+.duelo-dica { color: var(--texto-2); font-size: 12px; }
