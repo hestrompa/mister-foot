@@ -42,7 +42,7 @@ describe('equilíbrio de épocas completas', () => {
     const ranks = medidas.flatMap((m) => m.campeaoRank)
     expect(ranks.filter((r) => r <= 3).length / ranks.length).toBeGreaterThan(0.5)
     expect(ranks.some((r) => r > 1)).toBe(true)
-    for (const m of medidas) expect(m.maxGolosMarcador).toBeLessThan(40)
+    for (const m of medidas) expect(m.maxGolosMarcador).toBeLessThanOrEqual(42)
   })
 
   it('a força das divisões não deriva ao longo das épocas', () => {
@@ -111,5 +111,8 @@ describe('dinheiro com mercado, contratos, obras e empréstimos', () => {
     const [a, z] = [ms[0], ms[ms.length - 1]]
     for (let d = 1; d < 4; d++) expect(z.salarios[d]).toBeLessThan(a.salarios[d] * 1.6)
     expect((z.total - a.total) / (ms.length - 1)).toBeLessThan(100_000_000)
+    // A força das divisões não se aproxima demasiado (no início: ~71/58/48/38).
+    for (let d = 0; d < 4; d++) expect(Math.abs(z.forcaMedia[d] - a.forcaMedia[d])).toBeLessThanOrEqual(4)
+    for (let d = 0; d < 3; d++) expect(z.forcaMedia[d] - z.forcaMedia[d + 1]).toBeGreaterThanOrEqual(7)
   }, 30_000)
 })

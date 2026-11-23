@@ -241,7 +241,9 @@ describe('fim de época (sem motor)', () => {
       expect(j.forca).toBeLessThanOrEqual(99)
       if (j.idade >= 34) expect(j.forca).toBeLessThan(a.forca)
       if (j.idade < 30 && a.forca < a.potencial) {
-        expect(j.forca).toBeGreaterThan(a.forca)
+        // Até aos 25 cresce sempre; dos 26 aos 29 pode estabilizar.
+        if (j.idade <= 25) expect(j.forca).toBeGreaterThan(a.forca)
+        else expect(j.forca).toBeGreaterThanOrEqual(a.forca)
         expect(j.forca).toBeLessThanOrEqual(a.potencial)
       }
       if (j.idade < 30 && a.forca >= a.potencial) expect(j.forca).toBe(a.forca)

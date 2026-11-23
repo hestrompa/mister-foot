@@ -335,12 +335,14 @@ export function fecharEpoca(mundo: Mundo, epoca: EstadoEpoca): ResumoEpoca {
     const j = mundo.jogadores[id]
     j.idade += 1
     let forca = j.forca
+    // Os jovens crescem depressa em direção ao potencial; dos 26 aos 29 quase estabilizam; depois declinam.
     if (j.idade >= 34) {
-      forca -= rng.int(1, 5)
+      forca -= rng.int(2, 5)
     } else if (j.idade >= 30) {
-      forca -= rng.int(0, 3)
+      forca -= rng.int(1, 3)
     } else if (forca < j.potencial) {
-      forca = Math.min(j.potencial, forca + rng.int(1, 5))
+      const passo = j.idade <= 21 ? rng.int(2, 6) : j.idade <= 25 ? rng.int(1, 3) : rng.int(0, 2)
+      forca = Math.min(j.potencial, forca + passo)
     }
     j.forca = clamp(forca, 1, 99)
     j.valor = valorDe(j.forca, j.idade)
