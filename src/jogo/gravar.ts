@@ -1,6 +1,7 @@
 import type { Jogo } from '../core/types'
 import type { EstadoEpoca, Partida } from '../core/partida'
 import { escalarAuto } from '../core/motor'
+import { gestaoIA } from '../core/ia-financas'
 import { epocaTerminada, fecharEpoca, indisponiveisDe, novaEpoca } from '../core/epoca'
 
 const CHAVE = 'mister-foot:jogo'
@@ -37,6 +38,8 @@ export function sementeEpoca(jogo: Pick<Jogo, 'mundo'>): number {
 
 /** Cria época e escalação para um jogo novo ou para uma gravação antiga. */
 export function prepararEpoca(jogo: Jogo): Jogo {
+  // Entre épocas (não num jogo novo), os outros clubes decidem obras e empréstimos.
+  if (jogo.epoca) gestaoIA(jogo.mundo, jogo.clubeId)
   jogo.epoca = novaEpoca(jogo.mundo, sementeEpoca(jogo))
   jogo.escalacao = escalarAuto(jogo.mundo, jogo.clubeId, indisponiveisDe(jogo.mundo, jogo.epoca, jogo.clubeId), jogo.escalacao?.formacao)
   return jogo

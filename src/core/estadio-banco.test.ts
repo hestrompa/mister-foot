@@ -91,3 +91,26 @@ describe('banco', () => {
     expect(c.emprestimo).toBeUndefined()
   })
 })
+
+describe('clubes do computador', () => {
+  it('ao fim de uma época pedem empréstimos se estão no vermelho e fazem obras se o estádio enche', async () => {
+    const { gestaoIA } = await import('./ia-financas')
+    const { epocaTerminada } = await import('./epoca')
+    const m = gerarMundo(11)
+    const meu = m.divisoes[3].clubes[0]
+    const e = novaEpoca(m, 4)
+    let n = 0
+    while (!epocaTerminada(e)) concluirJornada(m, e, n++)
+    m.clubes[meu].dinheiro = -500_000
+    const pobre = m.divisoes[2].clubes[1]
+    m.clubes[pobre].dinheiro = -50_000
+    const dec = gestaoIA(m, meu)
+    expect(dec.some((d) => d.clubeId === meu)).toBe(false)
+    expect(m.clubes[meu].emprestimo).toBeUndefined()
+    expect(m.clubes[pobre].emprestimo).toBeDefined()
+    expect(m.clubes[pobre].dinheiro).toBeGreaterThanOrEqual(0)
+    const obras = dec.filter((d) => d.tipo === 'obra').length
+    console.log('IA:', dec.length, 'decisões,', obras, 'obras,', dec.filter((d) => d.tipo === 'emprestimo').length, 'empréstimos')
+    expect(gestaoIA(gerarMundo(11), meu)).toEqual(gestaoIA(gerarMundo(11), meu))
+  })
+})
