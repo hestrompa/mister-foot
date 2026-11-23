@@ -5,7 +5,7 @@ import {
   aceitarProposta, comprar, estadoMercado, janelaAberta, listaIA, pedidoSalarial, porAVenda, precoPedido,
   recusaDoJogador, recusarProposta, retirarDaVenda, textoJanela, PLANTEL_MAX, type JogoComMercado, type Resultado,
   dispensarJunior, juniores, promoverJunior,
-  anosMaximos, contratarLivre, livres, pedidoLivre, pedidoRenovacao, premioAssinatura, renovar,
+  anosMaximos, contratarLivre, recusaDoLivre, livres, pedidoLivre, pedidoRenovacao, premioAssinatura, renovar,
 } from '../core/mercado'
 import { Emblema } from './Emblema'
 import { Forca } from './Plantel'
@@ -409,7 +409,7 @@ function Livres({ jogo, feito }: { jogo: JogoComMercado; feito: (r: Resultado) =
               {lista.map((x) => (
                 <tr key={x.id} className={`clicavel ${sel === x.id ? 'meu' : ''}`} onClick={() => setSel(x.id)}>
                   <td><span className={`pos pos-${x.posicao}`}>{x.posicao}</span></td>
-                  <td><span className="nome-jogador">{x.curto}</span></td>
+                  <td><span className="nome-jogador">{x.curto}</span>{recusaDoLivre(mundo, x, jogo.clubeId, jogo.epoca.jornada) && <span className="nac" title="Acha que vale mais do que este clube">não vem</span>}</td>
                   <td className="num">{x.idade}</td>
                   <td><Forca valor={x.forca} /></td>
                   <td className="num">{euros(pedidoLivre(mundo, x, jogo.clubeId))}/mês</td>
@@ -428,6 +428,7 @@ function AssinarLivre({ jogo, j, fechar, feito }: { jogo: JogoComMercado; j: Jog
   const [salario, setSalario] = useState(pede)
   const [anos, setAnos] = useState(Math.min(2, anosMaximos(j)))
   const aberta = janelaAberta(jogo.epoca)
+  const recusa = recusaDoLivre(jogo.mundo, j, jogo.clubeId, jogo.epoca.jornada)
   return (
     <div className="cartao negociar">
       <div className="neg-topo">
@@ -437,6 +438,7 @@ function AssinarLivre({ jogo, j, fechar, feito }: { jogo: JogoComMercado; j: Jog
         <button className="botao fantasma fechar" onClick={fechar}>Fechar</button>
       </div>
       <p className="nota">{j.idade} anos · livre · ganhava {euros(j.salario)}/mês</p>
+      {recusa ? <p className="erro">{recusa}</p> : <>
       <div className="neg-ajustes">
         <Ajuste rotulo="Salário por mês" valor={salario} setValor={setSalario} base={pede} dica={`Pede ${euros(pede)} · prémio ${euros(premioAssinatura(salario))}`} />
       </div>
@@ -446,6 +448,7 @@ function AssinarLivre({ jogo, j, fechar, feito }: { jogo: JogoComMercado; j: Jog
         ))}
       </div>
       <button className="botao principal" disabled={!aberta} onClick={() => feito(contratarLivre(jogo, j.id, salario, anos))}>{aberta ? 'Contratar' : 'Mercado fechado'}</button>
+      </>}
     </div>
   )
 }
