@@ -4,6 +4,7 @@ import type { Jogo } from '../core/types'
 import { OBRAS, custoObra, duracaoObra, iniciarObra, lotacaoAtual, motivoSemObra } from '../core/estadio'
 import { JURO_EPOCA, PRAZOS, juroTotal, limiteCredito, liquidar, motivoSemEmprestimo, pedirEmprestimo, prestacaoDe } from '../core/banco'
 import { euros, lugares } from '../core/formato'
+import { MANUTENCAO_LUGAR } from '../core/financas'
 import './obras-banco.css'
 
 const NOME_PRAZO: Record<number, string> = { 17: 'Meia época', 34: '1 época', 68: '2 épocas' }
@@ -42,7 +43,7 @@ export function ObrasBanco({ jogo, atualizar }: { jogo: Jogo; atualizar: (j: Jog
                 </button>
               ))}
             </div>
-            <p>Custo <b>{euros(custoObra(obra))}</b>, pago já · demora <b>{duracaoObra(obra)} jornadas</b></p>
+            <p>Custo <b>{euros(custoObra(obra))}</b>, pago já · demora <b>{duracaoObra(obra)} jornadas</b> · manutenção +{euros(Math.round(obra * (MANUTENCAO_LUGAR[c.divisao - 1] ?? 0.2)))} por jornada</p>
             {semObra && <p className="ob-aviso">{semObra}</p>}
             <button className="botao principal" disabled={!!semObra} onClick={() => { if (iniciarObra(c, obra)) atualizar(jogo) }}>
               Começar obra
