@@ -160,6 +160,19 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
       campo()
       const ps = caricasEm(cena, t)
       const b = bolaEm(cena, t)
+      // Rasto do carrinho na relva.
+      for (const f of cena.acoes ?? []) {
+        if (t < f.t - 0.3 || t > f.t + 2) continue
+        const fr = Math.min(1, Math.max(0, (t - (f.t - 0.3)) / 0.4))
+        ctx.save()
+        ctx.globalAlpha = t > f.t + 1.4 ? Math.max(0, (f.t + 2 - t) / 0.6) : 1
+        ctx.strokeStyle = 'rgba(120, 80, 40, 0.55)'
+        ctx.lineCap = 'round'
+        ctx.lineWidth = Math.max(3, RAIO * 1.1 * esc)
+        ctx.beginPath(); ctx.moveTo(X(f.de.x), Y(f.de.y))
+        ctx.lineTo(X(f.de.x + (f.ate.x - f.de.x) * fr), Y(f.de.y + (f.ate.y - f.de.y) * fr)); ctx.stroke()
+        ctx.restore()
+      }
       // Primeiro os de trás, a bola por cima.
       cena.caricas.forEach((c, i) => {
         const [x, y] = ps[i]
@@ -183,6 +196,21 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
       if (pas && t < cena.tRemate) {
         const iP = cena.caricas.findIndex((c) => c.id === cena.passadorId)
         if (iP >= 0) etiqueta(ps[iP][0], ps[iP][1], pas.curto)
+      }
+      // "Finta!" por cima de quem a faz.
+      for (const f of cena.acoes ?? []) {
+        if (t < f.t - 0.15 || t > f.t + 0.8) continue
+        const iA = cena.caricas.findIndex((c) => c.id === f.autorId)
+        if (iA < 0) continue
+        const r = Math.max(6 * dpr, RAIO * esc)
+        ctx.save()
+        ctx.font = `800 ${Math.round(r * 1.2)}px system-ui, sans-serif`
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+        ctx.lineWidth = Math.max(2, r * 0.25); ctx.strokeStyle = '#10141a'; ctx.fillStyle = '#ffe066'
+        const sobe = (t - f.t) * r * 1.5
+        ctx.strokeText('Finta!', X(ps[iA][0]), Y(ps[iA][1]) + r * 3 - sobe)
+        ctx.fillText('Finta!', X(ps[iA][0]), Y(ps[iA][1]) + r * 3 - sobe)
+        ctx.restore()
       }
       // Grande "GOLO!" no fim.
       if (cena.desfecho === 'golo' && t > cena.tFim) {

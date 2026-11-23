@@ -45,6 +45,21 @@ export interface CenaRepeticao {
   /** quadros[k][i] = [x, y] da carica i no instante k * dt. */
   quadros: [number, number][][]
   bola: PontoBola[]
+  /** Momentos a assinalar no desenho (finta, carrinho falhado). */
+  acoes: AcaoRep[]
+}
+
+/** Uma finta do condutor e o carrinho falhado do adversário que a sofre. */
+export interface AcaoRep {
+  tipo: 'finta'
+  /** Instante da finta. */
+  t: number
+  /** Quem finta e quem vai ao chão. */
+  autorId: number
+  vitimaId: number
+  /** Onde o adversário começa e acaba o carrinho. */
+  de: { x: number; y: number }
+  ate: { x: number; y: number }
 }
 
 /** Jogadores em campo de um lado no momento do lance. */
@@ -132,6 +147,7 @@ interface Guiao {
   mergulho?: { ate: { x: number; y: number }; t1: number }
   /** Barreira num livre. */
   barreira: number[]
+  acoes: AcaoRep[]
   /** Os outros não entram na área (penáltis). */
   foraDaArea: boolean
   /** A defesa foi apanhada em contra-ataque (chega atrasada). */
@@ -170,7 +186,7 @@ export function criarRepeticao(ev: EventoJogo, emCampo: Record<Lado, EmCampoRep>
     rematadorId: rem.id, ...(pas ? { passadorId: pas.id } : {}),
     tRemate: g.tRemate, tFim: g.tFim, duracao, dt: DT,
     caricas: todos.map(({ id, lado, num, pos }) => ({ id, lado, num, pos })),
-    quadros, bola: g.bola,
+    quadros, bola: g.bola, acoes: g.acoes,
   }
 }
 
@@ -180,20 +196,37 @@ function guiao(rng: Rng, l: Lance, rem: Lugar, pas: Lugar | undefined, dfs: Luga
   const yc = l.corredor === -1 ? 13 + r() * 6 : l.corredor === 1 ? 49 + r() * 6 : 28 + r() * 12
   const bola: PontoBola[] = []
   const fixos = new Map<number, Ponto[]>()
-  const g: Guiao = { bola, fixos, tRemate: 0, tFim: 0, barreira: [], foraDaArea: false, contra: false }
+  const g: Guiao = { bola, fixos, tRemate: 0, tFim: 0, barreira: [], acoes: [], foraDaArea: false, contra: false }
   // S = sítio do remate; tS = quando a bola lá chega.
   let S = { x: 0, y: 0 }
   let tS = 0
   let cabeca = false
   let forcaRemate = 27
 
-  const conducaoEPasse = (A: { x: number; y: number }, B: { x: number; y: number }, tConduz: number, condutor: Lugar) => {
+  const conducaoEPasse = (A: { x: number; y: number }, B: { x: number; y: number }, tConduz: number, condutor: Lugar, pFinta: number) => {
     bola.push({ t: 0, ...A, z: 0 })
+    const candidatos = ld.filter((c) => c !== gr && c !== dfs && c.pos !== 'GR')
+    const meios = candidatos.filter((c) => c.pos === 'MED')
+    const vitima = rng.chance(pFinta) ? rng.pick(meios.length ? meios : candidatos) : undefined
+    const passos: Ponto[] = [{ t: 0, x: A.x - 0.9, y: A.y }]
+    if (vitima) {
+      // Finta: o adversário sai ao caminho em carrinho, o condutor desvia a bola e passa.
+      const tm = tConduz * 0.55
+      const lado = A.y > 34 ? -1 : 1
+      const M0 = { x: lerp(A.x, B.x, 0.55), y: lerp(A.y, B.y, 0.55) }
+      const M = { x: M0.x, y: clamp(M0.y + lado * 2.4, 3, 65) }
+      const ini = { x: M0.x + 6, y: clamp(M0.y - lado * 1.5, 2, 66) }
+      const toque = { x: M0.x + 1.7, y: clamp(M0.y - lado * 0.2, 2, 66) }
+      const chao = { x: M0.x - 1.4, y: clamp(M0.y - lado * 0.6, 2, 66) }
+      bola.push({ t: tm - 0.25, x: lerp(A.x, M0.x, 0.85), y: lerp(A.y, M0.y, 0.85), z: 0 })
+      bola.push({ t: tm + 0.05, ...M, z: 0.25 })
+      passos.push({ t: tm - 0.25, x: lerp(A.x, M0.x, 0.85) - 0.9, y: lerp(A.y, M0.y, 0.85) }, { t: tm + 0.05, x: M.x - 0.9, y: M.y })
+      fixos.set(vitima.id, [{ t: 0, ...ini }, { t: tm - 0.3, ...toque }, { t: tm + 0.1, ...chao }, { t: tm + 1.3, ...chao }])
+      g.acoes.push({ tipo: 'finta', t: tm, autorId: condutor.id, vitimaId: vitima.id, de: toque, ate: chao })
+    }
     bola.push({ t: tConduz, ...B, z: 0 })
-    fixos.set(condutor.id, [
-      { t: 0, x: A.x - 0.9, y: A.y }, { t: tConduz, x: B.x - 0.9, y: B.y },
-      { t: tConduz + 0.8, x: B.x + 3.5, y: lerp(B.y, 34, 0.15) },
-    ])
+    passos.push({ t: tConduz, x: B.x - 0.9, y: B.y }, { t: tConduz + 0.8, x: B.x + 3.5, y: lerp(B.y, 34, 0.15) })
+    fixos.set(condutor.id, passos)
   }
   /** Corrida do rematador até S, a chegar em tS. */
   const corridaRematador = (desvio: number) => {
@@ -214,7 +247,7 @@ function guiao(rng: Rng, l: Lance, rem: Lugar, pas: Lugar | undefined, dfs: Luga
         ? { x: 89 + r() * 5, y: 34 + (yc > 34 ? -1 : 1) * (1 + r() * 5) }
         : { x: 83 + r() * 7, y: 34 + sinal() * r() * 7 }
       if (pas) {
-        conducaoEPasse(A, B, tConduz, pas)
+        conducaoEPasse(A, B, tConduz, pas, contra ? 0.7 : 0.55)
         tS = tConduz + Math.max(0.5, dist(B, S) / 19)
         // Cruzamento das alas vai pelo ar.
         if (ala && rng.chance(0.55)) { arco(bola, tConduz, tS, B, S, null, 2.2, 0, 6); cabeca = rng.chance(0.6) } else bola.push({ t: tS, ...S, z: 0 })
@@ -234,7 +267,7 @@ function guiao(rng: Rng, l: Lance, rem: Lugar, pas: Lugar | undefined, dfs: Luga
       const B = { x: A.x + 6, y: lerp(yc, 34, 0.3) }
       S = { x: 75 + r() * 5, y: 34 + sinal() * r() * 12 }
       if (pas) {
-        conducaoEPasse(A, B, 1.1, pas)
+        conducaoEPasse(A, B, 1.1, pas, 0.3)
         tS = 1.1 + Math.max(0.5, dist(B, S) / 16)
         bola.push({ t: tS, ...S, z: 0 })
         corridaRematador(sinal() * (3 + r() * 3))

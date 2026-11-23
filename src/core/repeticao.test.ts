@@ -35,6 +35,7 @@ describe('repetição 2D', () => {
   for (const origem of ORIGENS) {
     for (const desfecho of DESFECHOS) {
       it(`${origem} / ${desfecho}: bola e caricas coerentes`, () => {
+        let fintas = 0
         for (let s = 1; s <= 12; s++) {
           const corredor = ((s % 3) - 1) as -1 | 0 | 1
           const c = criarRepeticao(evento(origem, desfecho, corredor, s % 2 ? 'casa' : 'fora'), emCampo, s * 977)!
@@ -71,6 +72,17 @@ describe('repetição 2D', () => {
               expect(x1).toBeLessThanOrEqual(COMPRIMENTO + 2)
             }
           }
+          // Finta: o adversário chega à bola na altura da finta e o condutor fica com ela.
+          for (const f of c.acoes) {
+            const ps = caricasEm(c, f.t)
+            const bt = bolaEm(c, f.t)
+            const iV = c.caricas.findIndex((k) => k.id === f.vitimaId)
+            const iA = c.caricas.findIndex((k) => k.id === f.autorId)
+            expect(c.caricas[iV].lado).not.toBe(c.atacante)
+            expect(Math.hypot(ps[iV][0] - bt.x, ps[iV][1] - bt.y)).toBeLessThan(3.5)
+            expect(Math.hypot(ps[iA][0] - bt.x, ps[iA][1] - bt.y)).toBeLessThan(1.6)
+            fintas++
+          }
           // No penálti, só o marcador e o guarda-redes estão na área no remate.
           if (origem === 'penalti') {
             const ps = caricasEm(c, c.tRemate)
@@ -80,6 +92,7 @@ describe('repetição 2D', () => {
             })
           }
         }
+        if (origem === 'jogada' || origem === 'contra') expect(fintas).toBeGreaterThan(2)
       })
     }
   }
