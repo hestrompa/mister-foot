@@ -3,12 +3,12 @@ import { useEffect, useRef, useState } from 'react'
 import type { Jogo } from '../core/types'
 import type { EventoJogo, Lado, LinhaTabela, Partida, Postura } from '../core/partida'
 import { escalarIA } from '../core/tatica'
-import { avancarMinuto, definirAutoSub, iniciarJogo, mudarPostura, substituir, type EstadoJogo } from '../core/motor'
+import { avancarMinuto, definirAutoSub, posseDoMinuto, iniciarJogo, mudarPostura, substituir, type EstadoJogo } from '../core/motor'
 import { concluirJornada, indisponiveisDe, partidasDaJornada, tabela } from '../core/epoca'
 import { Emblema } from './Emblema'
 import { POSTURAS } from './PreJogo'
 import { sementeJornada, TabelaLiga } from './comum'
-import { criarRepeticao, type CenaRepeticao } from '../core/repeticao'
+import { criarAmbiente, criarRepeticao, DURACAO_AMBIENTE, fimEmCampo, type CenaRepeticao } from '../core/repeticao'
 import { Repeticao2D } from './Repeticao2D'
 
 type Fase = 'jogo' | 'intervalo' | 'lesao' | 'pausa' | 'resumo' | 'repeticao'
@@ -104,6 +104,10 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
   const repPend = useRef<CenaRepeticao | null>(null)
   const depoisRep = useRef<Fase | null>(null)
   const saltando = useRef(false)
+  /** Campo 2D ao vivo do meu jogo: o minuto de agora e de onde continua o seguinte. */
+  const [amb, setAmb] = useState<CenaRepeticao | null>(null)
+  const ultimaCena = useRef<CenaRepeticao | null>(null)
+  const pontape = useRef(true)
   /** Lance do meu jogo a passar em direto: o golo só conta no marcador e no relato quando a bola entra. */
   const escondido = useRef<{ ev: EventoJogo; golo: boolean } | null>(null)
   const revelar = () => {
@@ -156,6 +160,7 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
               }
             }
           }
+          if (ev.tipo === 'golo' || ev.tipo === 'intervalo') pontape.current = true
           if (ev.tipo === 'intervalo') pausa = 'intervalo'
           if (ev.tipo === 'lesao' && ev.lado === meuLado && meu.subs[meuLado] < 5 && !pausa) {
             pausa = 'lesao'
@@ -165,11 +170,29 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
       }
     }
     if (repPend.current) {
+      ultimaCena.current = repPend.current
+      if (repPend.current.desfecho !== 'golo') pontape.current = false
       setRep(repPend.current)
       setRepJogo(meu.partida)
       repPend.current = null
       depoisRep.current = pausa
       return 'repeticao'
+    }
+    if (!saltando.current && !terminou(meu)) {
+      const posse = posseDoMinuto(meu)
+      if (posse) {
+        const ant = ultimaCena.current
+        const cena = criarAmbiente({
+          emCampo: { casa: { escalacao: meu.escalacoes.casa, fora: meu.fora }, fora: { escalacao: meu.escalacoes.fora, fora: meu.fora } },
+          posse, minuto: meu.minuto,
+          posturas: { casa: meu.escalacoes.casa.postura, fora: meu.escalacoes.fora.postura },
+          antes: pontape.current || !ant ? undefined : { ...fimEmCampo(ant), posse: ant.ambiente ? ant.atacante : undefined },
+          semente: sementeJornada(jogo, 900 + meu.minuto),
+        })
+        pontape.current = false
+        ultimaCena.current = cena
+        setAmb(cena)
+      }
     }
     return pausa
   }
@@ -260,6 +283,10 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
           }}>{MODOS_REP[modoRep]}</button>
         </div>
 
+        {!(fase === 'repeticao' && rep) && amb && !terminou(meu) && (
+          <Repeticao2D cena={amb} mundo={mundo} casa={casa} fora={fora} autoFim={false} fim={() => {}}
+            velocidade={DURACAO_AMBIENTE / (MS_MINUTO / vel / 1000)} />
+        )}
         {fase === 'repeticao' && rep && (
           <Repeticao2D key={`${rep.minuto}-${rep.rematadorId}`} cena={rep} mundo={mundo}
             casa={mundo.clubes[(repJogo ?? mp).casaId]} fora={mundo.clubes[(repJogo ?? mp).foraId]} velocidade={vel > 1 ? 1.5 : 1}

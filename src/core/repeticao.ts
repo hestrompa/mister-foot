@@ -54,6 +54,8 @@ export interface CenaRepeticao {
    * para a esquerda na 2.ª (e troca outra vez no prolongamento).
    */
   espelhar: boolean
+  /** Minuto de jogo normal (sem lance) do campo ao vivo. */
+  ambiente?: boolean
 }
 
 /** Em que parte do jogo está um minuto (0 = 1.ª parte, 1 = 2.ª, 2 e 3 = prolongamento). */
@@ -560,4 +562,142 @@ function simular(rng: Rng, g: Guiao, la: Lugar[], ld: Lugar[], rem: Lugar, pas: 
     quadros.push(pos.map((p) => [Math.round(p.x * 100) / 100, Math.round(p.y * 100) / 100]))
   }
   return quadros
+}
+
+// ---------------------------------------------------------------------------
+// Campo ao vivo: um minuto de jogo "normal" (sem lance), para o 2D estar sempre a mexer.
+// Aqui as coordenadas são as do campo visto da bancada: a casa ataca para a direita
+// (o desenho roda 180° na 2.ª parte com `espelhar`).
+
+export interface MinutoAmbiente {
+  emCampo: Record<Lado, EmCampoRep>
+  /** Quem tem a bola neste minuto. */
+  posse: Lado
+  minuto: number
+  posturas: Record<Lado, 'defensiva' | 'equilibrada' | 'ofensiva'>
+  /** Onde acabou o minuto anterior (ids -> posição, e a bola). Sem isto, começa no pontapé de saída. */
+  antes?: { pos: Record<number, [number, number]>; bola: { x: number; y: number }; posse?: Lado }
+  semente: number
+}
+
+/** Duração de um minuto de ambiente, em segundos do desenho (a UI acelera para caber no minuto). */
+export const DURACAO_AMBIENTE = 1.2
+
+/** Gera um minuto de jogo sem lance: passes de quem tem a bola, o bloco das duas equipas a acompanhar. */
+export function criarAmbiente(m: MinutoAmbiente): CenaRepeticao {
+  const rng = createRng(m.semente >>> 0 || 1)
+  const la = lugares('casa', m.emCampo.casa)
+  const lf = lugares('fora', m.emCampo.fora)
+  const todos = [...la, ...lf]
+  // x medido da própria baliza -> x do campo (casa ataca para a direita).
+  const dir = (l: Lado) => (l === 'casa' ? 1 : -1)
+  const campoX = (l: Lado, xp: number) => (l === 'casa' ? xp : COMPRIMENTO - xp)
+  const proprioX = (l: Lado, x: number) => (l === 'casa' ? x : COMPRIMENTO - x)
+  const reinicio = !m.antes
+  const b0 = m.antes ? { ...m.antes.bola } : { x: COMPRIMENTO / 2, y: LARGURA / 2 }
+  const posse = m.posse
+  const mantem = m.antes?.posse === posse
+
+  /** Posição de cada um em função da bola (como em `simular`, mas para as duas direções). */
+  const alvo = (c: Lugar, b: { x: number; y: number }): { x: number; y: number } => {
+    const bx = proprioX(c.lado, b.x) // bola medida da baliza de c
+    const sobe = m.posturas[c.lado] === 'ofensiva' ? 5 : m.posturas[c.lado] === 'defensiva' ? -6 : 0
+    let xp: number, y: number
+    if (reinicio) {
+      xp = Math.min(50, c.pos === 'GR' ? 4 : c.bx * 0.8 + 4)
+      y = c.by
+    } else if (c.lado === posse) {
+      if (c.pos === 'GR') { xp = 5 + Math.max(0, bx - 50) * 0.3; y = 34 + (b.y - 34) * 0.2 }
+      else {
+        const teto = c.pos === 'DEF' ? 66 : c.pos === 'MED' ? 84 : 96
+        xp = Math.min(teto, c.bx + (bx - 30) * 0.7 + sobe)
+        y = c.by + (b.y - 34) * 0.3
+      }
+    } else {
+      if (c.pos === 'GR') { xp = 1.5 + Math.max(0, bx - 70) * 0.15; y = 34 + (b.y - 34) * 0.15 }
+      else {
+        const k = c.pos === 'DEF' ? [8, 0.32] : c.pos === 'MED' ? [16, 0.42] : [30, 0.48]
+        xp = k[0] + bx * k[1] + sobe * 0.6
+        y = c.by * 0.7 + b.y * 0.3
+      }
+    }
+    return { x: clamp(campoX(c.lado, xp), 1, COMPRIMENTO - 1), y: clamp(y, 1.5, LARGURA - 1.5) }
+  }
+
+  const pos = todos.map((c) => {
+    const a = m.antes?.pos[c.id]
+    return a ? { x: a[0], y: a[1] } : alvo(c, b0)
+  })
+  const agora = (c: Lugar) => pos[todos.indexOf(c)]
+  // Quem recebe: um colega mais à frente (ou ao lado), ou o adversário que corta.
+  const equipa = todos.filter((c) => c.lado === posse && c.pos !== 'GR')
+  let recetor: Lugar | undefined
+  let b1: { x: number; y: number }
+  if (reinicio) {
+    recetor = equipa.filter((c) => c.pos === 'MED').sort((a, b) => Math.abs(a.by - 34) - Math.abs(b.by - 34))[0] ?? equipa[0]
+    b1 = recetor ? { ...alvo(recetor, b0), x: campoX(posse, 40) } : b0
+  } else if (mantem) {
+    // Passe para um colega a 6-28 m, de preferência para a frente.
+    const cand = equipa.map((c) => ({ c, p: agora(c) }))
+      .filter(({ p }) => { const d = Math.hypot(p.x - b0.x, p.y - b0.y); return d > 6 && d < 28 })
+    let tot = 0
+    const pesos = cand.map(({ p }) => { const w = Math.max(0.2, 1 + (dir(posse) * (p.x - b0.x)) / 12); tot += w; return w })
+    let r = rng.next() * tot
+    const esc = cand.find((_, i) => (r -= pesos[i]) <= 0)
+    recetor = esc?.c
+    b1 = esc ? { x: clamp(esc.p.x + dir(posse) * 2.5, 2, COMPRIMENTO - 2), y: esc.p.y } : { x: clamp(b0.x + dir(posse) * 5, 4, COMPRIMENTO - 4), y: b0.y }
+  } else {
+    // Perda de bola: o adversário mais perto de onde a bola ia corta-a.
+    const perto = equipa.map((c) => ({ c, p: agora(c) })).sort((a, b) => Math.hypot(a.p.x - b0.x, a.p.y - b0.y) - Math.hypot(b.p.x - b0.x, b.p.y - b0.y))[0]
+    recetor = perto?.c
+    b1 = perto ? { x: lerp(b0.x, perto.p.x, 0.75), y: lerp(b0.y, perto.p.y, 0.75) } : b0
+  }
+  const tPasse = 0.6
+  const b2 = { x: clamp(b1.x + dir(posse) * (1.5 + rng.next() * 2.5), 2, COMPRIMENTO - 2), y: clamp(b1.y + (rng.next() - 0.5) * 3, 2, 66) }
+  const alto = !reinicio && mantem && Math.hypot(b1.x - b0.x, b1.y - b0.y) > 20
+  const bola: PontoBola[] = [{ t: 0, ...b0, z: 0 }]
+  if (alto) bola.push({ t: tPasse / 2, x: (b0.x + b1.x) / 2, y: (b0.y + b1.y) / 2, z: 3 })
+  bola.push({ t: tPasse, ...b1, z: 0 }, { t: DURACAO_AMBIENTE, ...b2, z: 0 })
+
+  const n = Math.round(DURACAO_AMBIENTE / DT) + 1
+  const fase = todos.map((c) => (c.id % 97) / 15)
+  const quadros: [number, number][][] = []
+  for (let k = 0; k < n; k++) {
+    const t = k * DT
+    const b = interp(bola, t)
+    todos.forEach((c, i) => {
+      let a = alvo(c, b)
+      if (c === recetor) a = t < tPasse ? { x: b1.x - dir(posse) * 0.9, y: b1.y } : { x: b.x - dir(posse) * 0.9, y: b.y }
+      a = { x: a.x + Math.sin(t * 1.7 + fase[i]) * 0.6, y: a.y + Math.cos(t * 1.3 + fase[i]) * 0.5 }
+      const dx = a.x - pos[i].x, dy = a.y - pos[i].y, d = Math.hypot(dx, dy)
+      const vmax = (c === recetor ? 9 : 6.5) * DT
+      if (d > 0.01) { const sp = Math.min(vmax, d * 0.4 + 0.02); pos[i] = { x: pos[i].x + (dx / d) * sp, y: pos[i].y + (dy / d) * sp } }
+    })
+    for (let i = 0; i < todos.length; i++) for (let j = i + 1; j < todos.length; j++) {
+      const dx = pos[j].x - pos[i].x, dy = pos[j].y - pos[i].y, d = Math.hypot(dx, dy), min = RAIO * 2 + 0.1
+      if (d >= min) continue
+      const ux = d > 0.001 ? dx / d : 1, uy = d > 0.001 ? dy / d : 0, f = Math.min(min - d, 0.2) / 2
+      pos[i].x -= ux * f; pos[i].y -= uy * f; pos[j].x += ux * f; pos[j].y += uy * f
+    }
+    quadros.push(pos.map((p) => [Math.round(clamp(p.x, 0.5, COMPRIMENTO - 0.5) * 100) / 100, Math.round(clamp(p.y, 0.5, LARGURA - 0.5) * 100) / 100]))
+  }
+  return {
+    minuto: m.minuto, atacante: posse, origem: 'jogada', desfecho: 'fora', texto: '',
+    rematadorId: recetor?.id ?? -1, tRemate: DURACAO_AMBIENTE + 1, tFim: DURACAO_AMBIENTE + 1,
+    duracao: DURACAO_AMBIENTE, dt: DT, caricas: todos.map(({ id, lado, num, pos }) => ({ id, lado, num, pos })),
+    quadros, bola, acoes: [], cortes: [], espelhar: parteDoJogo(m.minuto) % 2 === 1, ambiente: true,
+  }
+}
+
+/** Fim de uma cena convertido para as coordenadas do campo ao vivo (para o minuto seguinte continuar dali). */
+export function fimEmCampo(c: CenaRepeticao): { pos: Record<number, [number, number]>; bola: { x: number; y: number } } {
+  const q = c.quadros[c.quadros.length - 1]
+  const b = bolaEm(c, c.duracao)
+  // Cenas de lance: o atacante vai para a direita e `espelhar` roda; aqui a casa vai para a direita na 1.ª parte.
+  const rodaLance = c.ambiente ? false : c.espelhar !== (parteDoJogo(c.minuto) % 2 === 1)
+  const conv = (x: number, y: number): [number, number] => (rodaLance ? [COMPRIMENTO - x, LARGURA - y] : [x, y])
+  const pos: Record<number, [number, number]> = {}
+  c.caricas.forEach((k, i) => { pos[k.id] = conv(clamp(q[i][0], 1, COMPRIMENTO - 1), q[i][1]) })
+  const [bx, by] = conv(clamp(b.x, 2, COMPRIMENTO - 2), clamp(b.y, 2, LARGURA - 2))
+  return { pos, bola: { x: bx, y: by } }
 }

@@ -155,6 +155,7 @@ try {
     await page.getByRole('button', { name: 'Jogo', exact: true }).click()
     await page.getByRole('button', { name: 'Jogar jornada' }).click()
     await page.getByRole('button', { name: '2x' }).click()
+    await page.getByTestId('campo-vivo').or(page.getByTestId('repeticao')).first().waitFor({ timeout: 8000 })
     await page.waitForTimeout(5000)
     await foto('6-ao-vivo.png')
     const n = await page.locator('.placares li').count()

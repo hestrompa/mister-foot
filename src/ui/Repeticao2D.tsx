@@ -55,6 +55,9 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
   useEffect(() => { revelarRef.current = revelar }, [revelar])
   /** 0 = lance a decorrer, 1 = já houve a falta do penálti, 2 = desfecho conhecido. */
   const [direto] = useState(emDireto)
+  const rotRef = useRef(new Map<number, number>())
+  const antRef = useRef(new Map<number, [number, number]>())
+  const arbRef = useRef<{ x: number; y: number } | null>(null)
   const [marco, setMarco] = useState(emDireto ? 0 : 2)
   const marcoRef = useRef(marco)
 
@@ -78,7 +81,7 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
       dpr = Math.min(2, window.devicePixelRatio || 1)
       w = cx.clientWidth
       // Janela visível em coordenadas do ecrã (depois de rodar o campo, se for o caso).
-      const corte = w < 640 ? Math.max(-MARGEM, Math.min(52, xMinLance - 10)) : -MARGEM
+      const corte = w < 640 && !cena.ambiente ? Math.max(-MARGEM, Math.min(52, xMinLance - 10)) : -MARGEM
       x0 = esp ? -MARGEM : corte
       const x1 = esp ? COMPRIMENTO - corte : COMPRIMENTO + MARGEM
       const largM = x1 - x0
@@ -147,15 +150,17 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
       return c
     }
     // Rotação de cada carica (rola quando corre) e posição anterior.
-    let rot: number[] = cena.caricas.map(() => 0)
-    let ant: [number, number][] | null = null
+    // Guardados entre cenas (o campo ao vivo troca de cena a cada minuto).
+    const rot = rotRef.current
+    const ant = antRef.current
     // Árbitro: segue a bola com atraso, sem entrar no lance.
-    let arb: { x: number; y: number } | null = null
+    let arb = arbRef.current
 
     const campo = () => {
       const X = SX, Y = SY
+      if (!cv.width || !cv.height) return
       if (!relva || relva.width !== cv.width || relva.height !== cv.height) relva = pintarRelva()
-      if (relva) ctx.drawImage(relva, 0, 0)
+      if (relva && relva.width && relva.height) ctx.drawImage(relva, 0, 0)
       ctx.strokeStyle = 'rgba(255,255,255,0.85)'
       ctx.lineWidth = Math.max(1, 0.18 * esc)
       ctx.strokeRect(X(0), Y(0), COMPRIMENTO * esc, LARGURA * esc)
@@ -230,6 +235,7 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
     let dtDesenho = 0, giroBola = 0
     let bAnt: { x: number; y: number } | null = null
     const desenhar = () => {
+      if (!cv.width || !cv.height) return
       ctx.clearRect(0, 0, cv.width, cv.height)
       campo()
       const ps = caricasEm(cena, t)
@@ -249,28 +255,32 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
       }
       // Quanto cada carica andou desde o último desenho (para rodar e "levantar").
       const vels = ps.map((p, i) => {
-        if (!ant || dtDesenho <= 0) return 0
-        const d = Math.hypot(p[0] - ant[i][0], p[1] - ant[i][1])
+        const id = cena.caricas[i].id
+        const a = ant.get(id)
+        ant.set(id, p)
+        if (!a || dtDesenho <= 0) return 0
+        const d = Math.hypot(p[0] - a[0], p[1] - a[1])
         if (d > 4) return 0 // corte de plano
-        rot[i] += (d / RAIO) * 0.5 * (i % 2 ? 1 : -1)
+        rot.set(id, (rot.get(id) ?? 0) + (d / RAIO) * 0.5 * (i % 2 ? 1 : -1))
         return d / dtDesenho
       })
-      ant = ps
       // Árbitro: atrás do lance, na diagonal, sem chocar com ninguém.
-      const alvoArb = { x: Math.min(b.x - 9, 92), y: b.y < 34 ? Math.min(66, b.y + 11) : Math.max(2, b.y - 11) }
+      const dArb = cena.ambiente && cena.atacante === 'fora' ? -1 : 1
+      const alvoArb = { x: Math.max(13, Math.min(b.x - 9 * dArb, 92)), y: b.y < 34 ? Math.min(66, b.y + 11) : Math.max(2, b.y - 11) }
       if (!arb || dtDesenho <= 0 || Math.hypot(alvoArb.x - arb.x, alvoArb.y - arb.y) > 40) arb = { ...alvoArb }
       else {
         const dx = alvoArb.x - arb.x, dy = alvoArb.y - arb.y, d = Math.hypot(dx, dy)
         const passo = Math.min(d, 6.5 * dtDesenho)
         if (d > 0.01) arb = { x: arb.x + (dx / d) * passo, y: arb.y + (dy / d) * passo }
       }
+      arbRef.current = arb
       carica(arb.x, arb.y, '#15181d', '#f2d200', 'A', false, t * 2, 3)
       // Primeiro os de trás, a bola por cima.
       cena.caricas.forEach((c, i) => {
         const [x, y] = ps[i]
         const gr = c.pos === 'GR'
         const [f, bd] = gr ? [corGR(c.lado), '#1b1b1b'] : cores[c.lado]
-        carica(x, y, f, bd, c.num, c.id === cena.rematadorId && t < cena.tFim + 0.2, rot[i], vels[i])
+        carica(x, y, f, bd, c.num, !cena.ambiente && c.id === cena.rematadorId && t < cena.tFim + 0.2, rot.get(c.id) ?? 0, vels[i])
       })
       rasto.push({ x: b.x, y: b.y })
       if (rasto.length > 14) rasto.shift()
@@ -406,6 +416,13 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
   }
   const tipo = cena.origem === 'penalti' && marco === 0 ? 'Jogada' : ORIGEM[cena.origem]
   const texto = marco === 2 ? cena.texto : cena.origem === 'penalti' && marco === 1 ? `Penálti para o ${lado.nome}!` : TEASER[cena.origem]
+  if (cena.ambiente) {
+    return (
+      <div className="cartao campo-vivo" data-testid="campo-vivo">
+        <div className="rep-tela" ref={caixa}><canvas ref={tela} /></div>
+      </div>
+    )
+  }
   return (
     <div className="cartao repeticao" data-testid="repeticao">
       <div className="rep-cab">

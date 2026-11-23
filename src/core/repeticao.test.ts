@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { gerarMundo } from './mundo'
 import { escalarAuto } from './motor'
-import { bolaEm, caricasEm, COMPRIMENTO, criarRepeticao, POSTES, type EmCampoRep } from './repeticao'
+import { bolaEm, caricasEm, COMPRIMENTO, criarAmbiente, criarRepeticao, fimEmCampo, POSTES, type EmCampoRep } from './repeticao'
 import type { EventoJogo, Lado, Lance } from './partida'
 
 const m = gerarMundo(11)
@@ -117,4 +117,40 @@ describe('repetição 2D', () => {
       })
     }
   }
+})
+
+describe('campo ao vivo (minutos sem lance)', () => {
+  const base = { emCampo, minuto: 10, posturas: { casa: 'equilibrada', fora: 'equilibrada' } as const }
+  it('continua do minuto anterior, sem saltos, e a bola vai para um jogador da equipa com posse', () => {
+    let c = criarAmbiente({ ...base, posse: 'casa', semente: 1 })
+    for (let k = 0; k < 30; k++) {
+      const posse = k % 4 === 3 ? 'fora' : 'casa'
+      const antes = { ...fimEmCampo(c), posse: c.atacante }
+      const n = criarAmbiente({ ...base, minuto: 10 + k, posse, antes, semente: 100 + k })
+      // Primeiro quadro = onde o anterior acabou (a menos de um passo).
+      n.caricas.forEach((kk, i) => {
+        const [x, y] = antes.pos[kk.id]
+        expect(Math.hypot(n.quadros[0][i][0] - x, n.quadros[0][i][1] - y)).toBeLessThan(1.2)
+      })
+      for (let f = 1; f < n.quadros.length; f++) for (let i = 0; i < 22; i++) {
+        expect(Math.hypot(n.quadros[f][i][0] - n.quadros[f - 1][i][0], n.quadros[f][i][1] - n.quadros[f - 1][i][1])).toBeLessThan(1.2)
+      }
+      const iR = n.caricas.findIndex((kk) => kk.id === n.rematadorId)
+      expect(n.caricas[iR].lado).toBe(posse)
+      const b = bolaEm(n, n.duracao)
+      const p = caricasEm(n, n.duracao)[iR]
+      expect(Math.hypot(p[0] - b.x, p[1] - b.y)).toBeLessThan(4)
+      c = n
+    }
+  })
+
+  it('a postura muda a altura do bloco', () => {
+    const med = (p: 'defensiva' | 'ofensiva') => {
+      const c = criarAmbiente({ ...base, posturas: { casa: p, fora: 'equilibrada' }, posse: 'casa', antes: { pos: {}, bola: { x: 60, y: 34 }, posse: 'casa' }, semente: 4 })
+      const q = c.quadros[c.quadros.length - 1]
+      const xs = c.caricas.map((k, i) => (k.lado === 'casa' && k.pos !== 'GR' ? q[i][0] : null)).filter((x): x is number => x != null)
+      return xs.reduce((a, b) => a + b, 0) / xs.length
+    }
+    expect(med('ofensiva')).toBeGreaterThan(med('defensiva') + 4)
+  })
 })

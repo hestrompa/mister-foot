@@ -34,6 +34,8 @@ interface Extra {
   posseAcum: number
   /** Último minuto do jogo (90 + descontos), decidido ao minuto 90. */
   fimMinuto: number
+  /** Quem teve a bola no último minuto jogado (para o campo 2D ao vivo). */
+  posseMinuto?: Lado
 }
 
 export const MAX_SUBS = 5
@@ -276,6 +278,7 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
 
   // Jogada de ataque deste minuto.
   const atac: Lado = rng.chance(posseCasa) ? 'casa' : 'fora'
+  x.posseMinuto = atac
   const def = outro(atac)
   const sa = set[atac], sd = set[def]
   const q = (sa.ataque + 1) / (sd.defesa + 1)
@@ -471,4 +474,9 @@ export function simularJogo(mundo: Mundo, partida: Partida, casa: Escalacao, for
   let guarda = 0
   while (!e.partida.jogada && guarda++ < 200) avancarMinuto(mundo, e)
   return e.partida
+}
+
+/** Quem teve a bola no último minuto jogado (undefined antes do apito inicial). */
+export function posseDoMinuto(estado: EstadoJogo): Lado | undefined {
+  return ex(estado).posseMinuto
 }

@@ -16,3 +16,4 @@
 .pl-ver:hover { border-color: var(--verde); }
 .placar-rep { list-style: none; padding: 6px 0; }
 .rep-direto { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; padding: 1px 6px; border-radius: 4px; background: #e5675c; color: #fff; }
+.campo-vivo { width: 100%; max-width: 780px; margin: 0 auto; padding: 6px; }
