@@ -225,7 +225,7 @@ function Estat({ t, a, b, pa, pb }: { t: string; a: string; b: string; pa: numbe
   )
 }
 
-function PainelSubs({ jogo, estado, lado, fase, lesionado, retomar, atualizar }: {
+export function PainelSubs({ jogo, estado, lado, fase, lesionado, retomar, atualizar }: {
   jogo: Jogo; estado: EstadoJogo; lado: Lado; fase: Fase; lesionado: number | null; retomar: () => void; atualizar: () => void
 }) {
   const { mundo } = jogo

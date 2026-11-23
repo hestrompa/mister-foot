@@ -1,6 +1,7 @@
 import type { Jogo } from '../core/types'
 import { Emblema } from './Emblema'
 import { minhaPartida } from './comum'
+import { meuJogoNaRonda, vencedorDe, type JogoComTaca } from '../core/taca'
 
 export function Calendario({ jogo }: { jogo: Jogo }) {
   const { mundo, epoca, clubeId } = jogo
@@ -27,6 +28,26 @@ export function Calendario({ jogo }: { jogo: Jogo }) {
         </td>
       </tr>,
     )
+    // Jogos da taça a meio da semana, depois desta jornada.
+    for (const r of (jogo as JogoComTaca).taca?.rondas ?? []) {
+      const t = r.aposJornada === j ? meuJogoNaRonda(jogo, r) : undefined
+      if (!t) continue
+      const emCasa = t.casaId === clubeId
+      const advT = mundo.clubes[emCasa ? t.foraId : t.casaId]
+      const passou = t.jogada && vencedorDe(t) === clubeId
+      linhas.push(
+        <tr key={`t${j}`} className="linha-taca">
+          <td className="num">T</td>
+          <td><span className="casa-fora">{r.nome === 'Final' ? 'N' : emCasa ? 'C' : 'F'}</span></td>
+          <td><span className="clube-linha"><Emblema clube={advT} tamanho={22} /> {advT.nome} <span className="dica">Taça · {r.nome}</span></span></td>
+          <td className="num">
+            {t.jogada
+              ? <span className={`resultado res-${passou ? 'V' : 'D'}`}>{t.golos[0]}-{t.golos[1]}{t.penaltis ? ` (${t.penaltis[0]}-${t.penaltis[1]})` : ''}</span>
+              : <span className="dica">Taça</span>}
+          </td>
+        </tr>,
+      )
+    }
   }
   return (
     <div className="tabela-wrap">

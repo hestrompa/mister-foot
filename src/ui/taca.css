@@ -1,0 +1,29 @@
+.taca { display: flex; flex-direction: column; gap: 12px; }
+.taca-cab { text-align: center; }
+.taca-cab h2 { margin: 6px 0 4px; font-size: 20px; }
+.taca-cab .dica { margin: 2px 0; }
+.taca-rondas { flex-wrap: wrap; }
+.taca-rondas button.tem-meu { border-bottom: 2px solid var(--verde); }
+.taca-rondas button:disabled { opacity: 0.45; }
+.taca-jogo .clube-linha { min-width: 0; }
+.taca-jogo .pl-fora .clube-linha { justify-content: flex-end; }
+.taca-jogo .passa { font-weight: 700; color: var(--verde); }
+.taca-jogo .pl-min { width: auto; min-width: 32px; font-size: 12px; color: var(--texto-2); white-space: nowrap; }
+.div-tag { font-size: 11px; color: var(--texto-2); font-weight: 400; }
+.taca-grelha { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+@media (max-width: 700px) { .taca-grelha { grid-template-columns: 1fr; } }
+.taca-noticias li { display: block; }
+.taca-marc { margin: 0 0 8px; padding-left: 20px; font-size: 14px; }
+.taca-marc li { padding: 2px 0; }
+.taca-hist { list-style: none; margin: 0; padding: 0; font-size: 14px; }
+.taca-hist li { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 4px 0; border-top: 1px solid var(--linha); }
+.taca-titulo { margin: 6px 0; text-align: center; }
+.penaltis { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 8px 0; }
+.pen-linha { display: flex; gap: 4px; align-items: center; }
+.pen-sigla { width: 40px; font-weight: 600; font-size: 13px; }
+.pen { font-size: 18px; line-height: 1; }
+.pen.marcou { color: var(--verde); }
+.pen.falhou { color: var(--f-fraca); }
+.aviso-taca { border-left: 3px solid var(--aviso); }
+.placar.taca-jogo { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) 52px; }
+.linha-taca td { background: rgba(245, 196, 81, 0.06); }

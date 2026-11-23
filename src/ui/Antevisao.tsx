@@ -1,5 +1,6 @@
 // Antevisão do jogo: como a minha tática encaixa na provável tática do adversário, setor a setor.
 import type { Jogo } from '../core/types'
+import type { Partida } from '../core/partida'
 import { forcaSetores } from '../core/motor'
 import { escalarIA } from '../core/tatica'
 import { indisponiveisDe } from '../core/epoca'
@@ -20,13 +21,14 @@ function Duelo({ titulo, meu, deles, dica }: { titulo: string; meu: number; dele
   )
 }
 
-export function Antevisao({ jogo }: { jogo: Jogo }) {
+/** `partida` e `indispAdv` servem para jogos fora da liga (taça). */
+export function Antevisao({ jogo, partida, indispAdv }: { jogo: Jogo; partida?: Partida; indispAdv?: ReadonlySet<number> }) {
   const { mundo, epoca, clubeId } = jogo
-  const p = minhaPartida(jogo, epoca.jornada)
+  const p = partida ?? minhaPartida(jogo, epoca.jornada)
   if (!p || jogo.escalacao.titulares.length !== 11) return null
   const emCasa = p.casaId === clubeId
   const advId = emCasa ? p.foraId : p.casaId
-  const escAdv = escalarIA(mundo, advId, clubeId, !emCasa, indisponiveisDe(mundo, epoca, advId))
+  const escAdv = escalarIA(mundo, advId, clubeId, !emCasa, indispAdv ?? indisponiveisDe(mundo, epoca, advId))
   const eu = forcaSetores(mundo, jogo.escalacao, emCasa)
   const ele = forcaSetores(mundo, escAdv, !emCasa)
   const adv = mundo.clubes[advId]

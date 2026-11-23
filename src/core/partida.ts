@@ -68,8 +68,8 @@ export interface EstatJogo {
 
 export interface Partida {
   id: string
-  /** 0 = liga; a taça vem depois. */
-  competicao: 'liga'
+  competicao: 'liga' | 'taca'
+  /** Na taça é 0. */
   divisao: number
   jornada: number
   casaId: number
@@ -83,6 +83,9 @@ export interface Partida {
   /** Espectadores e receita de bilheteira do clube da casa. */
   publico?: number
   receita?: number
+  /** Taça: desempate por penáltis (casa, fora) e a série [lado 0/1, jogadorId, marcou]. */
+  penaltis?: [number, number]
+  serie?: [0 | 1, number, boolean][]
 }
 
 export interface LinhaTabela {

@@ -181,7 +181,7 @@ try {
   await passo('telemóvel: todos os separadores sem scroll horizontal', async () => {
     await page.getByRole('button', { name: 'Continuar', exact: true }).click()
     await page.getByText(/Jornada 3 de/).waitFor({ timeout: 5000 })
-    const seps = ['Plantel', 'Classificação', 'Calendário', 'Clube', 'Divisões', 'Jogo']
+    const seps = ['Plantel', 'Taça', 'Classificação', 'Calendário', 'Clube', 'Divisões', 'Jogo']
     const largos = []
     for (const [i, nome] of seps.entries()) {
       await page.getByRole('button', { name: nome, exact: true }).click()
@@ -191,6 +191,36 @@ try {
       if (sw > iw + 1) largos.push(`${nome} ${sw}`)
     }
     esperar(largos.length === 0, `scroll horizontal em: ${largos.join(', ')}`)
+  })
+
+  await passo('taça: jornada 3, depois a eliminatória da taça a meio da semana', async () => {
+    await page.getByRole('button', { name: 'Jogar jornada' }).click()
+    await page.getByRole('button', { name: 'Saltar' }).click()
+    await page.getByText('Outros resultados').waitFor({ timeout: 10000 })
+    await page.getByRole('button', { name: 'Continuar', exact: true }).click()
+    const botao = page.getByRole('button', { name: 'Jogar a taça' })
+    await botao.or(page.getByText(/Jornada 4 de/)).first().waitFor({ timeout: 5000 })
+    if (await botao.count()) {
+      await foto('12a-pre-taca.png')
+      await botao.click()
+      await page.getByRole('button', { name: '4x' }).click()
+      await page.waitForTimeout(1500)
+      await foto('12b-taca-ao-vivo.png')
+      await page.getByRole('button', { name: 'Saltar' }).click()
+      await page.locator('.taca-titulo').waitFor({ timeout: 10000 })
+      await foto('12c-taca-resumo.png')
+      await page.getByRole('button', { name: 'Continuar', exact: true }).click()
+      await page.getByText(/Jornada 4 de/).waitFor({ timeout: 5000 })
+    }
+    await page.getByRole('button', { name: /^Taça/ }).click()
+    await page.getByText('Notícias da taça').waitFor({ timeout: 5000 })
+    const jogados = await page.locator('.taca-jogo').count()
+    esperar(jogados >= 8, `esperava jogos da taça no quadro, vi ${jogados}`)
+    await foto('12d-taca-separador.png')
+    const { sw, iw } = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }))
+    esperar(sw <= iw + 1, `scrollWidth ${sw} > innerWidth ${iw}`)
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await foto('12e-taca-separador-pc.png')
   })
 
   await ctx.close()

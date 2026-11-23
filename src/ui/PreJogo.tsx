@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Jogo, Posicao } from '../core/types'
+import type { Partida } from '../core/partida'
 import { FORMACOES, type Escalacao, type Formacao, type Postura } from '../core/partida'
 import { escalarAuto } from '../core/motor'
 import { indisponiveisDe, tabela } from '../core/epoca'
@@ -32,13 +33,16 @@ export function validarEscalacao(jogo: Jogo, esc: Escalacao, indisp: ReadonlySet
   return null
 }
 
-export function PreJogo({ jogo, mudar, jogar }: { jogo: Jogo; mudar: (e: Escalacao) => void; jogar: () => void }) {
+/** Jogo fora da liga (taça): outra partida, outro título e outras baixas. */
+export interface OutroJogo { partida: Partida; titulo: string; indisp: Set<number>; indispAdv?: Set<number> }
+
+export function PreJogo({ jogo, mudar, jogar, outro }: { jogo: Jogo; mudar: (e: Escalacao) => void; jogar: () => void; outro?: OutroJogo }) {
   const { mundo, epoca, clubeId } = jogo
   const esc = jogo.escalacao
   const meu = mundo.clubes[clubeId]
   const [sel, setSel] = useState<number | null>(null)
-  const indisp = indisponiveisDe(mundo, epoca, clubeId)
-  const p = minhaPartida(jogo, epoca.jornada)
+  const indisp = outro?.indisp ?? indisponiveisDe(mundo, epoca, clubeId)
+  const p = outro?.partida ?? minhaPartida(jogo, epoca.jornada)
   const tab = tabela(mundo, epoca, meu.divisao)
   const advId = p ? (p.casaId === clubeId ? p.foraId : p.casaId) : null
   const adv = advId != null ? mundo.clubes[advId] : null
@@ -62,7 +66,8 @@ export function PreJogo({ jogo, mudar, jogar }: { jogo: Jogo; mudar: (e: Escalac
 
   const estado = (id: number) => {
     const i = epoca.indisponiveis[id]
-    if (!i || i.jogos <= 0) return null
+    if (outro && indisp.has(id) && (!i || i.motivo !== 'lesao')) return <span className="baixa baixa-castigo">Castigado na taça</span>
+    if (!i || i.jogos <= 0 || (outro && i.motivo !== 'lesao')) return null
     return <span className={`baixa baixa-${i.motivo}`}>{i.motivo === 'lesao' ? `Lesionado (${i.jogos})` : `Castigado (${i.jogos})`}</span>
   }
 
@@ -70,13 +75,14 @@ export function PreJogo({ jogo, mudar, jogar }: { jogo: Jogo; mudar: (e: Escalac
 
   return (
     <div className="pre-jogo">
-      <div className="cartao proximo-jogo">
-        <div className="pj-cab">Jornada {epoca.jornada} de {epoca.totalJornadas} · {p.casaId === clubeId ? 'em casa' : 'fora'}</div>
+      <div className={`cartao proximo-jogo ${outro ? 'aviso-taca' : ''}`}>
+        <div className="pj-cab">{outro ? outro.titulo : `Jornada ${epoca.jornada} de ${epoca.totalJornadas} · ${p.casaId === clubeId ? 'em casa' : 'fora'}`}</div>
         <div className="pj-equipas">
           <div className="pj-eq"><Emblema clube={meu} tamanho={48} /><b>{meu.nome}</b>{epoca.jornada > 1 && <span className="dica">{posMeu + 1}.º · {tab[posMeu]?.pts ?? 0} pts</span>}
             {tab[posMeu] && tab[posMeu].forma.length > 0 && <FormaPills forma={tab[posMeu].forma} />}</div>
           <span className="pj-vs">vs</span>
-          <div className="pj-eq"><Emblema clube={adv} tamanho={48} /><b>{adv.nome}</b>{epoca.jornada > 1 && <span className="dica">{posAdv + 1}.º · {tab[posAdv]?.pts ?? 0} pts</span>}
+          <div className="pj-eq"><Emblema clube={adv} tamanho={48} /><b>{adv.nome}</b>{epoca.jornada > 1 && posAdv >= 0 && <span className="dica">{posAdv + 1}.º · {tab[posAdv]?.pts ?? 0} pts</span>}
+            {posAdv < 0 && <span className="dica">{mundo.divisoes[adv.divisao - 1]?.nome}</span>}
             {tab[posAdv] && tab[posAdv].forma.length > 0 && <FormaPills forma={tab[posAdv].forma} />}</div>
         </div>
       </div>
@@ -100,7 +106,7 @@ export function PreJogo({ jogo, mudar, jogar }: { jogo: Jogo; mudar: (e: Escalac
         <button className="botao" onClick={() => { setSel(null); mudar({ ...escalarAuto(mundo, clubeId, indisp, esc.formacao), postura: esc.postura }) }}>Escalação automática</button>
       </div>
 
-      <Antevisao jogo={jogo} />
+      <Antevisao jogo={jogo} partida={outro?.partida} indispAdv={outro?.indispAdv} />
 
       <p className="nota">{sel == null ? 'Toca num titular e depois num jogador do banco para os trocar.' : `A trocar ${mundo.jogadores[sel].curto}: escolhe quem entra.`}</p>
 
@@ -148,7 +154,7 @@ export function PreJogo({ jogo, mudar, jogar }: { jogo: Jogo; mudar: (e: Escalac
 
       <div className="barra-acao">
         {erro ? <span className="erro">{erro}</span> : <span>{esc.formacao} · {POSTURAS.find((x) => x.v === esc.postura)?.t}</span>}
-        <button className="botao principal grande" disabled={!!erro} onClick={jogar}>Jogar jornada</button>
+        <button className="botao principal grande" disabled={!!erro} onClick={jogar}>{outro ? 'Jogar a taça' : 'Jogar jornada'}</button>
       </div>
     </div>
   )

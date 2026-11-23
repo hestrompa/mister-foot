@@ -2,6 +2,8 @@ import type { Jogo } from '../core/types'
 import type { ResumoEpoca } from '../core/partida'
 import { NOMES_DIVISAO } from '../core/mundo'
 import { Emblema } from './Emblema'
+import { vencedorTacaDe } from './Taca'
+import { NOME_TACA } from '../core/taca'
 
 export interface DadosFimEpoca {
   resumo: ResumoEpoca
@@ -36,6 +38,17 @@ export function FimEpoca({ jogo, d, continuar }: { jogo: Jogo; d: DadosFimEpoca;
             <span className="info-d">Descem: {r.descidas.find((s) => s.divisao === c.divisao)?.clubeIds.map((id) => mundo.clubes[id].sigla).join(', ') || '—'}</span>
           </div>
         ))}
+        {(() => {
+          const h = vencedorTacaDe(jogo, r.ano)
+          if (!h) return null
+          return (
+            <div className={`cartao info ${h.vencedorId === jogo.clubeId ? 'meu' : ''}`}>
+              <span className="info-t">{NOME_TACA}{h.vencedorId === jogo.clubeId ? ' · ganhaste!' : ''}</span>
+              {clube(h.vencedorId)}
+              <span className="info-d">Final: {h.resultado} contra {mundo.clubes[h.finalistaId]?.nome ?? ''}</span>
+            </div>
+          )
+        })()}
         {r.melhorMarcador && (
           <div className="cartao info">
             <span className="info-t">Melhor marcador</span>
