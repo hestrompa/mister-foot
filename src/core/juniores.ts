@@ -43,7 +43,10 @@ export function gerarJunior(mundo: Mundo, rng: Rng, clubeId: number): Jogador {
   const idade = rng.int(16, 18)
   const forca = clamp(Math.round(forcaClube(mundo, clubeId) * 0.62 + (idade - 16) * 2 + rng.normal(0, 5)), 8, 70)
   const perola = rng.chance(0.06)
-  const potencial = clamp(Math.round(forcaClube(mundo, clubeId) - 4 + rng.normal(0, 7) + (perola ? rng.int(10, 25) : 0)), forca + 3, 99)
+  // Potencial à volta do nível histórico do clube (a reputação, que não muda), não da força atual:
+  // assim não há efeito de bola de neve nas divisões de baixo.
+  const nivel = c.reputacao / 1.15 + 1
+  const potencial = clamp(Math.round(nivel + rng.normal(0, 7) + (perola ? rng.int(10, 25) : 0)), forca + 3, 99)
   const j: Jogador = {
     id,
     ...nome(rng),

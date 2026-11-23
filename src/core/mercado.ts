@@ -1,7 +1,7 @@
 // Mercado de transferências: lista de jogadores à venda, compras, vendas, propostas da IA, leilões e janelas.
 // Tudo determinístico: cada sorteio usa createRng com uma semente derivada do mundo, da época e da jornada.
 import { createRng, type Rng } from './rng'
-import { salarioDe } from './mundo'
+import { forcaClube, salarioDe } from './mundo'
 import { escalarAuto } from './motor'
 import { indisponiveisDe } from './epoca'
 import type { EstadoEpoca } from './partida'
@@ -570,8 +570,9 @@ function passoMercado(jogo: JogoComMercado, jornada: number) {
 export function pedidoRenovacao(mundo: Mundo, j: Jogador): number {
   const c = mundo.clubes[j.clubeId]
   // O que vale hoje na divisão atual (pode ser um corte), no máximo +10% do que ganha.
+  // Quem cresceu muito (juniores) sobe até ao valor justo, mas no máximo +50% de uma vez.
   const justo = salarioDe(j.forca, c?.divisao ?? 4) * (j.craque ? 1.25 : 1)
-  return arredonda(Math.min(justo, j.salario * 1.1))
+  return arredonda(Math.min(justo, j.salario * 1.5))
 }
 
 /** Máximo de anos de contrato que o jogador aceita. */
@@ -594,6 +595,16 @@ export function renovar(jogo: JogoComMercado, jogadorId: number, anos: number): 
 /** Salário que um jogador livre pede (nunca menos do que ganhava). */
 export function pedidoLivre(mundo: Mundo, j: Jogador, clubeId: number): number {
   return arredonda(Math.max(j.salario * 0.8, salarioDe(j.forca, mundo.clubes[clubeId].divisao)) * 1.1)
+}
+
+/**
+ * Um livre bom não assina por um clube muito abaixo do seu nível; a partir de meio da época baixa a fasquia.
+ * Devolve o motivo da recusa, ou null.
+ */
+export function recusaDoLivre(mundo: Mundo, j: Jogador, clubeId: number, jornada: number): string | null {
+  const margem = jornada > 17 ? 16 : 10
+  if (j.forca > forcaClube(mundo, clubeId) + margem) return `${j.curto} acha que vale mais do que este clube e espera por uma proposta melhor.`
+  return null
 }
 
 /** Prémio de assinatura de um livre: dois meses de salário. */
@@ -621,6 +632,8 @@ export function contratarLivre(jogo: JogoComMercado, jogadorId: number, salario:
   if (!j || j.clubeId !== 0) return { ok: false, texto: 'Esse jogador já não está livre.' }
   if (!janelaAberta(jogo.epoca)) return { ok: false, texto: 'O mercado está fechado.' }
   if (meu.plantel.length >= PLANTEL_MAX) return { ok: false, texto: `O plantel já tem ${PLANTEL_MAX} jogadores. Vende alguém primeiro.` }
+  const recusa = recusaDoLivre(mundo, j, jogo.clubeId, jogo.epoca.jornada)
+  if (recusa) return { ok: false, texto: recusa }
   const pede = pedidoLivre(mundo, j, jogo.clubeId)
   if (salario < pede) return { ok: false, texto: `${j.curto} quer ganhar pelo menos ${pede.toLocaleString('pt-PT')} € por mês.` }
   if (premioAssinatura(salario) > meu.dinheiro) return { ok: false, texto: 'Não tens dinheiro para o prémio de assinatura.' }
@@ -690,6 +703,7 @@ function assinarLivresIA(jogo: JogoComMercado, rng: Rng) {
         // Interessa se melhora o onze, ou se o plantel está curto nessa posição.
         const falta = c.plantel.length < 22 && contaPos(mundo, cid)[j.posicao] < IDEAL[j.posicao]
         if (g < 1 && !falta) continue
+        if (recusaDoLivre(mundo, j, cid, jogo.epoca.jornada)) continue
         const sal = pedidoLivre(mundo, j, cid)
         if (c.dinheiro < premioAssinatura(sal) + (falta ? 0 : RESERVA[c.divisao - 1] ?? 0)) continue
         if (!iaPodePagar(mundo, cid, sal) && !(falta && c.plantel.length < 18)) continue

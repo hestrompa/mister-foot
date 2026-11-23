@@ -393,7 +393,7 @@ function ResumoJornada({ jogo, r, continuar }: { jogo: Jogo; r: Resumo; continua
           return (
             <p className="balanco">
               {b.publico > 0 && <>Público {b.publico.toLocaleString('pt-PT')} · bilheteira {euros(b.bilheteira)} · </>}
-              TV e patrocínios {euros(b.fixas)} · salários {euros(b.salarios)} · {b.banco ? <>banco {euros(b.banco)} · </> : null}<b className={b.saldo >= 0 ? 'positivo' : 'negativo'}>saldo {b.saldo >= 0 ? '+' : ''}{euros(b.saldo)}</b>
+              TV e patrocínios {euros(b.fixas)} · salários {euros(b.salarios)} · {b.estadio ? <>estádio {euros(b.estadio)} · </> : null}{b.banco ? <>banco {euros(b.banco)} · </> : null}<b className={b.saldo >= 0 ? 'positivo' : 'negativo'}>saldo {b.saldo >= 0 ? '+' : ''}{euros(b.saldo)}</b>
             </p>
           )
         })()}

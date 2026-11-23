@@ -7,6 +7,9 @@ import { cobrarPrestacao } from './banco'
 /** Receitas fixas por jornada (TV e patrocínios), por divisão. */
 export const RECEITA_FIXA = [50_000, 15_000, 5_000, 5_000]
 
+/** Manutenção do estádio por lugar e por jornada (relvado, segurança, funcionários), por divisão. */
+export const MANUTENCAO_LUGAR = [0.6, 0.4, 0.3, 0.2]
+
 /** Preço "normal" do bilhete em cada divisão: acima disto vai menos gente. */
 export const BILHETE_NORMAL = [15, 10, 7, 5]
 
@@ -15,6 +18,8 @@ export interface Balanco {
   bilheteira: number
   fixas: number
   salarios: number
+  /** Manutenção do estádio nesta jornada. */
+  estadio?: number
   saldo: number
   /** Prestação do empréstimo cobrada nesta jornada. */
   banco?: number
@@ -67,9 +72,10 @@ export function aplicarFinancas(mundo: Mundo, partidas: Partida[], tabelas: Linh
       const salarios = salariosPorJornada(mundo, id)
       const banco = cobrarPrestacao(c)
       const inaugurados = avancarObra(c)
-      const saldo = bilheteira + fixas - salarios - banco
-      c.dinheiro += bilheteira + fixas - salarios
-      out[id] = { publico, bilheteira, fixas, salarios, saldo }
+      const estadio = Math.round(c.estadio.lugares * (MANUTENCAO_LUGAR[c.divisao - 1] ?? 0.2))
+      const saldo = bilheteira + fixas - salarios - estadio - banco
+      c.dinheiro += bilheteira + fixas - salarios - estadio
+      out[id] = { publico, bilheteira, fixas, salarios, estadio, saldo }
       if (banco) out[id].banco = banco
       if (inaugurados) out[id].inaugurados = inaugurados
       if (emCasa) { p.publico = publico; p.receita = bilheteira }

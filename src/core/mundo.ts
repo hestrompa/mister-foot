@@ -107,7 +107,7 @@ export function gerarMundo(semente: number): Mundo {
           const titular = (pos === 'GR' && k === 0) || (pos === 'DEF' && k < 4) || (pos === 'MED' && k < 4) || (pos === 'AV' && k < 2)
           const idade = idadeAleatoria(rng)
           const forca = clamp(Math.round(media + (titular ? 3 : -4) + curvaIdade(idade) + rng.normal(0, 4.5)), 5, 95)
-          const margem = idade <= 21 ? rng.int(6, 22) : idade <= 25 ? rng.int(2, 10) : rng.int(0, 3)
+          const margem = idade <= 21 ? rng.int(3, 14) : idade <= 25 ? rng.int(1, 6) : rng.int(0, 2)
           const n = nomeJogador(rng)
           const j: Jogador = {
             id: proximoJogador++,
