@@ -602,9 +602,9 @@ export function pedidoLivre(mundo: Mundo, j: Jogador, clubeId: number): number {
  * Um livre bom não assina por um clube muito abaixo do seu nível; a partir de meio da época baixa a fasquia.
  * Devolve o motivo da recusa, ou null.
  */
-export function recusaDoLivre(mundo: Mundo, j: Jogador, clubeId: number, jornada: number): string | null {
+export function recusaDoLivre(mundo: Mundo, j: Jogador, clubeId: number, jornada: number, forcaDoClube?: number): string | null {
   const margem = jornada > 17 ? 16 : 10
-  if (j.forca > forcaClube(mundo, clubeId) + margem) return `${j.curto} acha que vale mais do que este clube e espera por uma proposta melhor.`
+  if (j.forca > (forcaDoClube ?? forcaClube(mundo, clubeId)) + margem) return `${j.curto} acha que vale mais do que este clube e espera por uma proposta melhor.`
   return null
 }
 
@@ -692,6 +692,8 @@ function fimDeContratos(jogo: JogoComMercado, rng: Rng) {
 function assinarLivresIA(jogo: JogoComMercado, rng: Rng) {
   const { mundo } = jogo
   const lista = livres(jogo).sort((a, b) => b.forca - a.forca || a.id - b.id)
+  // Força de cada clube, calculada uma vez (muda pouco durante esta passagem).
+  const forcas = new Map<number, number>()
   for (const j of lista) {
     if (!rng.chance(0.5)) continue
     let melhor: { cid: number; g: number; sal: number } | null = null
@@ -704,7 +706,8 @@ function assinarLivresIA(jogo: JogoComMercado, rng: Rng) {
         // Interessa se melhora o onze, ou se o plantel está curto nessa posição.
         const falta = c.plantel.length < 22 && contaPos(mundo, cid)[j.posicao] < IDEAL[j.posicao]
         if (g < 1 && !falta) continue
-        if (recusaDoLivre(mundo, j, cid, jogo.epoca.jornada)) continue
+        if (!forcas.has(cid)) forcas.set(cid, forcaClube(mundo, cid))
+        if (recusaDoLivre(mundo, j, cid, jogo.epoca.jornada, forcas.get(cid))) continue
         const sal = pedidoLivre(mundo, j, cid)
         if (c.dinheiro < premioAssinatura(sal) + (falta ? 0 : RESERVA[c.divisao - 1] ?? 0)) continue
         if (!iaPodePagar(mundo, cid, sal) && !(falta && c.plantel.length < 18)) continue
@@ -713,7 +716,7 @@ function assinarLivresIA(jogo: JogoComMercado, rng: Rng) {
         if (!melhor || nota > melhor.g) melhor = { cid, g: nota, sal }
       }
     }
-    if (melhor) assinarLivre(jogo, j, melhor.cid, melhor.sal, rng.int(1, anosMaximos(j)))
+    if (melhor) { assinarLivre(jogo, j, melhor.cid, melhor.sal, rng.int(1, anosMaximos(j))); forcas.delete(melhor.cid) }
   }
 }
 
