@@ -143,6 +143,15 @@ try {
     await foto('4f-staff.png')
   })
 
+  await passo('separador Balneário: ambiente, capitão, promessa e médico', async () => {
+    await page.getByRole('button', { name: /^Balneário/ }).click()
+    await page.getByRole('region', { name: 'Ambiente' }).waitFor({ timeout: 5000 })
+    await page.getByRole('region', { name: 'Departamento médico' }).waitFor({ timeout: 5000 })
+    await page.locator('.bn-tabela').getByRole('button', { name: 'Prometer' }).last().click()
+    await page.getByText(/Prometeste a .+ jogos a titular/).first().waitFor({ timeout: 5000 })
+    await foto('4g-balneario.png')
+  })
+
   await passo('recarregar mantém a carreira', async () => {
     await page.reload({ waitUntil: 'networkidle' })
     const plantel = page.getByRole('button', { name: 'Plantel', exact: true }).or(page.getByRole('tab', { name: 'Plantel', exact: true })).first()
@@ -257,7 +266,7 @@ try {
   await passo('telemóvel: todos os separadores sem scroll horizontal', async () => {
     await page.getByRole('button', { name: 'Continuar', exact: true }).click()
     await page.getByText(/Jornada 3 de/).waitFor({ timeout: 5000 })
-    const seps = ['Plantel', 'Staff', 'Mercado', 'Taça', 'Classificação', 'Calendário', 'Clube', 'Carreira', 'Divisões', 'Jogo']
+    const seps = ['Plantel', 'Balneário', 'Staff', 'Mercado', 'Taça', 'Classificação', 'Calendário', 'Clube', 'Carreira', 'Divisões', 'Jogo']
     const largos = []
     for (const [i, nome] of seps.entries()) {
       await page.getByRole('button', { name: new RegExp(`^${nome}( \\(\\d+\\))?$`) }).click()

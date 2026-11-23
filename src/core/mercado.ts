@@ -9,6 +9,7 @@ import { gerarJunior } from './juniores'
 import { juniorExtra } from './staff'
 import { RECEITA_FIXA, salariosPorJornada } from './financas'
 import type { Jogador, Jogo, Mundo, Posicao } from './types'
+import { moralDe } from './balneario'
 
 /** Jogador à venda. `meu` = anunciado pelo utilizador. */
 export interface Anuncio {
@@ -37,8 +38,8 @@ export interface Noticia {
   paraId: number
   valor: number
   leilao?: boolean
-  /** saiu = fim de contrato (paraId 0); livre = assinou sem clube (deId 0); renovou = ficou mais tempo. */
-  tipo?: 'saiu' | 'livre' | 'renovou' | 'reformou'
+  /** saiu = fim de contrato (paraId 0); livre = assinou sem clube (deId 0); renovou = ficou mais tempo; clausula = pagou a cláusula. */
+  tipo?: 'saiu' | 'livre' | 'renovou' | 'reformou' | 'clausula'
 }
 
 export interface EstadoMercado {
@@ -121,6 +122,46 @@ export function precoSemAnuncio(j: Jogador): number {
 export function precoPedido(jogo: JogoComMercado, jogadorId: number): number {
   const a = estadoMercado(jogo).lista.find((x) => x.jogadorId === jogadorId)
   return a ? a.preco : precoSemAnuncio(jogo.mundo.jogadores[jogadorId])
+}
+
+// ---------- Cláusulas e comissões ----------
+
+export type NivelClausula = 'baixa' | 'normal' | 'alta'
+
+/**
+ * Cláusula de rescisão ao assinar ou renovar: baixa (1,5x o preço do jogador) poupa 8% no salário mas deixa
+ * outros clubes levá-lo sem negociar; alta (6x) protege, mas o jogador pede mais 10%.
+ */
+export const CLAUSULAS: Record<NivelClausula, { mult: number; salario: number; nome: string }> = {
+  baixa: { mult: 1.5, salario: 0.92, nome: 'Baixa' },
+  normal: { mult: 3, salario: 1, nome: 'Normal' },
+  alta: { mult: 6, salario: 1.1, nome: 'Alta' },
+}
+
+type ComClausula = Jogador & { clausula?: number }
+
+/** Salário pedido ajustado à cláusula escolhida (o mesmo arredondamento que o mercado usa). */
+export function salarioComClausula(v: number, nivel: NivelClausula): number {
+  return arredonda(v * CLAUSULAS[nivel].salario)
+}
+
+/** Cláusula de rescisão: quem a pagar leva o jogador sem o clube poder recusar. */
+export function clausulaDe(j: Jogador): number {
+  return (j as ComClausula).clausula ?? arredonda(precoSemAnuncio(j) * 2.5)
+}
+
+export function definirClausula(j: Jogador, nivel: NivelClausula): void {
+  ;(j as ComClausula).clausula = arredonda(precoSemAnuncio(j) * CLAUSULAS[nivel].mult)
+}
+
+/** Comissão do empresário numa transferência: 5% do valor, pelo menos um mês de salário. Paga quem compra. */
+export function comissaoEmpresario(valor: number, salario: number): number {
+  return arredonda(Math.max(salario, valor * 0.05))
+}
+
+/** Comissão do empresário ao assinar um livre ou renovar: um mês de salário. */
+export function comissaoContrato(salario: number): number {
+  return salario
 }
 
 /** Salário mensal que o jogador pede para assinar pelo clube. */
@@ -277,7 +318,7 @@ function noticiar(st: EstadoMercado, n: Noticia) {
   coletor?.push(n)
 }
 
-function transferir(jogo: JogoComMercado, jogadorId: number, paraId: number, valor: number, salario: number, contrato: number, leilao = false) {
+function transferir(jogo: JogoComMercado, jogadorId: number, paraId: number, valor: number, salario: number, contrato: number, leilao = false, tipo?: Noticia['tipo']) {
   const { mundo } = jogo
   const st = estadoMercado(jogo)
   const j = mundo.jogadores[jogadorId]
@@ -286,8 +327,9 @@ function transferir(jogo: JogoComMercado, jogadorId: number, paraId: number, val
   de.plantel = de.plantel.filter((id) => id !== jogadorId)
   para.plantel.push(jogadorId)
   de.dinheiro += valor
-  para.dinheiro -= valor
-  noticiar(st, { jornada: jogo.epoca.jornada, jogadorId, deId: de.id, paraId, valor, leilao })
+  para.dinheiro -= valor + comissaoEmpresario(valor, salario)
+  noticiar(st, { jornada: jogo.epoca.jornada, jogadorId, deId: de.id, paraId, valor, leilao, ...(tipo ? { tipo } : {}) })
+  delete (j as ComClausula).clausula
   j.clubeId = paraId
   j.salario = salario
   j.contrato = contrato
@@ -325,7 +367,7 @@ function minimoAceite(jogo: JogoComMercado, j: Jogador): number {
 }
 
 /** Fazer uma oferta por um jogador de outro clube. Se clube e jogador aceitarem, a transferência é imediata. */
-export function comprar(jogo: JogoComMercado, jogadorId: number, oferta: number, salario: number): Resultado {
+export function comprar(jogo: JogoComMercado, jogadorId: number, oferta: number, salario: number, nivel: NivelClausula = 'normal'): Resultado {
   const { mundo } = jogo
   const st = estadoMercado(jogo)
   const j = mundo.jogadores[jogadorId]
@@ -334,13 +376,13 @@ export function comprar(jogo: JogoComMercado, jogadorId: number, oferta: number,
   if (j.clubeId === 0) return { ok: false, texto: 'Esse jogador está livre: contrata-o em Livres.' }
   if (!janelaAberta(jogo.epoca)) return { ok: false, texto: 'O mercado está fechado.' }
   if (meu.plantel.length >= PLANTEL_MAX) return { ok: false, texto: `O plantel já tem ${PLANTEL_MAX} jogadores. Vende alguém primeiro.` }
-  if (oferta > meu.dinheiro) return { ok: false, texto: 'Não tens dinheiro para essa oferta.' }
+  if (oferta + comissaoEmpresario(oferta, salario) > meu.dinheiro) return { ok: false, texto: 'Não tens dinheiro para essa oferta e a comissão do empresário.' }
   if (st.recusados.includes(jogadorId)) return { ok: false, texto: 'O clube já recusou uma oferta tua nesta jornada. Tenta na próxima.' }
   const saida = impedeSaida(mundo, j)
   if (saida) return { ok: false, texto: `${saida} Não vende.` }
   const recusa = recusaDoJogador(mundo, j, jogo.clubeId)
   if (recusa) return { ok: false, texto: recusa }
-  const pede = pedidoSalarial(mundo, j, jogo.clubeId)
+  const pede = salarioComClausula(pedidoSalarial(mundo, j, jogo.clubeId), nivel)
   if (salario < pede) return { ok: false, texto: `${j.curto} quer ganhar pelo menos ${pede.toLocaleString('pt-PT')} € por mês.` }
   const de = mundo.clubes[j.clubeId]
   if (oferta < minimoAceite(jogo, j)) {
@@ -348,7 +390,29 @@ export function comprar(jogo: JogoComMercado, jogadorId: number, oferta: number,
     return { ok: false, texto: `O ${de.nome} recusou. Querem mais dinheiro.` }
   }
   transferir(jogo, jogadorId, jogo.clubeId, oferta, salario, 3)
+  definirClausula(j, nivel)
   return { ok: true, texto: `${j.nome} é jogador do ${meu.nome}!` }
+}
+
+/** Pagar a cláusula de rescisão: o clube não pode recusar (o jogador ainda tem de aceitar). */
+export function pagarClausula(jogo: JogoComMercado, jogadorId: number, salario: number, nivel: NivelClausula = 'normal'): Resultado {
+  const { mundo } = jogo
+  const j = mundo.jogadores[jogadorId]
+  const meu = mundo.clubes[jogo.clubeId]
+  if (!j || j.clubeId === jogo.clubeId) return { ok: false, texto: 'Esse jogador já é teu.' }
+  if (j.clubeId === 0) return { ok: false, texto: 'Esse jogador está livre: contrata-o em Livres.' }
+  if (!janelaAberta(jogo.epoca)) return { ok: false, texto: 'O mercado está fechado.' }
+  if (meu.plantel.length >= PLANTEL_MAX) return { ok: false, texto: `O plantel já tem ${PLANTEL_MAX} jogadores. Vende alguém primeiro.` }
+  const valor = clausulaDe(j)
+  if (valor + comissaoEmpresario(valor, salario) > meu.dinheiro) return { ok: false, texto: `A cláusula é de ${valor.toLocaleString('pt-PT')} € (mais a comissão). Não tens dinheiro.` }
+  if (mundo.clubes[j.clubeId].plantel.length <= PLANTEL_MIN) return { ok: false, texto: `O clube ficava com menos de ${PLANTEL_MIN} jogadores: a liga não deixa.` }
+  const recusa = recusaDoJogador(mundo, j, jogo.clubeId)
+  if (recusa) return { ok: false, texto: recusa }
+  const pede = salarioComClausula(pedidoSalarial(mundo, j, jogo.clubeId), nivel)
+  if (salario < pede) return { ok: false, texto: `${j.curto} quer ganhar pelo menos ${pede.toLocaleString('pt-PT')} € por mês.` }
+  transferir(jogo, jogadorId, jogo.clubeId, valor, salario, 3, false, 'clausula')
+  definirClausula(j, nivel)
+  return { ok: true, texto: `Cláusula paga: ${j.nome} é jogador do ${meu.nome}!` }
 }
 
 /** Pôr um jogador meu à venda (ou em leilão, com preço base). */
@@ -411,6 +475,30 @@ function interessados(jogo: JogoComMercado, j: Jogador, base: number, rng: Rng):
     }
   }
   return out.sort((a, b) => b.valor - a.valor)
+}
+
+/** Clubes da IA que pagam a cláusula de um jogador meu que os melhore muito. No máximo um por jornada. */
+function clausulasIA(jogo: JogoComMercado, rng: Rng) {
+  const { mundo } = jogo
+  const meu = mundo.clubes[jogo.clubeId]
+  if (meu.plantel.length <= PLANTEL_MIN) return
+  const meus = meu.plantel.map((id) => mundo.jogadores[id]).filter(Boolean).sort((a, b) => b.forca - a.forca || a.id - b.id)
+  for (const j of meus) {
+    const valor = clausulaDe(j)
+    if (!rng.chance(0.06)) continue
+    for (const d of mundo.divisoes) {
+      if (Math.abs(d.numero - meu.divisao) > 1) continue
+      for (const cid of d.clubes) {
+        if (cid === jogo.clubeId) continue
+        const c = mundo.clubes[cid]
+        const salario = salarioNoClube(mundo, j, cid)
+        if (c.plantel.length >= PLANTEL_MAX - 2 || c.dinheiro - (RESERVA[c.divisao - 1] ?? 0) < valor + comissaoEmpresario(valor, salario)) continue
+        if (ganho(mundo, cid, j) < 4 || recusaDoJogador(mundo, j, cid) || !iaPodePagar(mundo, cid, salario)) continue
+        transferir(jogo, j.id, cid, valor, salario, rng.int(2, 4), false, 'clausula')
+        return
+      }
+    }
+  }
 }
 
 /** Dinheiro que um clube da IA guarda de reserva, por divisão. */
@@ -530,6 +618,9 @@ function passoMercado(jogo: JogoComMercado, jornada: number) {
     }
   }
 
+  // 2c. Um clube rico pode pagar a cláusula de um dos meus jogadores (cláusulas baixas são um risco).
+  clausulasIA(jogo, rng)
+
   // 3. Transferências entre clubes da IA, a partir da lista.
   const daIA = rng.shuffle(st.lista.filter((a) => !a.meu))
   let feitas = 0
@@ -573,7 +664,15 @@ export function pedidoRenovacao(mundo: Mundo, j: Jogador): number {
   // O que vale hoje na divisão atual (pode ser um corte), no máximo +10% do que ganha.
   // Quem cresceu muito (juniores) sobe até ao valor justo, mas no máximo +50% de uma vez.
   const justo = salarioDe(j.forca, c?.divisao ?? 4) * (j.craque ? 1.25 : 1)
-  return arredonda(Math.min(justo, j.salario * 1.5))
+  // Quem está contente facilita; quem está chateado pede mais.
+  const m = moralDe(j)
+  const humor = m >= 75 ? 0.95 : m < 35 ? 1.15 : 1
+  return arredonda(Math.min(justo, j.salario * 1.5) * humor)
+}
+
+/** Um jogador muito desmotivado não quer renovar. */
+export function recusaRenovar(j: Jogador): string | null {
+  return moralDe(j) < 20 ? `${j.curto} está desmotivado e não quer ouvir falar de renovação.` : null
 }
 
 /** Máximo de anos de contrato que o jogador aceita. */
@@ -582,14 +681,21 @@ export function anosMaximos(j: Jogador): number {
 }
 
 /** Renovar o contrato de um jogador meu (pelo salário que ele pede). */
-export function renovar(jogo: JogoComMercado, jogadorId: number, anos: number): Resultado {
+export function renovar(jogo: JogoComMercado, jogadorId: number, anos: number, nivel: NivelClausula = 'normal'): Resultado {
   const j = jogo.mundo.jogadores[jogadorId]
   if (!j || j.clubeId !== jogo.clubeId) return { ok: false, texto: 'Esse jogador não é teu.' }
   if (j.contrato > 2) return { ok: false, texto: `${j.curto} ainda tem ${j.contrato} anos de contrato.` }
+  const recusa = recusaRenovar(j)
+  if (recusa) return { ok: false, texto: recusa }
   const max = anosMaximos(j)
   const a = Math.max(1, Math.min(max, Math.round(anos)))
-  j.salario = pedidoRenovacao(jogo.mundo, j)
+  const salario = salarioComClausula(pedidoRenovacao(jogo.mundo, j), nivel)
+  const meu = jogo.mundo.clubes[jogo.clubeId]
+  if (comissaoContrato(salario) > meu.dinheiro) return { ok: false, texto: 'Não tens dinheiro para a comissão do empresário.' }
+  meu.dinheiro -= comissaoContrato(salario)
+  j.salario = salario
   j.contrato = a
+  definirClausula(j, nivel)
   return { ok: true, texto: `${j.curto} renovou por ${a} ${a === 1 ? 'ano' : 'anos'} (${j.salario.toLocaleString('pt-PT')} € por mês).` }
 }
 
@@ -617,7 +723,7 @@ function assinarLivre(jogo: JogoComMercado, j: Jogador, clubeId: number, salario
   const st = estadoMercado(jogo)
   const c = jogo.mundo.clubes[clubeId]
   c.plantel.push(j.id)
-  c.dinheiro -= premioAssinatura(salario)
+  c.dinheiro -= premioAssinatura(salario) + comissaoContrato(salario)
   j.clubeId = clubeId
   j.salario = salario
   j.contrato = anos
@@ -626,7 +732,7 @@ function assinarLivre(jogo: JogoComMercado, j: Jogador, clubeId: number, salario
 }
 
 /** Contratar um jogador livre para o meu clube. */
-export function contratarLivre(jogo: JogoComMercado, jogadorId: number, salario: number, anos: number): Resultado {
+export function contratarLivre(jogo: JogoComMercado, jogadorId: number, salario: number, anos: number, nivel: NivelClausula = 'normal'): Resultado {
   const { mundo } = jogo
   const j = mundo.jogadores[jogadorId]
   const meu = mundo.clubes[jogo.clubeId]
@@ -635,11 +741,12 @@ export function contratarLivre(jogo: JogoComMercado, jogadorId: number, salario:
   if (meu.plantel.length >= PLANTEL_MAX) return { ok: false, texto: `O plantel já tem ${PLANTEL_MAX} jogadores. Vende alguém primeiro.` }
   const recusa = recusaDoLivre(mundo, j, jogo.clubeId, jogo.epoca.jornada)
   if (recusa) return { ok: false, texto: recusa }
-  const pede = pedidoLivre(mundo, j, jogo.clubeId)
+  const pede = salarioComClausula(pedidoLivre(mundo, j, jogo.clubeId), nivel)
   if (salario < pede) return { ok: false, texto: `${j.curto} quer ganhar pelo menos ${pede.toLocaleString('pt-PT')} € por mês.` }
-  if (premioAssinatura(salario) > meu.dinheiro) return { ok: false, texto: 'Não tens dinheiro para o prémio de assinatura.' }
+  if (premioAssinatura(salario) + comissaoContrato(salario) > meu.dinheiro) return { ok: false, texto: 'Não tens dinheiro para o prémio de assinatura e a comissão.' }
   const a = Math.max(1, Math.min(anosMaximos(j), Math.round(anos)))
   assinarLivre(jogo, j, jogo.clubeId, salario, a)
+  definirClausula(j, nivel)
   return { ok: true, texto: `${j.nome} assinou por ${a} ${a === 1 ? 'ano' : 'anos'}, a custo zero!` }
 }
 

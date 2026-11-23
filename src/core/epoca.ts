@@ -6,7 +6,9 @@ import { createRng } from './rng'
 import { simularJogo } from './motor'
 import { escalarIA } from './tatica'
 import { valorDe } from './mundo'
-import { duracaoLesao, evoluirFimEpoca, treinarJornada } from './staff'
+import { duracaoLesao, evoluirFimEpoca, nivelDe, treinarJornada } from './staff'
+import { aplicarJogo, semanaDeTreino } from './balneario'
+import { definirFadiga, fadigaDe } from './lesoes'
 
 /** Quantos clubes sobem e descem entre divisões vizinhas. */
 const TROCAS = 3
@@ -170,6 +172,10 @@ export function concluirJornada(mundo: Mundo, epoca: EstadoEpoca, semente: numbe
   const tabelas = epoca.calendario.map((_, d) => tabela(mundo, epoca, d + 1))
   epoca.ultimoBalanco = aplicarFinancas(mundo, daJornada, tabelas)
 
+  // Quem estava de fora antes do jogo (não conta como "não foi escolhido" para a moral).
+  const ausentes = new Set(Object.keys(epoca.indisponiveis).map(Number).filter((id) => epoca.indisponiveis[id].jogos > 0))
+  const regressos: { id: number; total: number }[] = []
+
   // 2. Reduzir as baixas antigas dos jogadores cujos clubes jogaram.
   const jogaram = new Set<number>()
   for (const p of daJornada) {
@@ -182,7 +188,10 @@ export function concluirJornada(mundo: Mundo, epoca: EstadoEpoca, semente: numbe
     if (jogador && !jogaram.has(jogador.clubeId)) continue
     const ind = epoca.indisponiveis[id]
     ind.jogos -= 1
-    if (ind.jogos <= 0) delete epoca.indisponiveis[id]
+    if (ind.jogos <= 0) {
+      if (ind.motivo === 'lesao' && (ind.total ?? 0) >= 4) regressos.push({ id, total: ind.total ?? 0 })
+      delete epoca.indisponiveis[id]
+    }
   }
 
   // 3. Aplicar os eventos desta jornada.
@@ -206,9 +215,11 @@ export function concluirJornada(mundo: Mundo, epoca: EstadoEpoca, semente: numbe
         case 'vermelho':
           castigar(epoca, id, amarelosNoJogo.has(id) ? 1 : 2)
           break
-        case 'lesao':
-          juntarBaixa(epoca, id, { jogos: duracaoLesao(mundo.clubes[mundo.jogadores[id]?.clubeId], Math.max(1, Math.round(ev.duracao ?? 1))), motivo: 'lesao' })
+        case 'lesao': {
+          const jogos = duracaoLesao(mundo.clubes[mundo.jogadores[id]?.clubeId], Math.max(1, Math.round(ev.duracao ?? 1)))
+          juntarBaixa(epoca, id, { jogos, motivo: 'lesao', ...(ev.tipoLesao ? { tipo: ev.tipoLesao } : {}), total: jogos })
           break
+        }
         case 'golo':
           epoca.marcadores[id] = (epoca.marcadores[id] ?? 0) + 1
           break
@@ -216,6 +227,15 @@ export function concluirJornada(mundo: Mundo, epoca: EstadoEpoca, semente: numbe
           break
       }
     }
+  }
+
+  // 3b. Balneário e físico: moral pelo resultado e tempo de jogo, cansaço, e a semana de recuperação.
+  for (const p of daJornada) aplicarJogo(mundo, p, ausentes, true)
+  semanaDeTreino(mundo, jogaram, (cid) => nivelDe(mundo.clubes[cid], 'fisico'))
+  // Quem volta de uma lesão longa ainda não tem ritmo de jogo.
+  for (const r of regressos) {
+    const j = mundo.jogadores[r.id]
+    if (j) definirFadiga(j, Math.max(fadigaDe(j), Math.min(65, 35 + r.total * 2)))
   }
 
   // 4. Treino da semana: quem não está lesionado pode ganhar força (depende do staff e do foco).

@@ -6,6 +6,7 @@ import { escalarAuto } from '../core/motor'
 import { indisponiveisDe, tabela } from '../core/epoca'
 import { Emblema } from './Emblema'
 import { Forca } from './Plantel'
+import { EstadoFisico } from './Balneario'
 import { FormaPills, minhaPartida } from './comum'
 import { Antevisao } from './Antevisao'
 
@@ -67,7 +68,7 @@ export function PreJogo({ jogo, mudar, jogar, outro }: { jogo: Jogo; mudar: (e: 
   const estado = (id: number) => {
     const i = epoca.indisponiveis[id]
     if (outro && indisp.has(id) && (!i || i.motivo !== 'lesao')) return <span className="baixa baixa-castigo">Castigado na taça</span>
-    if (!i || i.jogos <= 0 || (outro && i.motivo !== 'lesao')) return null
+    if (!i || i.jogos <= 0 || (outro && i.motivo !== 'lesao')) return <EstadoFisico jogo={jogo} id={id} />
     return <span className={`baixa baixa-${i.motivo}`}>{i.motivo === 'lesao' ? `Lesionado (${i.jogos})` : `Castigado (${i.jogos})`}</span>
   }
 

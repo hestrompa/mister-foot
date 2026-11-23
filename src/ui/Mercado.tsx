@@ -5,6 +5,7 @@ import {
   aceitarProposta, comprar, estadoMercado, janelaAberta, listaIA, pedidoSalarial, porAVenda, precoPedido,
   recusaDoJogador, recusarProposta, retirarDaVenda, textoJanela, PLANTEL_MAX, type JogoComMercado, type Resultado,
   dispensarJunior, juniores, promoverJunior,
+  CLAUSULAS, clausulaDe, comissaoContrato, comissaoEmpresario, pagarClausula, recusaRenovar, salarioComClausula, type NivelClausula,
   anosMaximos, contratarLivre, recusaDoLivre, livres, pedidoLivre, pedidoRenovacao, premioAssinatura, renovar,
 } from '../core/mercado'
 import { Emblema } from './Emblema'
@@ -167,13 +168,38 @@ function Ajuste({ rotulo, valor, setValor, base, dica }: { rotulo: string; valor
   )
 }
 
+/** Escolha da cláusula de rescisão ao assinar ou renovar. */
+function EscolhaClausula({ nivel, mudar }: { nivel: NivelClausula; mudar: (n: NivelClausula) => void }) {
+  const dica: Record<NivelClausula, string> = {
+    baixa: 'salário -8%, mas outros clubes podem levá-lo sem negociar',
+    normal: 'equilíbrio',
+    alta: 'protege o jogador, mas ele pede +10% de salário',
+  }
+  return (
+    <div className="clausula-escolha">
+      <span className="info-t">Cláusula de rescisão</span>
+      <div className="grupo-botoes">
+        {(Object.keys(CLAUSULAS) as NivelClausula[]).map((n) => (
+          <button key={n} className={`botao ${nivel === n ? 'ativo' : ''}`} onClick={() => mudar(n)}>{CLAUSULAS[n].nome}</button>
+        ))}
+      </div>
+      <span className="info-d">{dica[nivel]}</span>
+    </div>
+  )
+}
+
+const comFator = salarioComClausula
+
 function Negociar({ jogo, id, fechar, feito }: { jogo: JogoComMercado; id: number; fechar: () => void; feito: (r: Resultado) => void }) {
   const { mundo } = jogo
   const j = mundo.jogadores[id]
   const pedido = precoPedido(jogo, id)
-  const sal = pedidoSalarial(mundo, j, jogo.clubeId)
+  const sal0 = pedidoSalarial(mundo, j, jogo.clubeId)
+  const [nivel, setNivel] = useState<NivelClausula>('normal')
+  const sal = comFator(sal0, nivel)
   const [oferta, setOferta] = useState(pedido)
   const [salario, setSalario] = useState(sal)
+  const clausula = clausulaDe(j)
   const recusa = recusaDoJogador(mundo, j, jogo.clubeId)
   const st = estadoMercado(jogo)
   const jaTentou = st.recusados.includes(id)
@@ -193,9 +219,16 @@ function Negociar({ jogo, id, fechar, feito }: { jogo: JogoComMercado; id: numbe
             <Ajuste rotulo="Oferta ao clube" valor={oferta} setValor={setOferta} base={pedido} dica={`Pedem ${euros(pedido)}`} />
             <Ajuste rotulo="Salário por mês" valor={salario} setValor={setSalario} base={sal} dica={`Pede ${euros(sal)}`} />
           </div>
-          <button className="botao principal" disabled={!aberta || jaTentou} onClick={() => feito(comprar(jogo, id, oferta, salario))}>
-            {!aberta ? 'Mercado fechado' : jaTentou ? 'Recusaram nesta jornada' : 'Fazer oferta'}
-          </button>
+          <EscolhaClausula nivel={nivel} mudar={(n) => { setNivel(n); setSalario(comFator(sal0, n)) }} />
+          <p className="nota">Comissão do empresário: {euros(comissaoEmpresario(oferta, salario))} (5% da transferência, paga por ti).</p>
+          <div className="grupo-botoes">
+            <button className="botao principal" disabled={!aberta || jaTentou} onClick={() => feito(comprar(jogo, id, oferta, salario, nivel))}>
+              {!aberta ? 'Mercado fechado' : jaTentou ? 'Recusaram nesta jornada' : 'Fazer oferta'}
+            </button>
+            <button className="botao" disabled={!aberta} onClick={() => feito(pagarClausula(jogo, id, salario, nivel))}>
+              Pagar cláusula ({euros(clausula)})
+            </button>
+          </div>
         </>
       )}
     </div>
@@ -323,7 +356,7 @@ function Noticias({ jogo }: { jogo: JogoComMercado }) {
         return (
           <li key={i} className={minha ? 'minha' : ''}>
             <span className="dica">J{n.jornada}</span> <span className={`pos pos-${j?.posicao}`}>{j?.posicao}</span> <b>{j?.curto}</b> ({j?.forca})
-            {' '}<ClubeCurto jogo={jogo} id={n.deId} /> → <ClubeCurto jogo={jogo} id={n.paraId} /> · <b>{euros(n.valor)}</b>{n.leilao ? ' em leilão' : ''}
+            {' '}<ClubeCurto jogo={jogo} id={n.deId} /> → <ClubeCurto jogo={jogo} id={n.paraId} /> · <b>{euros(n.valor)}</b>{n.leilao ? ' em leilão' : ''}{n.tipo === 'clausula' ? ' (cláusula de rescisão paga)' : ''}
           </li>
         )
       })}
@@ -340,6 +373,7 @@ function Contratos({ jogo, feito }: { jogo: JogoComMercado; feito: (r: Resultado
   const { mundo } = jogo
   const [sel, setSel] = useState<number | null>(null)
   const [anos, setAnos] = useState(2)
+  const [nivel, setNivel] = useState<NivelClausula>('normal')
   const plantel = mundo.clubes[jogo.clubeId].plantel.map((id) => mundo.jogadores[id]).sort((a, b) => a.contrato - b.contrato || b.forca - a.forca)
   const j = sel != null ? mundo.jogadores[sel] : null
   return (
@@ -356,13 +390,15 @@ function Contratos({ jogo, feito }: { jogo: JogoComMercado; feito: (r: Resultado
           <p className="nota">{j.idade} anos · ganha {euros(j.salario)}/mês · contrato {j.contrato} {j.contrato === 1 ? 'ano' : 'anos'}</p>
           {j.contrato > 2 ? <p className="nota">Ainda é cedo para renovar.</p> : (
             <>
-              <p>Pede <b>{euros(pedidoRenovacao(mundo, j))}</b> por mês.</p>
+              {recusaRenovar(j) && <p className="erro">{recusaRenovar(j)}</p>}
+              <p>Pede <b>{euros(comFator(pedidoRenovacao(mundo, j), nivel))}</b> por mês (comissão do empresário: {euros(comissaoContrato(comFator(pedidoRenovacao(mundo, j), nivel)))}). A moral conta: quem está contente pede menos.</p>
+              <EscolhaClausula nivel={nivel} mudar={setNivel} />
               <div className="grupo-botoes">
                 {Array.from({ length: anosMaximos(j) }, (_, k) => k + 1).map((a) => (
                   <button key={a} className={`botao ${Math.min(anos, anosMaximos(j)) === a ? 'ativo' : ''}`} onClick={() => setAnos(a)}>{a} {a === 1 ? 'ano' : 'anos'}</button>
                 ))}
               </div>
-              <button className="botao principal" onClick={() => { feito(renovar(jogo, j.id, Math.min(anos, anosMaximos(j)))); setSel(null) }}>Renovar</button>
+              <button className="botao principal" onClick={() => { feito(renovar(jogo, j.id, Math.min(anos, anosMaximos(j)), nivel)); setSel(null) }}>Renovar</button>
             </>
           )}
         </div>
@@ -424,7 +460,9 @@ function Livres({ jogo, feito }: { jogo: JogoComMercado; feito: (r: Resultado) =
 }
 
 function AssinarLivre({ jogo, j, fechar, feito }: { jogo: JogoComMercado; j: Jogador; fechar: () => void; feito: (r: Resultado) => void }) {
-  const pede = pedidoLivre(jogo.mundo, j, jogo.clubeId)
+  const pede0 = pedidoLivre(jogo.mundo, j, jogo.clubeId)
+  const [nivel, setNivel] = useState<NivelClausula>('normal')
+  const pede = comFator(pede0, nivel)
   const [salario, setSalario] = useState(pede)
   const [anos, setAnos] = useState(Math.min(2, anosMaximos(j)))
   const aberta = janelaAberta(jogo.epoca)
@@ -440,14 +478,15 @@ function AssinarLivre({ jogo, j, fechar, feito }: { jogo: JogoComMercado; j: Jog
       <p className="nota">{j.idade} anos · livre · ganhava {euros(j.salario)}/mês</p>
       {recusa ? <p className="erro">{recusa}</p> : <>
       <div className="neg-ajustes">
-        <Ajuste rotulo="Salário por mês" valor={salario} setValor={setSalario} base={pede} dica={`Pede ${euros(pede)} · prémio ${euros(premioAssinatura(salario))}`} />
+        <Ajuste rotulo="Salário por mês" valor={salario} setValor={setSalario} base={pede} dica={`Pede ${euros(pede)} · prémio ${euros(premioAssinatura(salario))} · empresário ${euros(comissaoContrato(salario))}`} />
       </div>
+      <EscolhaClausula nivel={nivel} mudar={(n) => { setNivel(n); setSalario(comFator(pede0, n)) }} />
       <div className="grupo-botoes">
         {Array.from({ length: anosMaximos(j) }, (_, k) => k + 1).map((a) => (
           <button key={a} className={`botao ${anos === a ? 'ativo' : ''}`} onClick={() => setAnos(a)}>{a} {a === 1 ? 'ano' : 'anos'}</button>
         ))}
       </div>
-      <button className="botao principal" disabled={!aberta} onClick={() => feito(contratarLivre(jogo, j.id, salario, anos))}>{aberta ? 'Contratar' : 'Mercado fechado'}</button>
+      <button className="botao principal" disabled={!aberta} onClick={() => feito(contratarLivre(jogo, j.id, salario, anos, nivel))}>{aberta ? 'Contratar' : 'Mercado fechado'}</button>
       </>}
     </div>
   )
