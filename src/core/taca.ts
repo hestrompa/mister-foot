@@ -8,6 +8,9 @@ import { escalarIA } from './tatica'
 import { publicoEsperado } from './financas'
 
 export const NOME_TACA = 'Taça Nacional'
+export const NOME_SUPERTACA = 'Supertaça'
+/** Prémios da Supertaça: vencedor e vencido. */
+export const PREMIO_SUPERTACA: [number, number] = [300_000, 100_000]
 
 /** Só há taça numa época se ela for criada até esta jornada (gravações antigas a meio da época esperam pela seguinte). */
 const ULTIMA_JORNADA_PARA_COMECAR = 3
@@ -53,6 +56,11 @@ export interface EstadoTaca {
   receitas: Record<number, number>
   noticias: NoticiaTaca[]
   historico: HistoricoTaca[]
+  /** Campeão da 1.ª Divisão no fim desta época (para a Supertaça da seguinte). */
+  campeaoId?: number
+  /** Supertaça desta época, antes da 1.ª jornada: campeão contra vencedor da taça da época anterior. */
+  supertaca?: RondaTaca
+  historicoSuper?: HistoricoTaca[]
 }
 
 export type JogoComTaca = Jogo & { taca?: EstadoTaca }
@@ -164,19 +172,49 @@ function sortear(mundo: Mundo, taca: EstadoTaca, r: number, clubes: number[], rn
 export function garantirTaca(jogo: JogoComTaca): EstadoTaca {
   const ano = jogo.epoca.ano
   if (jogo.taca && jogo.taca.ano === ano) return jogo.taca
-  const historico = jogo.taca?.historico ?? []
+  const antiga = jogo.taca
+  const historico = antiga?.historico ?? []
   if (jogo.epoca.jornada > ULTIMA_JORNADA_PARA_COMECAR) {
     jogo.taca = { ano, semTaca: true, rondas: [], atual: 0, eliminados: {}, castigos: {}, marcadores: {}, receitas: {}, noticias: [], historico }
   } else {
     jogo.taca = novaTaca(jogo.mundo, jogo.epoca.totalJornadas, mistura(jogo.mundo.semente, ano), historico)
+    criarSupertaca(jogo, jogo.taca, antiga)
     noticiaSorteio(jogo, jogo.taca, 0)
   }
+  jogo.taca.historicoSuper = antiga?.historicoSuper ?? []
+  // Sem o meu clube, a Supertaça joga-se logo.
+  if (jogo.taca.supertaca && !meuJogoNaRonda(jogo, jogo.taca.supertaca)) jogarRondaTaca(jogo)
   return jogo.taca
 }
 
-/** Ronda que já devia ser jogada (a jornada da liga a seguir à data dela ainda não começou), ou null. */
+/** Guarda o campeão da 1.ª Divisão da época que acabou (chamar depois de fecharEpoca e antes da nova época). */
+export function registarCampeao(jogo: JogoComTaca, campeoes: { divisao: number; clubeId: number }[]): void {
+  const c = campeoes.find((x) => x.divisao === 1)
+  if (jogo.taca && c) jogo.taca.campeaoId = c.clubeId
+}
+
+/** Supertaça: campeão da época anterior contra o vencedor da taça (ou o finalista, se o campeão fez a dobradinha). */
+function criarSupertaca(jogo: Jogo, t: EstadoTaca, antiga: EstadoTaca | undefined) {
+  const h = antiga?.historico.find((x) => x.ano === antiga.ano)
+  const campeao = antiga?.campeaoId
+  if (!h || campeao == null || !jogo.mundo.clubes[campeao]) return
+  const outro = campeao === h.vencedorId ? h.finalistaId : h.vencedorId
+  t.supertaca = {
+    nome: NOME_SUPERTACA, aposJornada: 0, isentos: [], jogada: false,
+    jogos: [{
+      id: `S${t.ano}-${campeao}-${outro}`, competicao: 'taca', divisao: 0, jornada: 0, casaId: campeao, foraId: outro,
+      golos: [0, 0], eventos: [], estat: estatVazia(), jogada: false,
+    }],
+  }
+  const nome = (id: number) => jogo.mundo.clubes[id]?.nome ?? '?'
+  const minha = campeao === jogo.clubeId || outro === jogo.clubeId
+  noticia(t, `${NOME_SUPERTACA} antes da 1.ª jornada: ${nome(campeao)} (campeão) contra ${nome(outro)} (${outro === h.vencedorId ? `vencedor da ${NOME_TACA}` : 'finalista da taça'}), em campo neutro.`, minha)
+}
+
+/** Ronda que já devia ser jogada (a jornada da liga a seguir à data dela ainda não começou), ou null. A Supertaça vem primeiro. */
 export function rondaPendente(jogo: JogoComTaca): RondaTaca | null {
   const t = garantirTaca(jogo)
+  if (t.supertaca && !t.supertaca.jogada) return t.supertaca
   const r = t.rondas[t.atual]
   if (!r || r.jogada) return null
   return jogo.epoca.jornada - 1 >= r.aposJornada ? r : null
@@ -293,6 +331,14 @@ export function vencedorDe(p: Partida): number {
   return pen[0] > pen[1] ? p.casaId : p.foraId
 }
 
+/** Resultado com o vencedor primeiro (ex.: "2-1 a.p."). */
+function resultadoDoVencedor(p: Partida): string {
+  const v = vencedorDe(p)
+  const [a, b] = v === p.casaId ? [p.golos[0], p.golos[1]] : [p.golos[1], p.golos[0]]
+  const pen = p.penaltis ? (v === p.casaId ? ` (${p.penaltis[0]}-${p.penaltis[1]} g.p.)` : ` (${p.penaltis[1]}-${p.penaltis[0]} g.p.)`) : p.prolongamento ? ' a.p.' : ''
+  return `${a}-${b}${pen}`
+}
+
 /** Resultado em texto (ex.: "1-1 (4-3 g.p.)"). */
 export function textoResultado(p: Partida): string {
   return `${p.golos[0]}-${p.golos[1]}${p.penaltis ? ` (${p.penaltis[0]}-${p.penaltis[1]} g.p.)` : p.prolongamento ? ' a.p.' : ''}`
@@ -326,12 +372,13 @@ function noticiaSorteio(jogo: Jogo, t: EstadoTaca, r: number) {
  */
 export function jogarRondaTaca(jogo: JogoComTaca, jogadas: { partida: Partida; emCampo?: [number[], number[]] }[] = []): RondaTaca | null {
   const t = garantirTaca(jogo)
+  const sup = t.supertaca && !t.supertaca.jogada ? t.supertaca : null
   const r = t.atual
-  const ronda = t.rondas[r]
+  const ronda = sup ?? t.rondas[r]
   if (!ronda || ronda.jogada) return null
   const { mundo, epoca } = jogo
-  const final = r === t.rondas.length - 1
-  const semente = mistura(mundo.semente, t.ano, r, 0x7aca)
+  const final = !!sup || r === t.rondas.length - 1
+  const semente = mistura(mundo.semente, t.ano, sup ? 0x5a9e : r, 0x7aca)
   const emCampo: Record<string, [number[], number[]]> = {}
 
   // 1. Simular o que falta (escalações com as baixas de antes da ronda).
@@ -403,6 +450,7 @@ export function jogarRondaTaca(jogo: JogoComTaca, jogadas: { partida: Partida; e
     }
     const v = vencedorDe(p)
     const perde = v === p.casaId ? p.foraId : p.casaId
+    if (sup) { pagar(v, PREMIO_SUPERTACA[0]); pagar(perde, PREMIO_SUPERTACA[1]); continue }
     t.eliminados[perde] = r
     pagar(v, premioRonda(t, r))
     if (final) pagar(perde, PREMIO_FINALISTA)
@@ -415,11 +463,12 @@ export function jogarRondaTaca(jogo: JogoComTaca, jogadas: { partida: Partida; e
     const v = vencedorDe(p)
     const perde = v === p.casaId ? p.foraId : p.casaId
     const res = textoResultado(p)
-    if (final) {
+    if (sup) {
+      noticia(t, `${nome(v)} vence a ${NOME_SUPERTACA}: ${nome(p.casaId)} ${res} ${nome(p.foraId)}.`, v === jogo.clubeId || perde === jogo.clubeId)
+      ;(t.historicoSuper ??= []).push({ ano: t.ano, vencedorId: v, finalistaId: perde, resultado: resultadoDoVencedor(p) })
+    } else if (final) {
       noticia(t, `${nome(v)} vence a ${NOME_TACA}! Final: ${nome(p.casaId)} ${res} ${nome(p.foraId)}.`, v === jogo.clubeId || perde === jogo.clubeId)
-      const [a, b] = v === p.casaId ? [p.golos[0], p.golos[1]] : [p.golos[1], p.golos[0]]
-      const pen = p.penaltis ? (v === p.casaId ? ` (${p.penaltis[0]}-${p.penaltis[1]} g.p.)` : ` (${p.penaltis[1]}-${p.penaltis[0]} g.p.)`) : p.prolongamento ? ' a.p.' : ''
-      t.historico.push({ ano: t.ano, vencedorId: v, finalistaId: perde, resultado: `${a}-${b}${pen}` })
+      t.historico.push({ ano: t.ano, vencedorId: v, finalistaId: perde, resultado: resultadoDoVencedor(p) })
     } else if (v === jogo.clubeId) {
       noticia(t, `${nome(v)} segue em frente na taça (${ronda.nome}): ${nome(p.casaId)} ${res} ${nome(p.foraId)}. Prémio de ${Math.round(premioRonda(t, r) / 1000)} mil €.`, true)
     } else if (perde === jogo.clubeId) {
@@ -432,6 +481,7 @@ export function jogarRondaTaca(jogo: JogoComTaca, jogadas: { partida: Partida; e
   // 6. Relatos antigos ocupam espaço: guardam-se só os golos, menos no meu jogo.
   ronda.jogos = ronda.jogos.map((p) => (p.casaId === jogo.clubeId || p.foraId === jogo.clubeId ? p : { ...p, eventos: p.eventos.filter((e) => e.tipo === 'golo') }))
   ronda.jogada = true
+  if (sup) return ronda
   t.atual = r + 1
 
   // 7. Sorteio da ronda seguinte.

@@ -5,7 +5,7 @@ import { escalarAuto } from './motor'
 import { createRng } from './rng'
 import type { Jogo } from './types'
 import {
-  avancarTaca, garantirTaca, jogarRondaTaca, jornadasDaTaca, marcarPenaltis, meuJogoPendente, minhaSituacao,
+  avancarTaca, garantirTaca, registarCampeao, rondaPendente, jogarRondaTaca, jornadasDaTaca, marcarPenaltis, meuJogoPendente, minhaSituacao,
   textoResultado, vencedorDe, type JogoComTaca,
 } from './taca'
 
@@ -140,5 +140,34 @@ describe('Taça Nacional', () => {
     const taxa = marcados / total
     expect(taxa).toBeGreaterThan(0.65)
     expect(taxa).toBeLessThan(0.88)
+  })
+
+  it('Supertaça: campeão contra vencedor da taça antes da 1.ª jornada', () => {
+    for (const comigo of [false, true]) {
+      const jogo = novoJogo(21)
+      jogarEpoca(jogo)
+      const h = jogo.taca!.historico[0]
+      const resumo = fecharEpoca(jogo.mundo, jogo.epoca)
+      registarCampeao(jogo, resumo.campeoes)
+      const campeao = resumo.campeoes.find((c) => c.divisao === 1)!.clubeId
+      const outro = campeao === h.vencedorId ? h.finalistaId : h.vencedorId
+      if (comigo) jogo.clubeId = campeao
+      jogo.epoca = novaEpoca(jogo.mundo, 99)
+      const t = garantirTaca(jogo)
+      const sup = t.supertaca!
+      expect([sup.jogos[0].casaId, sup.jogos[0].foraId]).toEqual([campeao, outro])
+      if (comigo) {
+        expect(sup.jogada).toBe(false)
+        expect(meuJogoPendente(jogo)?.ronda).toBe(sup)
+        const antes = jogo.mundo.clubes[campeao].dinheiro
+        jogarRondaTaca(jogo)
+        expect(jogo.mundo.clubes[campeao].dinheiro - antes).toBeGreaterThanOrEqual(100_000)
+      }
+      expect(sup.jogada).toBe(true)
+      expect(t.historicoSuper).toHaveLength(1)
+      expect(t.atual).toBe(0)
+      expect(rondaPendente(jogo)).toBeNull()
+      expect(t.noticias.some((x) => x.texto.includes('vence a Supertaça'))).toBe(true)
+    }
   })
 })

@@ -18,7 +18,7 @@ import { FimEpoca, type DadosFimEpoca } from './ui/FimEpoca'
 import { TabelaLiga } from './ui/comum'
 import { Mercado, propostasPendentes } from './ui/Mercado'
 import { avancarMercado } from './core/mercado'
-import { avancarTaca, meuJogoPendente, type JogoComTaca } from './core/taca'
+import { avancarTaca, meuJogoPendente, registarCampeao, type JogoComTaca } from './core/taca'
 import { AoVivoTaca, TacaSeparador, avisoTaca } from './ui/Taca'
 
 type Ecra = 'inicio' | 'escolher' | 'jogo'
@@ -178,6 +178,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
     const divisaoAntes = meu.divisao
     const posicao = tabela(mundo, jogo.epoca, divisaoAntes).findIndex((l) => l.clubeId === meu.id) + 1
     const resumo = fecharEpoca(mundo, jogo.epoca)
+    registarCampeao(jogo as JogoComTaca, resumo.campeoes)
     prepararEpoca(jogo)
     atualizar(jogo)
     setDiv(mundo.clubes[jogo.clubeId].divisao)

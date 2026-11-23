@@ -3,6 +3,7 @@ import type { EstadoEpoca, Partida } from '../core/partida'
 import { escalarAuto } from '../core/motor'
 import { gestaoIA } from '../core/ia-financas'
 import { epocaTerminada, fecharEpoca, indisponiveisDe, novaEpoca } from '../core/epoca'
+import { registarCampeao, type JogoComTaca } from '../core/taca'
 
 const CHAVE = 'mister-foot:jogo'
 
@@ -53,7 +54,7 @@ export function carregar(): Jogo | null {
     if (j?.mundo?.versao !== 1) return null
     let mudou = false
     if (!j.epoca) { prepararEpoca(j); mudou = true }
-    else if (epocaTerminada(j.epoca)) { fecharEpoca(j.mundo, j.epoca); prepararEpoca(j); mudou = true }
+    else if (epocaTerminada(j.epoca)) { registarCampeao(j as JogoComTaca, fecharEpoca(j.mundo, j.epoca).campeoes); prepararEpoca(j); mudou = true }
     if (!j.escalacao) {
       j.escalacao = escalarAuto(j.mundo, j.clubeId, indisponiveisDe(j.mundo, j.epoca, j.clubeId))
       mudou = true

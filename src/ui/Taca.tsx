@@ -5,7 +5,7 @@ import type { Lado, Partida } from '../core/partida'
 import { avancarMinuto, definirAutoSub, iniciarJogo, type EstadoJogo } from '../core/motor'
 import { euros } from '../core/formato'
 import {
-  NOME_TACA, PREMIO_FINALISTA, precisaProlongamento, prolongar, escalacaoTaca, garantirTaca, indisponiveisTaca, jogarRondaTaca, meuJogoNaRonda,
+  NOME_SUPERTACA, NOME_TACA, PREMIO_FINALISTA, PREMIO_SUPERTACA, rondaPendente, precisaProlongamento, prolongar, escalacaoTaca, garantirTaca, indisponiveisTaca, jogarRondaTaca, meuJogoNaRonda,
   minhaSituacao, premioRonda, vencedorDe, type JogoComTaca, type RondaTaca,
 } from '../core/taca'
 import { Emblema } from './Emblema'
@@ -60,6 +60,13 @@ export function TacaSeparador({ jogo }: { jogo: JogoComTaca }) {
         {!t.semTaca && <p className="dica">Eliminatórias a uma mão a meio da semana. Joga em casa o clube da divisão mais baixa; empate dá penáltis; a final é em campo neutro.</p>}
       </div>
 
+      {t.supertaca && (
+        <div className="cartao placares">
+          <h3 className="sub-tit">{NOME_SUPERTACA} · {t.supertaca.jogada ? 'jogada' : 'antes da 1.ª jornada'} · campeão contra vencedor da taça, em campo neutro</h3>
+          <ul>{t.supertaca.jogos.map((p) => <JogoTaca key={p.id} mundo={mundo} p={p} meuId={clubeId} />)}</ul>
+        </div>
+      )}
+
       {!t.semTaca && (
         <>
           <nav className="separadores taca-rondas" aria-label="Rondas da taça">
@@ -101,6 +108,12 @@ export function TacaSeparador({ jogo }: { jogo: JogoComTaca }) {
               <li key={h.ano}><span className="dica">{h.ano}/{String(h.ano + 1).slice(2)}</span> <Nome mundo={mundo} id={h.vencedorId} sigla /> {h.resultado} <Nome mundo={mundo} id={h.finalistaId} sigla /></li>
             ))}</ul>
           )}
+          {(t.historicoSuper?.length ?? 0) > 0 && <>
+            <h3 className="sub-tit">{NOME_SUPERTACA}</h3>
+            <ul className="taca-hist">{[...t.historicoSuper!].reverse().map((h) => (
+              <li key={h.ano}><span className="dica">{h.ano}/{String(h.ano + 1).slice(2)}</span> <Nome mundo={mundo} id={h.vencedorId} sigla /> {h.resultado} <Nome mundo={mundo} id={h.finalistaId} sigla /></li>
+            ))}</ul>
+          </>}
         </div>
       </div>
     </div>
@@ -109,9 +122,10 @@ export function TacaSeparador({ jogo }: { jogo: JogoComTaca }) {
 
 /** Cartão no separador Jogo quando o próximo jogo é da taça. */
 export function avisoTaca(jogo: JogoComTaca, ronda: RondaTaca, p: Partida): { titulo: string; indisp: Set<number>; partida: Partida } {
-  const final = ronda.nome === 'Final'
+  const sup = ronda.nome === NOME_SUPERTACA
+  const final = sup || ronda.nome === 'Final'
   const onde = final ? 'campo neutro' : p.casaId === jogo.clubeId ? 'em casa' : 'fora'
-  return { titulo: `${NOME_TACA} · ${ronda.nome} · ${onde}`, indisp: indisponiveisTaca(jogo, jogo.clubeId), partida: p }
+  return { titulo: sup ? `${NOME_SUPERTACA} · campeão contra vencedor da taça · ${onde}` : `${NOME_TACA} · ${ronda.nome} · ${onde}`, indisp: indisponiveisTaca(jogo, jogo.clubeId), partida: p }
 }
 
 interface ResumoTaca { ronda: RondaTaca; minha: Partida; premio: number }
@@ -120,9 +134,9 @@ interface ResumoTaca { ronda: RondaTaca; minha: Partida; premio: number }
 export function AoVivoTaca({ jogo, guardar, continuar }: { jogo: JogoComTaca; guardar: () => void; continuar: () => void }) {
   const { mundo, clubeId } = jogo
   const t = garantirTaca(jogo)
-  const ronda = t.rondas[t.atual]
+  const [ronda] = useState(() => rondaPendente(jogo) ?? t.rondas[t.atual])
   const [ini] = useState(() => {
-    const semente = sementeJornada(jogo, 7000 + t.atual)
+    const semente = sementeJornada(jogo, ronda.nome === NOME_SUPERTACA ? 6999 : 7000 + t.atual)
     const escDe = (p: Partida, id: number) => {
       if (id === clubeId) {
         const ind = indisponiveisTaca(jogo, id)
@@ -210,7 +224,7 @@ export function AoVivoTaca({ jogo, guardar, continuar }: { jogo: JogoComTaca; gu
     <div className="ao-vivo">
       <div className="av-principal">
         <div className="cartao meu-jogo">
-          <div className="pj-cab">{NOME_TACA} · {ronda.nome}</div>
+          <div className="pj-cab">{ronda.nome === NOME_SUPERTACA ? NOME_SUPERTACA : `${NOME_TACA} · ${ronda.nome}`}</div>
           <div className="mj-min">{terminou(meu) ? 'Final' : fase === 'intervalo' ? 'Intervalo' : `${meu.minuto}'${mp.prolongamento ? ' · prolongamento' : ''}`}</div>
           <div className="mj-placar">
             <div className="mj-eq"><Emblema clube={casa} tamanho={40} /><span>{casa.nome}</span></div>
@@ -262,16 +276,17 @@ function ResumoRonda({ jogo, r, continuar }: { jogo: JogoComTaca; r: ResumoTaca;
   const t = garantirTaca(jogo)
   const p = r.minha
   const passou = vencedorDe(p) === clubeId
-  const final = r.ronda.nome === 'Final'
-  const titulo = final ? (passou ? `Vencedores da ${NOME_TACA}!` : 'Finalista vencido') : passou ? `Passamos à ronda seguinte!` : `Eliminados da ${NOME_TACA}`
+  const sup = r.ronda.nome === NOME_SUPERTACA
+  const final = sup || r.ronda.nome === 'Final'
+  const titulo = sup ? (passou ? `Vencedores da ${NOME_SUPERTACA}!` : `${NOME_SUPERTACA} perdida`) : final ? (passou ? `Vencedores da ${NOME_TACA}!` : 'Finalista vencido') : passou ? `Passamos à ronda seguinte!` : `Eliminados da ${NOME_TACA}`
   const prox = t.rondas[t.atual]
   const meuProx = meuJogoNaRonda(jogo, prox)
   const outros = r.ronda.jogos.filter((x) => x.id !== p.id)
-  const premioEsperado = passou ? premioRonda(t, t.atual - 1) : final ? PREMIO_FINALISTA : 0
+  const premioEsperado = sup ? PREMIO_SUPERTACA[passou ? 0 : 1] : passou ? premioRonda(t, t.atual - 1) : final ? PREMIO_FINALISTA : 0
   return (
     <div className="resumo-jornada">
       <div className={`cartao resumo-meu res-${passou ? 'V' : 'D'}`}>
-        <div className="pj-cab">{NOME_TACA} · {r.ronda.nome}</div>
+        <div className="pj-cab">{sup ? NOME_SUPERTACA : `${NOME_TACA} · ${r.ronda.nome}`}</div>
         <h2 className="taca-titulo">{titulo}</h2>
         <div className="mj-placar">
           <div className="mj-eq"><Emblema clube={mundo.clubes[p.casaId]} tamanho={40} /><span>{mundo.clubes[p.casaId].nome}</span></div>

@@ -6,6 +6,19 @@ import { meuJogoNaRonda, vencedorDe, type JogoComTaca } from '../core/taca'
 export function Calendario({ jogo }: { jogo: Jogo }) {
   const { mundo, epoca, clubeId } = jogo
   const linhas = []
+  const sup = (jogo as JogoComTaca).taca?.supertaca
+  const ps = sup && meuJogoNaRonda(jogo, sup)
+  if (ps) {
+    const advS = mundo.clubes[ps.casaId === clubeId ? ps.foraId : ps.casaId]
+    linhas.push(
+      <tr key="sup" className="linha-taca">
+        <td className="num">S</td>
+        <td><span className="casa-fora">N</span></td>
+        <td><span className="clube-linha"><Emblema clube={advS} tamanho={22} /> {advS.nome} <span className="dica">Supertaça</span></span></td>
+        <td className="num">{ps.jogada ? <span className={`resultado res-${vencedorDe(ps) === clubeId ? 'V' : 'D'}`}>{ps.golos[0]}-{ps.golos[1]}{ps.penaltis ? ` (${ps.penaltis[0]}-${ps.penaltis[1]})` : ''}</span> : <span className="dica">Supertaça</span>}</td>
+      </tr>,
+    )
+  }
   for (let j = 1; j <= epoca.totalJornadas; j++) {
     const p = minhaPartida(jogo, j)
     if (!p) continue
