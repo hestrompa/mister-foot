@@ -1,6 +1,7 @@
 // Separador Balneário: ambiente, capitão, conflitos, promessas, moral e físico de cada jogador,
 // departamento médico e convocatórias para as seleções.
 import { useState } from 'react'
+import { MORAL_PREMIO, NOME_PREMIO, custoPorVitoria, escolherPremio, estadoPremios, type NivelPremio } from '../core/premios-jogo'
 import type { Jogo, Posicao } from '../core/types'
 import {
   ambiente, capitaoDe, estadoBalneario, estatutos, lideranca, moralDe, NOME_ESTATUTO, textoMoral, type JogoComBalneario,
@@ -79,6 +80,7 @@ export function Balneario({ jogo, atualizar }: { jogo: Jogo; atualizar: (j: Jogo
           <Barra v={amb} cor={corMoral(amb)} rotulo={`${Math.round(amb)}/100`} />
           <p className="nota">Ganhar, jogar e ver promessas cumpridas sobe a moral. Uma equipa motivada rende um pouco mais; uma revoltada, menos.</p>
         </section>
+        <PremiosJogo jogo={jogo} atualizar={atualizar} />
         <section className="cartao bn-cartao" aria-label="Capitão">
           <h3 className="sub-tit">Capitão</h3>
           {cap && <p className="bn-grande">{mundo.jogadores[cap].nome}</p>}
@@ -252,4 +254,21 @@ function SelecaoNacional({ jogo }: { jogo: JogoComSelecao }) {
 /** Número de assuntos à espera do treinador (para o separador). */
 export function conflitosPendentes(jogo: Jogo): number {
   return (jogo as JogoComBalneario).balneario?.conflitos.length ?? 0
+}
+
+function PremiosJogo({ jogo, atualizar }: { jogo: Jogo; atualizar: (j: Jogo) => void }) {
+  const st = estadoPremios(jogo)
+  return (
+    <section className="cartao bn-cartao" aria-label="Prémios de jogo">
+      <h3 className="sub-tit">Prémios de jogo</h3>
+      <div className="bn-premios" role="radiogroup" aria-label="Prémio por vitória">
+        {([0, 1, 2] as NivelPremio[]).map((n) => (
+          <button key={n} role="radio" aria-checked={st.nivel === n} className={`botao ${st.nivel === n ? 'ativo' : ''}`} onClick={() => { escolherPremio(jogo, n); atualizar(jogo) }}>
+            {NOME_PREMIO[n]}{n ? ` · ${euros(custoPorVitoria(jogo, n))}` : ''}
+          </button>
+        ))}
+      </div>
+      <p className="nota">Pago a cada vitória no campeonato. Sobe a moral do plantel ({st.nivel ? `+${MORAL_PREMIO[st.nivel].toLocaleString('pt-PT')} por vitória` : 'escolhe um prémio'}). Esta época: {st.vitorias} {st.vitorias === 1 ? 'prémio pago' : 'prémios pagos'}, {euros(st.pagoEpoca)}.</p>
+    </section>
+  )
 }

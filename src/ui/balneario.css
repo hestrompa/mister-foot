@@ -31,3 +31,4 @@
   .bn-barra-fundo { width: 36px; }
   .bn-tabela .bn-barra-txt { display: none; }
 }
+.bn-premios { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; } .bn-premios .botao.ativo { border-color: var(--verde); color: var(--verde); }

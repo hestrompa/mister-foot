@@ -198,6 +198,9 @@ try {
     await page.getByRole('region', { name: 'Departamento médico' }).waitFor({ timeout: 5000 })
     await page.locator('.bn-tabela').getByRole('button', { name: 'Prometer' }).last().click()
     await page.getByText(/Prometeste a .+ jogos a titular/).first().waitFor({ timeout: 5000 })
+    const premios = page.getByRole('region', { name: 'Prémios de jogo' })
+    await premios.getByRole('radio', { name: /Prémio normal/ }).click()
+    esperar(await premios.getByRole('radio', { name: /Prémio normal/ }).getAttribute('aria-checked') === 'true', 'o prémio normal não ficou escolhido')
     await foto('4g-balneario.png')
   })
 

@@ -6,6 +6,7 @@ import { AbrirCopia, descarregarCopia } from './ui/CopiaSeguranca'
 import { AvisoConquistas } from './ui/Conquistas'
 import { verificarConquistas } from './core/conquistas'
 import { avancarInvestidores } from './core/investidores'
+import { avancarPremiosJogo } from './core/premios-jogo'
 import { avancarTreinadorMes, JORNADAS_MES } from './core/treinador-mes'
 import { AvisoInvestidor } from './ui/InicioEpoca'
 import { euros, lugares } from './core/formato'
@@ -203,6 +204,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
     avancarTaca(jogo as JogoComTaca)
     avancarEuropa(jogo as JogoComEuropa)
     avancarBalneario(jogo)
+    avancarPremiosJogo(jogo)
     avancarSelecao(jogo)
     avancarDirecao(jogo)
     for (const i of avancarInvestidores(mundo, jogo.epoca)) {
