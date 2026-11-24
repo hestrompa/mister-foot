@@ -11,3 +11,8 @@
 .conquista .cq-ano { color: var(--verde) !important; }
 .conquista .cq-barra { display: block; height: 5px; background: var(--linha); border-radius: 3px; overflow: hidden; margin-top: 4px; }
 .conquista .cq-barra span { display: block; height: 100%; background: var(--verde); }
+.pre-epoca { margin-bottom: 12px; }
+.pe-opcoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+.pe-opcao { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; white-space: normal; height: auto; padding: 10px; }
+.pe-opcao span { color: var(--texto-2); font-size: 13px; font-weight: 400; }
+.pe-opcao .pe-efeito { color: var(--aviso); font-weight: 600; }

@@ -59,6 +59,7 @@ try {
     await page.locator('button.cartao.clube').first().click()
     await page.getByRole('button', { name: 'Assinar contrato' }).click()
     await page.getByRole('button', { name: 'Jogar jornada' }).waitFor({ timeout: 10000 })
+    await page.getByRole('region', { name: 'Pré-época' }).waitFor({ timeout: 5000 })
     await foto('3a-jogo.png')
     await page.getByRole('button', { name: 'Plantel', exact: true }).click()
     await page.locator('table.plantel').first().waitFor({ timeout: 10000 })

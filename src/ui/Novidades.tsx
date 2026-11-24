@@ -9,7 +9,7 @@ export const NOVIDADES: { data: string; itens: string[] }[] = [
       'Verba da direção no arranque, ligada à confiança; investidores entram a meio da época em clubes que superam o esperado.',
       'Patrocínio por objetivos (arriscar antes da 1.ª jornada) e venda do nome do estádio.',
       'Separador Clube: contas da época, previsão da caixa até ao fim da época e épocas anteriores.',
-      'Prémios de jogo no Balneário e contrapropostas no mercado.',
+      'Prémios de jogo no Balneário, contrapropostas no mercado e escolha da pré-época (digressão ou estágio).',
       'Conquistas da carreira, treinador do mês e cópia de segurança da carreira num ficheiro.',
       'Atributos dos jogadores, 2D com mais vida e épocas mais equilibradas.',
     ],

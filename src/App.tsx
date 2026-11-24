@@ -5,6 +5,7 @@ import { ObrasBanco } from './ui/ObrasBanco'
 import { AbrirCopia, descarregarCopia } from './ui/CopiaSeguranca'
 import { AvisoConquistas } from './ui/Conquistas'
 import { Novidades } from './ui/Novidades'
+import { PreEpoca } from './ui/PreEpoca'
 import { verificarConquistas } from './core/conquistas'
 import { avancarInvestidores } from './core/investidores'
 import { avancarPremiosJogo } from './core/premios-jogo'
@@ -315,6 +316,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
       {sep === 'jogo' && <AvisoDirecao jogo={jogo} abrir={() => setSep('carreira')} />}
       {sep === 'jogo' && <AvisoConquistas jogo={jogo} atualizar={atualizar} />}
       {sep === 'jogo' && <AvisoInvestidor jogo={jogo} />}
+      {sep === 'jogo' && <PreEpoca jogo={jogo} atualizar={atualizar} />}
       {sep === 'jogo' && !pendTaca && !pendEu && <><AvisoRival jogo={jogo} /><ConferenciaCartao jogo={jogo} atualizar={atualizar} /></>}
       {sep === 'jogo' && (pendTaca
         ? <PreJogo key="taca" jogo={jogo} mudar={mudarEscalacao} outro={avisoTaca(jogo as JogoComTaca, pendTaca.ronda, pendTaca.partida)} jogar={() => setTacaVivo(`${jogo.epoca.ano}-${pendTaca.partida.id}`)} />
