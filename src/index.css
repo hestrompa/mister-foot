@@ -279,3 +279,5 @@ h1, h2, h3 { margin: 0; }
 .copia-seguranca .erro { color: var(--f-fraca); margin: 6px 0 0; }
 .abrir-copia { display: contents; }
 .copia-seguranca .erro { flex-basis: 100%; }
+.novidades h2 { font-size: 18px; margin: 0 0 6px; }
+.novidades ul { margin: 0 0 8px; padding-left: 18px; color: var(--texto-2); font-size: 14px; display: flex; flex-direction: column; gap: 4px; }

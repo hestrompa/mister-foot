@@ -4,6 +4,7 @@ import { salariosPorJornada } from './core/financas'
 import { ObrasBanco } from './ui/ObrasBanco'
 import { AbrirCopia, descarregarCopia } from './ui/CopiaSeguranca'
 import { AvisoConquistas } from './ui/Conquistas'
+import { Novidades } from './ui/Novidades'
 import { verificarConquistas } from './core/conquistas'
 import { avancarInvestidores } from './core/investidores'
 import { avancarPremiosJogo } from './core/premios-jogo'
@@ -121,6 +122,7 @@ function Inicio({ temJogo, continuar, novo, copia, aberto }: { temJogo: boolean;
         </label>
         <button className="botao principal" type="submit">Gerar mundo</button>
       </form>
+      <Novidades />
       <div className="cartao copia-seguranca">
         <h2>Cópia de segurança</h2>
         <p className="dica">A carreira fica gravada neste browser. Guarda uma cópia num ficheiro para a passar para outro aparelho ou não a perder se limpares o browser.</p>
