@@ -5,6 +5,7 @@ import type { Jogo, Mundo } from '../core/types'
 import { avancarMercado, type JogoComMercado } from '../core/mercado'
 import { prepararEpoca } from './gravar'
 import type { EpocaComInicio } from '../core/inicio-epoca'
+import { avancarInvestidores } from '../core/investidores'
 import { garantirStaff, staffIA } from '../core/staff-ia'
 import { salariosPorJornada } from '../core/financas'
 import { avancarTaca, jogarRondaTaca, meuJogoPendente, registarCampeao, type JogoComTaca } from '../core/taca'
@@ -118,6 +119,8 @@ export interface MedidaDinheiro {
   transferencias: number
   /** Média por clube (divisão no início da época) de cada fluxo de dinheiro na época. */
   fluxos: Record<'inicio' | 'bilheteira' | 'fixas' | 'salarios' | 'estadio' | 'taca' | 'europa' | 'resto' | 'saldo', number>[]
+  investidores?: number
+  investido?: number
 }
 
 const pct = (v: number[], p: number) => { const s = v.slice().sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(p * s.length))] }
@@ -152,6 +155,7 @@ export function medirDinheiro(semente: number, epocas: number, divUtilizador = 3
   const out: MedidaDinheiro[] = []
   for (let e = 0; e < epocas; e++) {
     let n = 0
+    const invest = { n: 0, total: 0 }
     const clubeAntes = new Map(Object.values(mundo.jogadores).map((j) => [j.id, j.clubeId]))
     const divAntes = new Map(Object.values(mundo.clubes).map((c) => [c.id, c.divisao]))
     const ini = (jogo.epoca as EpocaComInicio).inicio ?? {}
@@ -168,6 +172,7 @@ export function medirDinheiro(semente: number, epocas: number, divUtilizador = 3
     while (!epocaTerminada(jogo.epoca)) {
       concluirJornada(mundo, jogo.epoca, semente * 1000 + e * 50 + n++)
       somarBalanco()
+      for (const i of avancarInvestidores(mundo, jogo.epoca)) { invest.n++; invest.total += i.valor }
       if (tudo) registarFichas(jogo)
       avancarMercado(jogo)
       if (taca || tudo) competicoes(jogo)
@@ -189,7 +194,7 @@ export function medirDinheiro(semente: number, epocas: number, divUtilizador = 3
       f.resto = f.saldo - f.inicio - f.bilheteira - f.fixas - f.salarios - f.estadio - f.taca - f.europa
       for (const k of Object.keys(f) as (keyof typeof f)[]) f[k] = Math.round(f[k] / 18)
     }
-    const m: MedidaDinheiro = { ano, p10: [], p50: [], p90: [], max: [], min: [], vermelho: 0, emprestimo: 0, obras: 0, salarios: [], forcaMedia: [], plantelMin: 99, plantelMax: 0, total: 0, transferencias, fluxos: fl }
+    const m: MedidaDinheiro = { ano, p10: [], p50: [], p90: [], max: [], min: [], vermelho: 0, emprestimo: 0, obras: 0, salarios: [], forcaMedia: [], plantelMin: 99, plantelMax: 0, total: 0, transferencias, fluxos: fl, investidores: invest.n, investido: invest.total }
     for (const d of mundo.divisoes) {
       const din = d.clubes.map((id) => mundo.clubes[id].dinheiro)
       m.p10.push(pct(din, 0.1)); m.p50.push(pct(din, 0.5)); m.p90.push(pct(din, 0.9))

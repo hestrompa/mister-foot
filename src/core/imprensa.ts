@@ -84,6 +84,11 @@ export function estadoImprensa(jogo: Jogo): EstadoImprensa {
   return j.imprensa
 }
 
+/** Notícia vinda de fora da imprensa (investidores, por exemplo), na jornada que acabou de passar. */
+export function noticiaExtra(jogo: Jogo, tipo: TipoNoticia, titulo: string, texto?: string): void {
+  publicar(estadoImprensa(jogo), { ano: jogo.epoca.ano, jornada: Math.max(1, jogo.epoca.jornada - 1), tipo, titulo, texto })
+}
+
 function publicar(st: EstadoImprensa, n: Omit<Noticia, 'n'>) {
   st.seq += 1
   st.noticias.push({ ...n, n: st.seq })

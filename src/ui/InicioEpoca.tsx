@@ -5,6 +5,7 @@ import { euros, lugares } from '../core/formato'
 import './obras-banco.css'
 import { PARTE_JORNADA, type EpocaComInicio } from '../core/inicio-epoca'
 import { previsaoFimEpoca, type JogoComHistFinancas } from '../core/previsao'
+import { CONFIANCA_VERBA, type EpocaComInvestidores } from '../core/investidores'
 
 export function InicioEpoca({ jogo, titulo = 'Dinheiro para a nova época' }: { jogo: Jogo; titulo?: string }) {
   const inj = (jogo.epoca as EpocaComInicio).inicio?.[jogo.clubeId]
@@ -19,6 +20,7 @@ export function InicioEpoca({ jogo, titulo = 'Dinheiro para a nova época' }: { 
           <tr><td>Direitos de TV</td><td className="num">{euros(inj.tv)}</td><td className="ie-d">igual para todos na divisão</td></tr>
           <tr><td>Patrocinador principal</td><td className="num">{euros(inj.patrocinio)}</td><td className="ie-d">mais nome, contrato maior</td></tr>
           <tr><td>Lugares anuais</td><td className="num">{euros(inj.anuais)}</td><td className="ie-d">{lugares(inj.socios)} sócios com lugar (não pagam bilhete jogo a jogo)</td></tr>
+          {inj.confianca !== undefined && <tr><td>Verba da direção</td><td className="num">{euros(inj.direcao ?? 0)}</td><td className="ie-d">confiança da direção {inj.confianca}/100{inj.direcao ? '' : ` (só há verba acima de ${CONFIANCA_VERBA})`}</td></tr>}
           <tr><td>Prémio da Liga</td><td className="num">{euros(inj.premio)}</td><td className="ie-d">{inj.lugarAnterior ? `${inj.lugarAnterior}.º lugar na ${div(inj.divisaoAnterior)}` : 'sem época anterior'}</td></tr>
         </tbody>
       </table>
@@ -44,6 +46,7 @@ export function ContasDaEpoca({ jogo }: { jogo: Jogo }) {
     ['TV e publicidade (por jornada)', c?.fixas ?? 0],
     ['Taça', taca],
     ['Europa', europa],
+    ['Investidores', ((e as EpocaComInvestidores).investidores ?? []).filter((i) => i.clubeId === id).reduce((t, i) => t + i.valor, 0)],
     ['Salários (plantel e staff)', -(c?.salarios ?? 0)],
     ['Manutenção do estádio', -(c?.estadio ?? 0)],
     ['Banco (prestações)', -(c?.banco ?? 0)],
@@ -110,5 +113,18 @@ export function HistoricoFinancas({ jogo }: { jogo: Jogo }) {
         </tbody>
       </table>
     </section>
+  )
+}
+
+/** Aviso no separador Jogo quando um investidor entra no clube (na jornada que acabou de passar). */
+export function AvisoInvestidor({ jogo }: { jogo: Jogo }) {
+  const inv = ((jogo.epoca as EpocaComInvestidores).investidores ?? []).filter((i) => i.clubeId === jogo.clubeId && jogo.epoca.jornada - 1 - i.jornada <= 1)
+  if (!inv.length) return null
+  const i = inv[inv.length - 1]
+  return (
+    <div className="cartao aviso-investidor" role="status" data-testid="aviso-investidor">
+      <b>Entrou um investidor no clube!</b>
+      <span>O {i.nome} gostou dos resultados e injetou {euros(i.valor)} na SAD. Usa bem o dinheiro: mercado, obras ou banco.</span>
+    </div>
   )
 }

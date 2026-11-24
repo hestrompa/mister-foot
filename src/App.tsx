@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { forcaClube, gerarMundo } from './core/mundo'
+import { forcaClube, gerarMundo, NOMES_DIVISAO } from './core/mundo'
 import { salariosPorJornada } from './core/financas'
 import { ObrasBanco } from './ui/ObrasBanco'
 import { AbrirCopia, descarregarCopia } from './ui/CopiaSeguranca'
 import { AvisoConquistas } from './ui/Conquistas'
 import { verificarConquistas } from './core/conquistas'
+import { avancarInvestidores } from './core/investidores'
+import { AvisoInvestidor } from './ui/InicioEpoca'
 import { euros, lugares } from './core/formato'
 import type { Jogo, Mundo } from './core/types'
 import type { Escalacao } from './core/partida'
@@ -32,7 +34,7 @@ import { avancarBalneario } from './core/balneario-acoes'
 import { avancarSelecao } from './core/selecao'
 import { Balneario, conflitosPendentes } from './ui/Balneario'
 import { registarFichas } from './core/fichas'
-import { avancarImprensa, noticiasPorLer } from './core/imprensa'
+import { avancarImprensa, noticiaExtra, noticiasPorLer } from './core/imprensa'
 import { AvisoRival, ConferenciaCartao, Noticias } from './ui/Imprensa'
 import { Historia } from './ui/Historia'
 import { EditarClube } from './ui/EditarClube'
@@ -202,6 +204,10 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
     avancarBalneario(jogo)
     avancarSelecao(jogo)
     avancarDirecao(jogo)
+    for (const i of avancarInvestidores(mundo, jogo.epoca)) {
+      const c = mundo.clubes[i.clubeId]
+      noticiaExtra(jogo, i.clubeId === jogo.clubeId ? 'meu' : 'liga', `${c.nome}: ${i.nome} investe ${euros(i.valor)}`, `Os bons resultados na ${NOMES_DIVISAO[c.divisao - 1] ?? 'divisão'} convenceram os investidores. O dinheiro já está na conta do clube.`)
+    }
     avancarImprensa(jogo)
     verificarConquistas(jogo)
     if (!epocaTerminada(jogo.epoca) && despedido(jogo)) { atualizar(jogo); return }
@@ -298,6 +304,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
 
       {sep === 'jogo' && <AvisoDirecao jogo={jogo} abrir={() => setSep('carreira')} />}
       {sep === 'jogo' && <AvisoConquistas jogo={jogo} atualizar={atualizar} />}
+      {sep === 'jogo' && <AvisoInvestidor jogo={jogo} />}
       {sep === 'jogo' && !pendTaca && !pendEu && <><AvisoRival jogo={jogo} /><ConferenciaCartao jogo={jogo} atualizar={atualizar} /></>}
       {sep === 'jogo' && (pendTaca
         ? <PreJogo key="taca" jogo={jogo} mudar={mudarEscalacao} outro={avisoTaca(jogo as JogoComTaca, pendTaca.ronda, pendTaca.partida)} jogar={() => setTacaVivo(`${jogo.epoca.ano}-${pendTaca.partida.id}`)} />

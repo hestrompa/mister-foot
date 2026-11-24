@@ -28,6 +28,9 @@ export interface InjecaoEpoca {
   /** Lugar e divisão da época anterior (para o prémio). */
   lugarAnterior?: number
   divisaoAnterior?: number
+  /** Verba da direção (ligada à confiança no fim da época anterior). */
+  direcao?: number
+  confianca?: number
   total: number
 }
 

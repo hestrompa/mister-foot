@@ -6,6 +6,7 @@ import { garantirStaff, staffIA } from '../core/staff-ia'
 import { epocaTerminada, fecharEpoca, indisponiveisDe, novaEpoca, tabela } from '../core/epoca'
 import { pagarInicioEpoca } from '../core/inicio-epoca'
 import { registarEpocaFinancas } from '../core/previsao'
+import { pagarVerbaDirecao } from '../core/investidores'
 import { registarCampeao, type JogoComTaca } from '../core/taca'
 import { avancarDirecao, iniciarEpocaDirecao } from '../core/direcao'
 import { feriasBalneario } from '../core/balneario'
@@ -57,6 +58,7 @@ export function prepararEpoca(jogo: Jogo): Jogo {
   const anteriores = anterior ? anterior.calendario.map((_, d) => tabela(jogo.mundo, anterior, d + 1)) : []
   jogo.epoca = novaEpoca(jogo.mundo, sementeEpoca(jogo))
   pagarInicioEpoca(jogo.mundo, jogo.epoca, anteriores)
+  pagarVerbaDirecao(jogo, anteriores)
   if (anterior) {
     const d = anteriores.findIndex((t) => t.some((l) => l.clubeId === jogo.clubeId))
     if (d >= 0) registarEpocaFinancas(jogo, anterior, d + 1, anteriores[d].findIndex((l) => l.clubeId === jogo.clubeId) + 1)
