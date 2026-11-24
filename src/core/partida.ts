@@ -125,6 +125,8 @@ export interface EstadoEpoca {
   marcadores: Record<number, number>
   /** Balanço da última jornada por clube (bilheteira, receitas fixas, salários). */
   ultimoBalanco?: Record<number, import('./financas').Balanco>
+  /** Situação líquida (caixa menos capital em dívida) de cada clube no arranque da época, para o imposto sobre o lucro. */
+  liquidoInicio?: Record<number, number>
 }
 
 export interface ResumoEpoca {
@@ -133,4 +135,6 @@ export interface ResumoEpoca {
   subidas: { divisao: number; clubeIds: number[] }[]
   descidas: { divisao: number; clubeIds: number[] }[]
   melhorMarcador: { jogadorId: number; golos: number } | null
+  /** Lucro da época e imposto pago (IRC) por clube, só para quem teve lucro. */
+  impostos?: Record<number, { lucro: number; imposto: number }>
 }

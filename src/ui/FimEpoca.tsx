@@ -6,6 +6,8 @@ import { vencedorTacaDe } from './Taca'
 import { NOME_TACA } from '../core/taca'
 import { EuropaFimEpoca } from './Europa'
 import { BalancoDirecao } from './Carreira'
+import { euros } from '../core/formato'
+import { TAXA_IRC } from '../core/epoca'
 
 export interface DadosFimEpoca {
   resumo: ResumoEpoca
@@ -53,6 +55,16 @@ export function FimEpoca({ jogo, d, continuar }: { jogo: Jogo; d: DadosFimEpoca;
           )
         })()}
         <EuropaFimEpoca jogo={jogo} ano={r.ano} />
+        {(() => {
+          const irc = r.impostos?.[jogo.clubeId]
+          return (
+            <div className="cartao info" data-testid="fim-irc">
+              <span className="info-t">Contas da época</span>
+              {irc ? <span className="info-v">Lucro de {euros(irc.lucro)}</span> : <span className="info-v">Sem lucro</span>}
+              <span className="info-d">{irc ? `IRC (${Math.round(TAXA_IRC * 100)}%): ${euros(irc.imposto)} pagos ao Estado.` : 'Sem lucro não se paga IRC. Obras e reforços contam como despesa.'}</span>
+            </div>
+          )
+        })()}
         {r.melhorMarcador && (
           <div className="cartao info">
             <span className="info-t">Melhor marcador</span>

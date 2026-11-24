@@ -106,7 +106,34 @@ export function novaEpoca(mundo: Mundo, semente: number): EstadoEpoca {
     calendario[div.numero - 1] = jornadas
     totalJornadas = Math.max(totalJornadas, jornadas.length)
   }
-  return { ano, jornada: 1, totalJornadas, calendario, amarelos: {}, indisponiveis: {}, marcadores: {} }
+  const liquidoInicio: Record<number, number> = {}
+  for (const c of Object.values(mundo.clubes)) liquidoInicio[c.id] = liquido(c)
+  return { ano, jornada: 1, totalJornadas, calendario, amarelos: {}, indisponiveis: {}, marcadores: {}, liquidoInicio }
+}
+
+/** IRC sobre o lucro da época (como uma SAD). Obras e reforços pagos na época descontam no lucro. */
+export const TAXA_IRC = 0.21
+
+/** Caixa menos o capital que falta pagar ao banco (um empréstimo não é lucro). */
+function liquido(c: { dinheiro: number; emprestimo?: { capital: number } }): number {
+  return c.dinheiro - (c.emprestimo?.capital ?? 0)
+}
+
+/** Cobra o IRC a quem deu lucro na época. Devolve lucro e imposto por clube. */
+export function cobrarImpostos(mundo: Mundo, epoca: EstadoEpoca): Record<number, { lucro: number; imposto: number }> {
+  const out: Record<number, { lucro: number; imposto: number }> = {}
+  if (!epoca.liquidoInicio) return out
+  for (const c of Object.values(mundo.clubes)) {
+    const inicio = epoca.liquidoInicio[c.id]
+    if (inicio === undefined) continue
+    const lucro = liquido(c) - inicio
+    if (lucro <= 0) continue
+    const imposto = Math.round((lucro * TAXA_IRC) / 1000) * 1000
+    if (imposto <= 0) continue
+    c.dinheiro -= imposto
+    out[c.id] = { lucro, imposto }
+  }
+  return out
 }
 
 /** Partidas da jornada atual numa divisão. */
@@ -360,6 +387,8 @@ export function fecharEpoca(mundo: Mundo, epoca: EstadoEpoca): ResumoEpoca {
     j.contrato = Math.max(0, j.contrato - 1)
   }
 
+  const impostos = cobrarImpostos(mundo, epoca)
+
   mundo.epoca += 1
-  return { ano: epoca.ano, campeoes, subidas, descidas, melhorMarcador }
+  return { ano: epoca.ano, campeoes, subidas, descidas, melhorMarcador, impostos }
 }

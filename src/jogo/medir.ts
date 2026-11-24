@@ -8,6 +8,11 @@ import { garantirStaff, staffIA } from '../core/staff-ia'
 import { salariosPorJornada } from '../core/financas'
 import { avancarTaca, jogarRondaTaca, meuJogoPendente, registarCampeao, type JogoComTaca } from '../core/taca'
 import { avancarEuropa, jogarDiaEuropa, meuJogoEuropa, qualificarEuropa, type JogoComEuropa } from '../core/europa'
+import { registarFichas } from '../core/fichas'
+import { avancarBalneario } from '../core/balneario-acoes'
+import { avancarSelecao } from '../core/selecao'
+import { avancarDirecao } from '../core/direcao'
+import { avancarImprensa } from '../core/imprensa'
 
 export interface MedidaEpoca {
   ano: number
@@ -99,6 +104,8 @@ export interface MedidaDinheiro {
   ano: number
   /** Por divisão: percentis 10/50/90 do dinheiro em caixa no fim da época. */
   p10: number[]; p50: number[]; p90: number[]
+  /** Por divisão: o mais rico e o mais pobre. */
+  max: number[]; min: number[]
   /** Clubes no vermelho, com empréstimo, e com obra feita ou a decorrer. */
   vermelho: number; emprestimo: number; obras: number
   /** Massa salarial anual mediana por divisão. */
@@ -108,6 +115,8 @@ export interface MedidaDinheiro {
   /** Dinheiro total no mundo. */
   total: number
   transferencias: number
+  /** Média por clube (divisão no início da época) de cada fluxo de dinheiro na época. */
+  fluxos: Record<'bilheteira' | 'fixas' | 'salarios' | 'estadio' | 'taca' | 'europa' | 'resto' | 'saldo', number>[]
 }
 
 const pct = (v: number[], p: number) => { const s = v.slice().sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(p * s.length))] }
@@ -125,8 +134,17 @@ function competicoes(jogo: JogoComTaca & JogoComEuropa) {
   }
 }
 
-/** Joga `epocas` épocas como a app (o clube do utilizador não faz nada: só joga). Com `taca`, joga também a taça e a Europa. */
-export function medirDinheiro(semente: number, epocas: number, divUtilizador = 3, taca = false): MedidaDinheiro[] {
+/** O resto do que a app faz depois de cada jornada (fichas, balneário, seleções, direção, imprensa). */
+function restoDaJornada(jogo: Jogo) {
+  registarFichas(jogo)
+  avancarBalneario(jogo)
+  avancarSelecao(jogo)
+  avancarDirecao(jogo)
+  avancarImprensa(jogo)
+}
+
+/** Joga `epocas` épocas como a app (o clube do utilizador não faz nada: só joga). Com `taca`, joga também a taça e a Europa; com `tudo`, também o balneário, seleções, direção, imprensa e fichas. */
+export function medirDinheiro(semente: number, epocas: number, divUtilizador = 3, taca = false, tudo = false): MedidaDinheiro[] {
   const mundo = gerarMundo(semente)
   const clubeId = mundo.divisoes[divUtilizador].clubes[9]
   const jogo = prepararEpoca({ mundo, treinador: 'T', clubeId, criado: '' } as Jogo) as JogoComMercado
@@ -134,22 +152,45 @@ export function medirDinheiro(semente: number, epocas: number, divUtilizador = 3
   for (let e = 0; e < epocas; e++) {
     let n = 0
     const clubeAntes = new Map(Object.values(mundo.jogadores).map((j) => [j.id, j.clubeId]))
+    const divAntes = new Map(Object.values(mundo.clubes).map((c) => [c.id, c.divisao]))
+    const dinAntes = new Map(Object.values(mundo.clubes).map((c) => [c.id, c.dinheiro]))
+    const fl = mundo.divisoes.map(() => ({ bilheteira: 0, fixas: 0, salarios: 0, estadio: 0, taca: 0, europa: 0, resto: 0, saldo: 0 }))
+    const somarBalanco = () => {
+      for (const [k, b] of Object.entries(jogo.epoca.ultimoBalanco ?? {})) {
+        const f = fl[(divAntes.get(Number(k)) ?? 1) - 1]
+        f.bilheteira += b.bilheteira; f.fixas += b.fixas; f.salarios -= b.salarios; f.estadio -= b.estadio ?? 0
+      }
+    }
     avancarMercado(jogo)
-    if (taca) competicoes(jogo)
+    if (taca || tudo) competicoes(jogo)
     while (!epocaTerminada(jogo.epoca)) {
       concluirJornada(mundo, jogo.epoca, semente * 1000 + e * 50 + n++)
+      somarBalanco()
+      if (tudo) registarFichas(jogo)
       avancarMercado(jogo)
-      if (taca) competicoes(jogo)
+      if (taca || tudo) competicoes(jogo)
+      if (tudo) restoDaJornada(jogo)
     }
     const ano = jogo.epoca.ano
     const transferencias = Object.values(mundo.jogadores).filter((j) => j.clubeId !== 0 && clubeAntes.has(j.id) && clubeAntes.get(j.id) !== 0 && clubeAntes.get(j.id) !== j.clubeId).length
-    if (taca) qualificarEuropa(jogo)
+    if (taca || tudo) qualificarEuropa(jogo)
     const resumo = fecharEpoca(mundo, jogo.epoca)
-    if (taca) registarCampeao(jogo, resumo.campeoes)
-    const m: MedidaDinheiro = { ano, p10: [], p50: [], p90: [], vermelho: 0, emprestimo: 0, obras: 0, salarios: [], forcaMedia: [], plantelMin: 99, plantelMax: 0, total: 0, transferencias }
+    if (taca || tudo) registarCampeao(jogo, resumo.campeoes)
+    const jt = jogo as JogoComTaca & JogoComEuropa
+    for (const c of Object.values(mundo.clubes)) {
+      const f = fl[(divAntes.get(c.id) ?? 1) - 1]
+      const t = jt.taca?.receitas[c.id] ?? 0, eu = jt.europa?.receitas[c.id] ?? 0
+      f.taca += t; f.europa += eu; f.saldo += c.dinheiro - (dinAntes.get(c.id) ?? 0)
+    }
+    for (const f of fl) {
+      f.resto = f.saldo - f.bilheteira - f.fixas - f.salarios - f.estadio - f.taca - f.europa
+      for (const k of Object.keys(f) as (keyof typeof f)[]) f[k] = Math.round(f[k] / 18)
+    }
+    const m: MedidaDinheiro = { ano, p10: [], p50: [], p90: [], max: [], min: [], vermelho: 0, emprestimo: 0, obras: 0, salarios: [], forcaMedia: [], plantelMin: 99, plantelMax: 0, total: 0, transferencias, fluxos: fl }
     for (const d of mundo.divisoes) {
       const din = d.clubes.map((id) => mundo.clubes[id].dinheiro)
       m.p10.push(pct(din, 0.1)); m.p50.push(pct(din, 0.5)); m.p90.push(pct(din, 0.9))
+      m.max.push(Math.max(...din)); m.min.push(Math.min(...din))
       m.salarios.push(pct(d.clubes.map((id) => salariosPorJornada(mundo, id) * 34), 0.5))
       m.forcaMedia.push(Math.round(d.clubes.reduce((s, id) => s + forcaClube(mundo, id), 0) / d.clubes.length))
       for (const id of d.clubes) {

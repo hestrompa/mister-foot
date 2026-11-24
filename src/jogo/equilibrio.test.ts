@@ -114,7 +114,8 @@ describe('dinheiro com mercado, contratos, obras e empréstimos', () => {
     const ms = medirDinheiro(21, 4)
     for (const m of ms) expect(m.vermelho).toBeLessThanOrEqual(6)
     const [a, z] = [ms[0], ms[ms.length - 1]]
-    for (let d = 1; d < 4; d++) expect(z.salarios[d]).toBeLessThan(a.salarios[d] * 1.6)
+    // Clubes com dinheiro a mais pagam mais (fatorRiqueza): alguma subida é de propósito, mas não sem fim.
+    for (let d = 1; d < 4; d++) expect(z.salarios[d]).toBeLessThan(a.salarios[d] * 1.75)
     expect((z.total - a.total) / (ms.length - 1)).toBeLessThan(100_000_000)
     // A força das divisões não se aproxima demasiado (no início: ~71/58/48/38).
     for (let d = 0; d < 4; d++) expect(Math.abs(z.forcaMedia[d] - a.forcaMedia[d])).toBeLessThanOrEqual(4)
@@ -132,4 +133,15 @@ describe('dinheiro com a taça e a Europa', () => {
     expect((z.p90[0] - a.p90[0]) / (ms.length - 1)).toBeLessThan(25_000_000)
     expect((z.total - a.total) / (ms.length - 1)).toBeLessThan(120_000_000)
   }, 40_000)
+
+  it('com tudo ligado (balneário, seleções, direção, imprensa), 6 épocas sem deriva', async () => {
+    const { medirDinheiro } = await import('./medir')
+    const ms = medirDinheiro(44, 6, 3, true, true)
+    for (const m of ms) expect(m.vermelho).toBeLessThanOrEqual(6)
+    const [a, z] = [ms[0], ms[ms.length - 1]]
+    // Antes do IRC e dos salários dos ricos o mundo ganhava ~100 M€ por época, e a 1.ª chegava a 60-80 M€ de mediana em 12.
+    expect((z.total - a.total) / (ms.length - 1)).toBeLessThan(70_000_000)
+    expect(z.p50[0]).toBeLessThan(40_000_000)
+    for (let d = 0; d < 4; d++) expect(Math.abs(z.forcaMedia[d] - a.forcaMedia[d])).toBeLessThanOrEqual(4)
+  }, 90_000)
 })

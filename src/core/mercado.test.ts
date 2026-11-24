@@ -150,6 +150,8 @@ describe('contratos', () => {
     const fica = acaba[0]
     expect(renovar(j, fica.id, 2).ok).toBe(true)
     expect(fica.contrato).toBe(2)
+    // O teste é sobre contratos: ninguém paga a cláusula deste.
+    ;(fica as { clausula?: number }).clausula = 1e12
     let n = 0
     while (!epocaTerminada(j.epoca)) { concluirJornada(j.mundo, j.epoca, 500 + n++); avancarMercado(j) }
     fecharEpoca(j.mundo, j.epoca)

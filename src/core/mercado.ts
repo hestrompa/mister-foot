@@ -7,7 +7,7 @@ import { indisponiveisDe } from './epoca'
 import type { EstadoEpoca } from './partida'
 import { gerarJunior } from './juniores'
 import { juniorExtra } from './staff'
-import { RECEITA_FIXA, salariosPorJornada } from './financas'
+import { RECEITA_FIXA, publicoEsperado, salariosPorJornada } from './financas'
 import type { Jogador, Jogo, Mundo, Posicao } from './types'
 import { moralDe } from './balneario'
 
@@ -210,19 +210,36 @@ function ganho(mundo: Mundo, clubeId: number, j: Jogador): number {
 
 // ---------- Salários e orçamento da IA ----------
 
+/**
+ * Os empresários sabem quem tem dinheiro: um clube com mais de uma época de receitas em caixa paga mais pelo mesmo jogador
+ * (+75% por cada época a mais, até 2,5 vezes). É isto que impede os ricos de acumular sem fim.
+ */
+export function fatorRiqueza(mundo: Mundo, clubeId: number): number {
+  const c = mundo.clubes[clubeId]
+  if (!c) return 1
+  // Quem já gasta quase tudo o que ganha em salários não está "rico", mesmo com dinheiro em caixa.
+  if (pesoSalarial(mundo, clubeId) >= 0.8) return 1
+  const anual = receitaEstimada(mundo, clubeId) * 34
+  const epocas = c.dinheiro / Math.max(1, anual)
+  return 1 + 0.75 * Math.min(2, Math.max(0, epocas - 1))
+}
+
 /** Salário de um jogador ao mudar de clube: quem desce de divisão aceita ganhar menos (até 70% do que ganhava). */
 export function salarioNoClube(mundo: Mundo, j: Jogador, clubeId: number): number {
   const origem = mundo.clubes[j.clubeId]
   const destino = mundo.clubes[clubeId]
-  const justo = salarioDe(j.forca, destino.divisao)
+  const justo = salarioDe(j.forca, destino.divisao) * fatorRiqueza(mundo, clubeId)
   if (origem && destino.divisao > origem.divisao) return arredonda(Math.max(justo, j.salario * 0.7))
   return arredonda(Math.max(justo, j.salario))
 }
 
-/** Receita estimada por jornada de um clube: fixas + metade dos jogos em casa com 70% do estádio. */
+/** Receita estimada por jornada de um clube: fixas + metade dos jogos em casa, com o público de um jogo normal (a meio da tabela, adversário médio). */
 export function receitaEstimada(mundo: Mundo, clubeId: number): number {
   const c = mundo.clubes[clubeId]
-  return (RECEITA_FIXA[c.divisao - 1] ?? 0) + 0.5 * c.estadio.lugares * 0.7 * c.bilhete
+  const div = mundo.divisoes[c.divisao - 1]?.clubes ?? []
+  const repMedia = div.length ? div.reduce((t, i) => t + mundo.clubes[i].reputacao, 0) / div.length : c.reputacao
+  const publico = publicoEsperado(c, { ...c, reputacao: repMedia }, 8, 18)
+  return (RECEITA_FIXA[c.divisao - 1] ?? 0) + 0.5 * publico * c.bilhete
 }
 
 /** Peso dos salários na receita (1 = gasta tudo), com um salário mensal extra opcional. */
@@ -663,7 +680,7 @@ export function pedidoRenovacao(mundo: Mundo, j: Jogador): number {
   const c = mundo.clubes[j.clubeId]
   // O que vale hoje na divisão atual (pode ser um corte), no máximo +10% do que ganha.
   // Quem cresceu muito (juniores) sobe até ao valor justo, mas no máximo +50% de uma vez.
-  const justo = salarioDe(j.forca, c?.divisao ?? 4) * (j.craque ? 1.25 : 1)
+  const justo = salarioDe(j.forca, c?.divisao ?? 4) * (j.craque ? 1.25 : 1) * fatorRiqueza(mundo, j.clubeId)
   // Quem está contente facilita; quem está chateado pede mais.
   const m = moralDe(j)
   const humor = m >= 75 ? 0.95 : m < 35 ? 1.15 : 1
@@ -701,7 +718,7 @@ export function renovar(jogo: JogoComMercado, jogadorId: number, anos: number, n
 
 /** Salário que um jogador livre pede (nunca menos do que ganhava). */
 export function pedidoLivre(mundo: Mundo, j: Jogador, clubeId: number): number {
-  return arredonda(Math.max(j.salario * 0.8, salarioDe(j.forca, mundo.clubes[clubeId].divisao)) * 1.1)
+  return arredonda(Math.max(j.salario * 0.8, salarioDe(j.forca, mundo.clubes[clubeId].divisao) * fatorRiqueza(mundo, clubeId)) * 1.1)
 }
 
 /**
@@ -757,6 +774,17 @@ function fimDeContratos(jogo: JogoComMercado, rng: Rng) {
   const ids = Object.keys(mundo.clubes).map(Number).sort((a, b) => a - b)
   for (const cid of ids) {
     const c = mundo.clubes[cid]
+    // Clube da IA com dinheiro a mais: aumenta quem está abaixo do que vale ali (os empresários batem à porta).
+    const f = cid === jogo.clubeId ? 1 : fatorRiqueza(mundo, cid)
+    if (f > 1) {
+      // Os mais fortes primeiro, enquanto os salários não passarem 15% da receita estimada (há prémios da taça e da Europa).
+      const ordem = c.plantel.map((id) => mundo.jogadores[id]).filter((j) => j.contrato > 0).sort((a, b) => b.forca - a.forca || a.id - b.id)
+      for (const j of ordem) {
+        const novo = arredonda(salarioDe(j.forca, c.divisao) * (j.craque ? 1.25 : 1) * f)
+        if (novo <= j.salario || pesoSalarial(mundo, cid, novo - j.salario) > 1.15) continue
+        j.salario = novo
+      }
+    }
     for (const id of c.plantel.slice()) {
       const j = mundo.jogadores[id]
       // Aos 36 anos retiram-se, com ou sem contrato (se o plantel não ficar curto).
@@ -844,7 +872,7 @@ function formarJuniores(jogo: JogoComMercado, rng: Rng) {
       continue
     }
     const n = rng.int(1, 3) + juniorExtra(c)
-    for (let k = 0; k < n && c.plantel.length < 25; k++) {
+    for (let k = 0; k < n && c.plantel.length < 23; k++) {
       const j = gerarJunior(mundo, rng, cid)
       j.clubeId = cid
       j.contrato = rng.int(2, 3)

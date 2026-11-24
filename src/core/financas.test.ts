@@ -32,4 +32,35 @@ describe('finanças', () => {
       console.log(`div ${d + 1}: variação média ${Math.round(media)} €, negativos ${ids.filter((id) => m.clubes[id].dinheiro < 0).length}`)
     }
   })
+
+  it('IRC: quem tem lucro paga 21%, um empréstimo não conta como lucro', async () => {
+    const { cobrarImpostos, TAXA_IRC } = await import('./epoca')
+    const { pedirEmprestimo } = await import('./banco')
+    const m = gerarMundo(4)
+    const e = novaEpoca(m, 1)
+    const [a, b, c] = m.divisoes[1].clubes.map((id) => m.clubes[id])
+    a.dinheiro += 1_000_000
+    expect(pedirEmprestimo(b, 200_000, 34)).toBe(true)
+    c.dinheiro -= 500_000
+    const antes = c.dinheiro
+    const r = cobrarImpostos(m, e)
+    expect(r[a.id]).toEqual({ lucro: 1_000_000, imposto: Math.round(1_000_000 * TAXA_IRC) })
+    expect(r[b.id]).toBeUndefined()
+    expect(r[c.id]).toBeUndefined()
+    expect(c.dinheiro).toBe(antes)
+  })
+
+  it('clubes com dinheiro a mais pagam salários mais altos', async () => {
+    const { fatorRiqueza, receitaEstimada } = await import('./mercado')
+    const m = gerarMundo(4)
+    const id = m.divisoes[0].clubes[3]
+    const c = m.clubes[id]
+    for (const p of c.plantel) m.jogadores[p].salario = 1000
+    c.dinheiro = 0
+    expect(fatorRiqueza(m, id)).toBe(1)
+    c.dinheiro = receitaEstimada(m, id) * 34 * 2
+    expect(fatorRiqueza(m, id)).toBeCloseTo(1.75)
+    c.dinheiro = receitaEstimada(m, id) * 34 * 10
+    expect(fatorRiqueza(m, id)).toBeCloseTo(2.5)
+  })
 })
