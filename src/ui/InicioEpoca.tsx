@@ -6,6 +6,7 @@ import './obras-banco.css'
 import { PARTE_JORNADA, type EpocaComInicio } from '../core/inicio-epoca'
 import { previsaoFimEpoca, type JogoComHistFinancas } from '../core/previsao'
 import { BONUS_PATROCINIO, patrocinioPorObjetivos, podeEscolherPatrocinio, type EpocaComPatrocinio } from '../core/patrocinio'
+import { EPOCAS_NAMING, REPUTACAO_NAMING, namingDe, nomeNaming, propostaNaming, venderNaming } from '../core/naming'
 import { CONFIANCA_VERBA, type EpocaComInvestidores } from '../core/investidores'
 
 export function InicioEpoca({ jogo, titulo = 'Dinheiro para a nova época', atualizar }: { jogo: Jogo; titulo?: string; atualizar?: (j: Jogo) => void }) {
@@ -24,6 +25,7 @@ export function InicioEpoca({ jogo, titulo = 'Dinheiro para a nova época', atua
           {inj.bonusPatrocinio ? <tr><td>Bónus do patrocinador</td><td className="num">{euros(inj.bonusPatrocinio)}</td><td className="ie-d">objetivos da época passada</td></tr> : null}
           <tr><td>Lugares anuais</td><td className="num">{euros(inj.anuais)}</td><td className="ie-d">{lugares(inj.socios)} sócios com lugar (não pagam bilhete jogo a jogo)</td></tr>
           {inj.confianca !== undefined && <tr><td>Verba da direção</td><td className="num">{euros(inj.direcao ?? 0)}</td><td className="ie-d">confiança da direção {inj.confianca}/100{inj.direcao ? '' : ` (só há verba acima de ${CONFIANCA_VERBA})`}</td></tr>}
+          {inj.naming ? <tr><td>Nome do estádio</td><td className="num">{euros(inj.naming)}</td><td className="ie-d">contrato de naming</td></tr> : null}
           <tr><td>Prémio da Liga</td><td className="num">{euros(inj.premio)}</td><td className="ie-d">{inj.lugarAnterior ? `${inj.lugarAnterior}.º lugar na ${div(inj.divisaoAnterior)}` : 'sem época anterior'}</td></tr>
         </tbody>
       </table>
@@ -135,5 +137,26 @@ export function AvisoInvestidor({ jogo }: { jogo: Jogo }) {
       <b>Entrou um investidor no clube!</b>
       <span>O {i.nome} gostou dos resultados e injetou {euros(i.valor)} na SAD. Usa bem o dinheiro: mercado, obras ou banco.</span>
     </div>
+  )
+}
+
+/** Vender o nome do estádio a uma marca. */
+export function NamingEstadio({ jogo, atualizar }: { jogo: Jogo; atualizar: (j: Jogo) => void }) {
+  const c = jogo.mundo.clubes[jogo.clubeId]
+  const n = namingDe(c)
+  const p = propostaNaming(jogo)
+  return (
+    <section className="cartao inicio-epoca" data-testid="naming" aria-label="Nome do estádio">
+      <h3 className="sub-tit">Nome do estádio</h3>
+      {n ? (
+        <p>O estádio chama-se <b>{c.estadio.nome}</b> até ao fim da época {n.ate}/{String(n.ate + 1).slice(2)}. {n.marca} paga <b>{euros(n.valor)}</b> no arranque de cada época. Depois volta a ser {n.nomeAntigo}.</p>
+      ) : (
+        <>
+          <p><b>{p.marca}</b> quer dar nome ao estádio: <b>{nomeNaming(p.marca)}</b> durante {EPOCAS_NAMING} épocas, a <b>{euros(p.valor)}</b> por época (a primeira paga já).</p>
+          <p className="ie-nota">Os adeptos não gostam: a reputação do clube desce {REPUTACAO_NAMING} pontos.</p>
+          <button className="botao" onClick={() => { if (venderNaming(jogo)) atualizar(jogo) }}>Vender o nome do estádio</button>
+        </>
+      )}
+    </section>
   )
 }

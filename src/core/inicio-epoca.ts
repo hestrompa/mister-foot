@@ -4,6 +4,7 @@
 import type { Mundo } from './types'
 import type { EstadoEpoca, LinhaTabela } from './partida'
 import { RECEITA_FIXA, BILHETE_NORMAL } from './financas'
+import { avancarNaming } from './naming'
 
 /** Parte das receitas fixas (TV e patrocínios) que continua a chegar em cada jornada. */
 export const PARTE_JORNADA = 0.65 // igual à constante em financas.ts
@@ -31,6 +32,8 @@ export interface InjecaoEpoca {
   /** Verba da direção (ligada à confiança no fim da época anterior). */
   direcao?: number
   confianca?: number
+  /** Nome do estádio vendido a uma marca. */
+  naming?: number
   /** Bónus do patrocinador por objetivos da época anterior. */
   bonusPatrocinio?: number
   total: number
@@ -104,6 +107,11 @@ export function pagarInicioEpoca(mundo: Mundo, epoca: EstadoEpoca, anteriores: L
       c.dinheiro += inj.total
       out[id] = inj
     }
+  }
+  for (const [id, v] of avancarNaming(Object.values(mundo.clubes), epoca.ano)) {
+    if (!out[id]) continue
+    out[id].naming = v
+    out[id].total += v
   }
   ;(epoca as EpocaComInicio).inicio = out
   return out

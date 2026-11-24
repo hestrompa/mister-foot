@@ -97,6 +97,9 @@ try {
       await escolha.click()
       await r.getByText(/contrato por objetivos/).waitFor({ timeout: 5000 })
     }
+    const naming = page.getByRole('region', { name: 'Nome do estádio' })
+    await naming.getByRole('button', { name: 'Vender o nome do estádio' }).click()
+    await naming.getByText(/Arena até ao fim da época/).waitFor({ timeout: 5000 })
   })
 
   await passo('obras no estádio e empréstimo ao banco', async () => {
