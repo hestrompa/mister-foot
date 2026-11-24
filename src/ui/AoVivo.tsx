@@ -7,7 +7,7 @@ import { avancarMinuto, definirAutoSub, mudarFormacao, posseDoMinuto, iniciarJog
 import { concluirJornada, indisponiveisDe, partidasDaJornada, tabela } from '../core/epoca'
 import { Emblema } from './Emblema'
 import { POSTURAS } from './PreJogo'
-import { sementeJornada, TabelaLiga } from './comum'
+import { SaltarJogo, sementeJornada, TabelaLiga } from './comum'
 import { criarAmbiente, criarRepeticao, DURACAO_AMBIENTE, fimEmCampo, type CenaRepeticao } from '../core/repeticao'
 import { Repeticao2D } from './Repeticao2D'
 
@@ -276,7 +276,6 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
             <button key={v} className={`botao ${vel === v ? 'ativo' : ''}`} onClick={() => setVel(v)}>{v}x</button>
           ))}
           <button className="botao" disabled={fase !== 'jogo'} onClick={() => setFase('pausa')}>Pausa</button>
-          <button className="botao" onClick={saltar}>Saltar</button>
           <button className={`botao ${painel ? 'ativo' : ''}`} disabled={terminou(meu)} onClick={() => setPainel((v) => !v)}>Equipa</button>
           <button className="botao modo-rep" onClick={() => {
             const m: ModoRep = modoRep === 'tudo' ? 'golos' : modoRep === 'golos' ? 'nada' : 'tudo'
@@ -285,6 +284,7 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
             gravarModoRep(m)
           }}>{MODOS_REP[modoRep]}</button>
         </div>
+        <SaltarJogo saltar={saltar} />
 
         {!(fase === 'repeticao' && rep) && amb && !terminou(meu) && (
           <Repeticao2D cena={amb} mundo={mundo} casa={casa} fora={fora} autoFim={false} fim={() => {}}

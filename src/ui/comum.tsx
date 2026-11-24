@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import type { Jogo, Mundo } from '../core/types'
 import type { LinhaTabela, Partida } from '../core/partida'
 import { NUM_DIVISOES } from '../core/mundo'
@@ -57,6 +58,32 @@ export function TabelaLiga({ mundo, linhas, divisao, meuId, compacta = false, an
           })}
         </tbody>
       </table>
+    </div>
+  )
+}
+
+/**
+ * Botão para saltar o resto do jogo, pequeno, afastado dos outros controlos e
+ * com confirmação (era fácil carregar sem querer e o jogo acabava logo).
+ */
+export function SaltarJogo({ saltar }: { saltar: () => void }) {
+  const [confirmar, setConfirmar] = useState(false)
+  useEffect(() => {
+    if (!confirmar) return
+    const t = setTimeout(() => setConfirmar(false), 5000)
+    return () => clearTimeout(t)
+  }, [confirmar])
+  return (
+    <div className="saltar-jogo">
+      {confirmar ? (
+        <>
+          <span>Saltar para o resultado final?</span>
+          <button className="botao pequeno" onClick={() => { setConfirmar(false); saltar() }}>Sim, saltar</button>
+          <button className="botao pequeno fantasma" onClick={() => setConfirmar(false)}>Não</button>
+        </>
+      ) : (
+        <button className="saltar-link" onClick={() => setConfirmar(true)}>Saltar para o fim</button>
+      )}
     </div>
   )
 }

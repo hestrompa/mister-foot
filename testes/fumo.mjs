@@ -36,6 +36,10 @@ try {
   page.on('console', (m) => { if (m.type() === 'error') erros.push(`console: ${m.text()}`) })
   page.on('pageerror', (e) => erros.push(`pageerror: ${e.message}`))
   const foto = (f) => page.screenshot({ path: join(OUT, f), fullPage: true })
+  const saltarJogo = async () => {
+    await page.getByRole('button', { name: 'Saltar para o fim' }).click()
+    await page.getByRole('button', { name: 'Sim, saltar' }).click()
+  }
 
   await passo('abrir página e título "Mister-foot"', async () => {
     await page.goto(URL_BASE, { waitUntil: 'networkidle' })
@@ -220,7 +224,7 @@ try {
   })
 
   await passo('saltar e ver o resumo', async () => {
-    await page.getByRole('button', { name: 'Saltar' }).click()
+    await saltarJogo()
     await page.getByText('Outros resultados').waitFor({ timeout: 10000 })
     await foto('7-resumo.png')
     await page.locator('.rep-lista .botao').first().click()
@@ -295,7 +299,7 @@ try {
     await foto('9-ao-vivo-telemovel.png')
     const { sw, iw } = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }))
     esperar(sw <= iw + 1, `scrollWidth ${sw} > innerWidth ${iw}`)
-    await page.getByRole('button', { name: 'Saltar' }).click()
+    await saltarJogo()
     await page.getByText('Outros resultados').waitFor({ timeout: 10000 })
     await foto('10-resumo-telemovel.png')
   })
@@ -317,7 +321,7 @@ try {
 
   await passo('taça: jornada 3, depois a eliminatória da taça a meio da semana', async () => {
     await page.getByRole('button', { name: 'Jogar jornada' }).click()
-    await page.getByRole('button', { name: 'Saltar' }).click()
+    await saltarJogo()
     await page.getByText('Outros resultados').waitFor({ timeout: 10000 })
     await page.getByRole('button', { name: 'Continuar', exact: true }).click()
     const botao = page.getByRole('button', { name: 'Jogar a taça' })
@@ -328,7 +332,7 @@ try {
       await page.getByRole('button', { name: '4x' }).click()
       await page.waitForTimeout(1500)
       await foto('12b-taca-ao-vivo.png')
-      await page.getByRole('button', { name: 'Saltar' }).click()
+      await saltarJogo()
       await page.locator('.taca-titulo').waitFor({ timeout: 10000 })
       await foto('12c-taca-resumo.png')
       await page.getByRole('button', { name: 'Continuar', exact: true }).click()

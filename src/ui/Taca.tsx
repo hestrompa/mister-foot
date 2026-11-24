@@ -10,7 +10,7 @@ import {
 } from '../core/taca'
 import { Emblema } from './Emblema'
 import { PainelSubs } from './AoVivo'
-import { sementeJornada } from './comum'
+import { SaltarJogo, sementeJornada } from './comum'
 import './taca.css'
 
 const MS_MINUTO = 450
@@ -236,8 +236,8 @@ export function AoVivoTaca({ jogo, guardar, continuar }: { jogo: JogoComTaca; gu
         <div className="controlos">
           {[1, 2, 4].map((v) => <button key={v} className={`botao ${vel === v ? 'ativo' : ''}`} onClick={() => setVel(v)}>{v}x</button>)}
           <button className="botao" disabled={fase !== 'jogo'} onClick={() => setFase('pausa')}>Pausa</button>
-          <button className="botao" onClick={saltar}>Saltar</button>
         </div>
+        <SaltarJogo saltar={saltar} />
         {(fase === 'intervalo' || fase === 'lesao' || fase === 'pausa') && (
           <PainelSubs jogo={jogo} estado={meu} lado={meuLado} fase={fase} lesionado={lesionado}
             retomar={() => { setLesionado(null); setFase('jogo') }} atualizar={() => setTick((x) => x + 1)} />
