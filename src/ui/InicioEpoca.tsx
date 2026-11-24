@@ -160,3 +160,35 @@ export function NamingEstadio({ jogo, atualizar }: { jogo: Jogo; atualizar: (j: 
     </section>
   )
 }
+
+/** Onde o clube fica na divisão em caixa, massa salarial e lotação. */
+export function ComparaDivisao({ jogo }: { jogo: Jogo }) {
+  const { mundo } = jogo
+  const c = mundo.clubes[jogo.clubeId]
+  const ids = mundo.divisoes[c.divisao - 1]?.clubes ?? []
+  if (ids.length < 2) return null
+  const massa = (id: number) => mundo.clubes[id].plantel.reduce((s, j) => s + (mundo.jogadores[j]?.salario ?? 0), 0)
+  const linhas: [string, (id: number) => number, (v: number) => string][] = [
+    ['Dinheiro em caixa', (id) => mundo.clubes[id].dinheiro, (v) => euros(v)],
+    ['Massa salarial (mês)', massa, (v) => euros(v)],
+    ['Lugares no estádio', (id) => mundo.clubes[id].estadio.lugares, (v) => lugares(v)],
+    ['Reputação', (id) => mundo.clubes[id].reputacao, (v) => String(Math.round(v))],
+  ]
+  return (
+    <section className="cartao inicio-epoca" data-testid="compara-divisao" aria-label="Comparar com a divisão">
+      <h3 className="sub-tit">Comparar com a divisão</h3>
+      <table className="ie-tabela">
+        <thead><tr><th></th><th className="num">Teu</th><th className="num">Média</th><th className="num">Lugar</th></tr></thead>
+        <tbody>
+          {linhas.map(([t, f, fmt]) => {
+            const vals = ids.map((id) => f(id))
+            const meu = f(c.id)
+            const media = vals.reduce((s, v) => s + v, 0) / vals.length
+            const pos = vals.filter((v) => v > meu).length + 1
+            return <tr key={t}><td>{t}</td><td className="num">{fmt(meu)}</td><td className="num ie-d">{fmt(Math.round(media))}</td><td className="num">{pos}.º/{ids.length}</td></tr>
+          })}
+        </tbody>
+      </table>
+    </section>
+  )
+}

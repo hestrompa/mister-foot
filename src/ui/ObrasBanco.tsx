@@ -6,7 +6,7 @@ import { JURO_EPOCA, PRAZOS, juroTotal, limiteCredito, liquidar, motivoSemEmpres
 import { euros, lugares } from '../core/formato'
 import { MANUTENCAO_LUGAR } from '../core/financas'
 import './obras-banco.css'
-import { ContasDaEpoca, HistoricoFinancas, InicioEpoca, NamingEstadio, PrevisaoCaixa } from './InicioEpoca'
+import { ComparaDivisao, ContasDaEpoca, HistoricoFinancas, InicioEpoca, NamingEstadio, PrevisaoCaixa } from './InicioEpoca'
 
 const NOME_PRAZO: Record<number, string> = { 17: 'Meia época', 34: '1 época', 68: '2 épocas' }
 
@@ -28,6 +28,7 @@ export function ObrasBanco({ jogo, atualizar }: { jogo: Jogo; atualizar: (j: Jog
       <ContasDaEpoca jogo={jogo} />
       <PrevisaoCaixa jogo={jogo} />
       <HistoricoFinancas jogo={jogo} />
+      <ComparaDivisao jogo={jogo} />
       <NamingEstadio jogo={jogo} atualizar={atualizar} />
       <section className="cartao ob-cartao" aria-label="Obras no estádio">
         <h3 className="sub-tit">Obras no estádio</h3>
