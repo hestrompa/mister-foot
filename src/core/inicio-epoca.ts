@@ -31,6 +31,8 @@ export interface InjecaoEpoca {
   /** Verba da direção (ligada à confiança no fim da época anterior). */
   direcao?: number
   confianca?: number
+  /** Bónus do patrocinador por objetivos da época anterior. */
+  bonusPatrocinio?: number
   total: number
 }
 

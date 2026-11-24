@@ -5,11 +5,13 @@ import { euros, lugares } from '../core/formato'
 import './obras-banco.css'
 import { PARTE_JORNADA, type EpocaComInicio } from '../core/inicio-epoca'
 import { previsaoFimEpoca, type JogoComHistFinancas } from '../core/previsao'
+import { BONUS_PATROCINIO, patrocinioPorObjetivos, podeEscolherPatrocinio, type EpocaComPatrocinio } from '../core/patrocinio'
 import { CONFIANCA_VERBA, type EpocaComInvestidores } from '../core/investidores'
 
-export function InicioEpoca({ jogo, titulo = 'Dinheiro para a nova época' }: { jogo: Jogo; titulo?: string }) {
+export function InicioEpoca({ jogo, titulo = 'Dinheiro para a nova época', atualizar }: { jogo: Jogo; titulo?: string; atualizar?: (j: Jogo) => void }) {
   const inj = (jogo.epoca as EpocaComInicio).inicio?.[jogo.clubeId]
   if (!inj) return null
+  const po = (jogo.epoca as EpocaComPatrocinio).patrocinioObjetivos
   const div = (n?: number) => (n ? NOMES_DIVISAO[n - 1] ?? `${n}.ª Divisão` : '')
   return (
     <section className="cartao inicio-epoca" data-testid="inicio-epoca" aria-label={titulo}>
@@ -18,12 +20,19 @@ export function InicioEpoca({ jogo, titulo = 'Dinheiro para a nova época' }: { 
       <table className="ie-tabela">
         <tbody>
           <tr><td>Direitos de TV</td><td className="num">{euros(inj.tv)}</td><td className="ie-d">igual para todos na divisão</td></tr>
-          <tr><td>Patrocinador principal</td><td className="num">{euros(inj.patrocinio)}</td><td className="ie-d">mais nome, contrato maior</td></tr>
+          <tr><td>Patrocinador principal</td><td className="num">{euros(inj.patrocinio)}</td><td className="ie-d">{po ? `contrato por objetivos: bónus no fim (até ${euros(po.base * BONUS_PATROCINIO.superado)})` : 'mais nome, contrato maior'}</td></tr>
+          {inj.bonusPatrocinio ? <tr><td>Bónus do patrocinador</td><td className="num">{euros(inj.bonusPatrocinio)}</td><td className="ie-d">objetivos da época passada</td></tr> : null}
           <tr><td>Lugares anuais</td><td className="num">{euros(inj.anuais)}</td><td className="ie-d">{lugares(inj.socios)} sócios com lugar (não pagam bilhete jogo a jogo)</td></tr>
           {inj.confianca !== undefined && <tr><td>Verba da direção</td><td className="num">{euros(inj.direcao ?? 0)}</td><td className="ie-d">confiança da direção {inj.confianca}/100{inj.direcao ? '' : ` (só há verba acima de ${CONFIANCA_VERBA})`}</td></tr>}
           <tr><td>Prémio da Liga</td><td className="num">{euros(inj.premio)}</td><td className="ie-d">{inj.lugarAnterior ? `${inj.lugarAnterior}.º lugar na ${div(inj.divisaoAnterior)}` : 'sem época anterior'}</td></tr>
         </tbody>
       </table>
+      {atualizar && podeEscolherPatrocinio(jogo) && (
+        <div className="ie-escolha" data-testid="escolha-patrocinio">
+          <p><b>Contrato do patrocinador:</b> ficas com o fixo ({euros(inj.patrocinio)}, já pago) ou arriscas por objetivos? Por objetivos recebes metade agora e no fim da época um bónus: {euros(inj.patrocinio * BONUS_PATROCINIO.superado)} se superares o objetivo, {euros(inj.patrocinio * BONUS_PATROCINIO.cumprido)} se o cumprires, {euros(inj.patrocinio * BONUS_PATROCINIO.quase)} se ficares perto, nada se falhares. Só podes escolher antes da 1.ª jornada.</p>
+          <button className="botao" onClick={() => { if (patrocinioPorObjetivos(jogo)) atualizar(jogo) }}>Arriscar por objetivos</button>
+        </div>
+      )}
       <p className="ie-nota">Durante a época continuam a entrar {Math.round(PARTE_JORNADA * 100)}% das receitas de TV e publicidade por jornada, mais a bilheteira. Gere bem: este dinheiro tem de pagar salários até maio.</p>
     </section>
   )

@@ -4,7 +4,8 @@ import { escalarAuto } from '../core/motor'
 import { gestaoIA } from '../core/ia-financas'
 import { garantirStaff, staffIA } from '../core/staff-ia'
 import { epocaTerminada, fecharEpoca, indisponiveisDe, novaEpoca, tabela } from '../core/epoca'
-import { pagarInicioEpoca } from '../core/inicio-epoca'
+import { pagarInicioEpoca, type EpocaComInicio } from '../core/inicio-epoca'
+import { bonusPatrocinio } from '../core/patrocinio'
 import { registarEpocaFinancas } from '../core/previsao'
 import { pagarVerbaDirecao } from '../core/investidores'
 import { registarCampeao, type JogoComTaca } from '../core/taca'
@@ -59,6 +60,11 @@ export function prepararEpoca(jogo: Jogo): Jogo {
   jogo.epoca = novaEpoca(jogo.mundo, sementeEpoca(jogo))
   pagarInicioEpoca(jogo.mundo, jogo.epoca, anteriores)
   pagarVerbaDirecao(jogo, anteriores)
+  if (anterior) {
+    const bonus = bonusPatrocinio(jogo, anterior)
+    const inj = (jogo.epoca as EpocaComInicio).inicio?.[jogo.clubeId]
+    if (bonus && inj) { inj.bonusPatrocinio = bonus; inj.total += bonus; jogo.mundo.clubes[jogo.clubeId].dinheiro += bonus }
+  }
   if (anterior) {
     const d = anteriores.findIndex((t) => t.some((l) => l.clubeId === jogo.clubeId))
     if (d >= 0) registarEpocaFinancas(jogo, anterior, d + 1, anteriores[d].findIndex((l) => l.clubeId === jogo.clubeId) + 1)

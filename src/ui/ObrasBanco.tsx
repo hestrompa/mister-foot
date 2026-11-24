@@ -24,7 +24,7 @@ export function ObrasBanco({ jogo, atualizar }: { jogo: Jogo; atualizar: (j: Jog
 
   return (
     <div className="obras-banco">
-      <InicioEpoca jogo={jogo} titulo="Arranque da época" />
+      <InicioEpoca jogo={jogo} titulo="Arranque da época" atualizar={atualizar} />
       <ContasDaEpoca jogo={jogo} />
       <PrevisaoCaixa jogo={jogo} />
       <HistoricoFinancas jogo={jogo} />
