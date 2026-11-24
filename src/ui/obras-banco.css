@@ -27,3 +27,4 @@
 .inicio-epoca .ie-tabela th { text-align: left; font-size: 0.78rem; opacity: 0.7; padding: 4px 6px; font-weight: 600; } .inicio-epoca .ie-tabela th.num { text-align: right; } .inicio-epoca .ie-total.ie-menos { color: var(--f-fraca); }
 .aviso-investidor { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; border-color: var(--verde); } .aviso-investidor span { color: var(--texto-2); font-size: 14px; }
 .inicio-epoca .ie-escolha { margin-top: 10px; padding: 10px; border: 1px dashed var(--aviso); border-radius: 8px; } .inicio-epoca .ie-escolha p { margin: 0 0 8px; font-size: 0.88rem; }
+.aviso-tesouraria { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; border-color: var(--f-fraca); flex-wrap: wrap; }

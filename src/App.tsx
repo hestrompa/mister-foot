@@ -10,7 +10,7 @@ import { verificarConquistas } from './core/conquistas'
 import { avancarInvestidores } from './core/investidores'
 import { avancarPremiosJogo } from './core/premios-jogo'
 import { avancarTreinadorMes, JORNADAS_MES } from './core/treinador-mes'
-import { AvisoInvestidor } from './ui/InicioEpoca'
+import { AvisoInvestidor, AvisoTesouraria } from './ui/InicioEpoca'
 import { euros, lugares } from './core/formato'
 import type { Jogo, Mundo } from './core/types'
 import type { Escalacao } from './core/partida'
@@ -316,6 +316,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
       {sep === 'jogo' && <AvisoDirecao jogo={jogo} abrir={() => setSep('carreira')} />}
       {sep === 'jogo' && <AvisoConquistas jogo={jogo} atualizar={atualizar} />}
       {sep === 'jogo' && <AvisoInvestidor jogo={jogo} />}
+      {sep === 'jogo' && <AvisoTesouraria jogo={jogo} abrir={() => setSep('clube')} />}
       {sep === 'jogo' && <PreEpoca jogo={jogo} atualizar={atualizar} />}
       {sep === 'jogo' && !pendTaca && !pendEu && <><AvisoRival jogo={jogo} /><ConferenciaCartao jogo={jogo} atualizar={atualizar} /></>}
       {sep === 'jogo' && (pendTaca

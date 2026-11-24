@@ -192,3 +192,15 @@ export function ComparaDivisao({ jogo }: { jogo: Jogo }) {
     </section>
   )
 }
+
+/** Aviso no separador Jogo quando a previsão diz que a época acaba no vermelho. */
+export function AvisoTesouraria({ jogo, abrir }: { jogo: Jogo; abrir: () => void }) {
+  const p = previsaoFimEpoca(jogo)
+  if (!p.jornadasFalta || p.caixaFim >= 0 || jogo.epoca.jornada < 3) return null
+  return (
+    <div className="cartao aviso-tesouraria" role="status" data-testid="aviso-tesouraria">
+      <span><b>Contas em risco:</b> a este ritmo acabas a época com {euros(p.caixaFim)} em caixa.</span>
+      <button className="botao" onClick={abrir}>Ver contas</button>
+    </div>
+  )
+}
