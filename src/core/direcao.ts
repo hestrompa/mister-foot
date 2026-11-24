@@ -73,6 +73,8 @@ export interface EstadoCarreira {
   ultimaAvaliacao?: { ano: number; texto: string; avaliacao: Avaliacao; confianca: number }
   /** Aviso da direção ("ultimato") já dado nesta época. */
   avisado?: boolean
+  /** Quem chega a meio da época tem algumas jornadas de graça antes de poder ser despedido. */
+  graca?: { ano: number; ate: number }
   historico: EntradaCarreira[]
   /** Mensagens da direção, mais recente no fim. */
   mensagens: { ano: number; jornada: number; texto: string }[]
@@ -238,7 +240,7 @@ export function avancarDirecao(jogo: JogoComCarreira): void {
     if (jn >= 6) {
       const pos = tabela(mundo, epoca, div).findIndex((l) => l.clubeId === jogo.clubeId) + 1
       const folga = st.objetivos.alvo - pos
-      delta += folga >= 0 ? 0.5 : folga >= -3 ? -0.3 : -1.2
+      delta += folga >= 0 ? 0.5 : folga >= -3 || emGraca(st, epoca.ano, jn) ? -0.3 : -1.2
     }
     if (mundo.clubes[jogo.clubeId].dinheiro < st.objetivos.dinheiroMin) delta -= 0.8
     st.confianca = clamp(Math.round((st.confianca + delta) * 10) / 10, 0, 100)
@@ -251,7 +253,7 @@ export function avancarDirecao(jogo: JogoComCarreira): void {
       st.avisado = true
       dizer(st, epoca.ano, jn, 'A direção está preocupada com os resultados. Ou a equipa reage, ou o lugar fica em risco.')
     }
-    if (jn >= JORNADA_MIN_DESPEDIR && jn <= epoca.totalJornadas - 2 && st.confianca < LIMIAR_DESPEDIMENTO) {
+    if (jn >= JORNADA_MIN_DESPEDIR && jn <= epoca.totalJornadas - 2 && st.confianca < LIMIAR_DESPEDIMENTO && !emGraca(st, epoca.ano, jn)) {
       despedir(jogo, st, 'A direção perdeu a confiança no teu trabalho e decidiu despedir-te.')
       return
     }
@@ -297,7 +299,9 @@ function avaliarEpoca(jogo: JogoComCarreira, st: EstadoCarreira): void {
   st.ultimaAvaliacao = { ano: epoca.ano, texto: txt, avaliacao: av, confianca: st.confianca }
   dizer(st, epoca.ano, epoca.totalJornadas, txt)
 
-  if (st.confianca < 35 && (av === 'falhado' || (av === 'quase' && !dinheiroOk))) {
+  // Quem pegou na equipa já na 2.ª volta não é despedido pela época que herdou.
+  const chegouTarde = !!st.graca && st.graca.ano === epoca.ano && st.graca.ate - JORNADAS_GRACA > epoca.totalJornadas / 2
+  if (!chegouTarde && st.confianca < 35 && (av === 'falhado' || (av === 'quase' && !dinheiroOk))) {
     despedir(jogo, st, `${txt} Decidiu não continuar contigo.`)
     return
   }
@@ -393,6 +397,13 @@ export function ofertasValidas(jogo: JogoComCarreira): Oferta[] {
   return st.ofertas.filter((o) => o.ano === jogo.epoca.ano && jogo.epoca.jornada <= o.ate && o.clubeId !== jogo.clubeId)
 }
 
+/** Jornadas em que quem chega a meio da época não é despedido nem castigado pela tabela que herdou. */
+const JORNADAS_GRACA = 10
+
+function emGraca(st: { graca?: { ano: number; ate: number } }, ano: number, jn: number): boolean {
+  return !!st.graca && st.graca.ano === ano && jn < st.graca.ate
+}
+
 /** Aceita uma oferta (ou escolhe clube depois de ser despedido): muda de clube já. */
 export function aceitarOferta(jogo: JogoComCarreira, clubeId: number): boolean {
   const st = estadoCarreira(jogo)
@@ -424,6 +435,7 @@ export function aceitarOferta(jogo: JogoComCarreira, clubeId: number): boolean {
   st.confianca = CONFIANCA_INICIAL
   st.avisado = false
   st.avaliada = terminou
+  st.graca = !terminou && jogo.epoca.jornada > 1 ? { ano: jogo.epoca.ano, ate: jogo.epoca.jornada + JORNADAS_GRACA } : undefined
   st.jornada = jogo.epoca.jornada - 1
   st.historico.push(novaEntrada(jogo, jogo.epoca.jornada))
   dizer(st, jogo.epoca.ano, st.jornada, `Bem-vindo ao ${jogo.mundo.clubes[clubeId].nome}. Objetivo: ${textoObjetivo(st.objetivos).toLowerCase()}.`)

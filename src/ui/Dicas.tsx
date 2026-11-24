@@ -8,7 +8,23 @@ const CHAVE = 'mister-foot:dicas'
 export const DICAS: Record<string, { titulo: string; texto: string }> = {
   jogo: {
     titulo: 'Primeiros passos',
-    texto: 'Escolhe a formação e a postura, vê na antevisão como encaixas no adversário e carrega em Jogar jornada. Durante o jogo podes mudar a postura e fazer até 5 substituições.',
+    texto: 'Antes da 1.ª jornada escolhe a pré-época. Depois, em cada jogo: formação, postura e plano de jogo (marcação, bolas paradas, batedor), vê na antevisão e no relatório do olheiro como encaixas no adversário e carrega em Jogar jornada. Durante o jogo podes mudar a postura e fazer até 5 substituições. Taça e Europa aparecem aqui quando calham.',
+  },
+  staff: {
+    titulo: 'Staff',
+    texto: 'O adjunto e o treinador de guarda-redes fazem evoluir o plantel (escolhe aqui o foco do treino), o preparador físico encurta as lesões e o olheiro estima o potencial, descobre juniores e prepara o relatório do adversário. Melhor staff custa mais por jornada.',
+  },
+  carreira: {
+    titulo: 'A tua carreira',
+    texto: 'A direção dá-te objetivos no arranque de cada época. A confiança sobe e desce jogo a jogo: abaixo do limite és despedido e escolhes um clube novo. Com bons resultados chegam convites de clubes maiores.',
+  },
+  noticias: {
+    titulo: 'Imprensa',
+    texto: 'Antes de cada jornada há conferência de imprensa: o que dizes mexe com a moral do plantel e com o rival. Aqui ficam as notícias da tua divisão, da taça e do mercado.',
+  },
+  calendario: {
+    titulo: 'Calendário',
+    texto: 'Todos os teus jogos da época. Toca num jogo já disputado para ver a ficha: onzes, táticas e golos.',
   },
   plantel: {
     titulo: 'O teu plantel',
