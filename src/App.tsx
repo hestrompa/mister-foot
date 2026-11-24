@@ -3,6 +3,8 @@ import { forcaClube, gerarMundo } from './core/mundo'
 import { salariosPorJornada } from './core/financas'
 import { ObrasBanco } from './ui/ObrasBanco'
 import { AbrirCopia, descarregarCopia } from './ui/CopiaSeguranca'
+import { AvisoConquistas } from './ui/Conquistas'
+import { verificarConquistas } from './core/conquistas'
 import { euros, lugares } from './core/formato'
 import type { Jogo, Mundo } from './core/types'
 import type { Escalacao } from './core/partida'
@@ -201,6 +203,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
     avancarSelecao(jogo)
     avancarDirecao(jogo)
     avancarImprensa(jogo)
+    verificarConquistas(jogo)
     if (!epocaTerminada(jogo.epoca) && despedido(jogo)) { atualizar(jogo); return }
     if (!epocaTerminada(jogo.epoca)) {
       // Lesionados ou castigados no onze: refaz a escalação mantendo formação e postura.
@@ -294,6 +297,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
       <Dicas sep={sep} />
 
       {sep === 'jogo' && <AvisoDirecao jogo={jogo} abrir={() => setSep('carreira')} />}
+      {sep === 'jogo' && <AvisoConquistas jogo={jogo} atualizar={atualizar} />}
       {sep === 'jogo' && !pendTaca && !pendEu && <><AvisoRival jogo={jogo} /><ConferenciaCartao jogo={jogo} atualizar={atualizar} /></>}
       {sep === 'jogo' && (pendTaca
         ? <PreJogo key="taca" jogo={jogo} mudar={mudarEscalacao} outro={avisoTaca(jogo as JogoComTaca, pendTaca.ronda, pendTaca.partida)} jogar={() => setTacaVivo(`${jogo.epoca.ano}-${pendTaca.partida.id}`)} />

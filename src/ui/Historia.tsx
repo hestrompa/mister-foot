@@ -1,5 +1,6 @@
 // História: campeões (hall of fame), recordes, melhores marcadores de sempre, rivalidades e números do mister.
 import type { Jogo } from '../core/types'
+import { ListaConquistas } from './Conquistas'
 import { NOMES_DIVISAO } from '../core/mundo'
 import { estadoRecordes, marcadoresDeSempre, NOME_RECORDE, confronto, type TipoRecorde } from '../core/recordes'
 import { regiaoDe, rivaisDe } from '../core/rivalidades'
@@ -29,6 +30,8 @@ export function Historia({ jogo }: { jogo: Jogo }) {
         <div className="cartao info"><span className="info-t">Títulos</span><span className="info-v">{mi.titulos}</span><span className="info-d">{mi.subidas} subida{mi.subidas === 1 ? '' : 's'} de divisão</span></div>
         <div className="cartao info"><span className="info-t">Melhor série</span><span className="info-v">{mi.melhorSerie}</span><span className="info-d">vitórias seguidas{mi.maiorVitoria ? ` · maior vitória ${mi.maiorVitoria.texto}` : ''}</span></div>
       </div>
+
+      <ListaConquistas jogo={jogo} />
 
       <h3 className="sub-tit">Rivais{reg ? ` · região ${reg.de.replace(/^d[oa] /, '')}` : ''}</h3>
       <div className="tabela-wrap">

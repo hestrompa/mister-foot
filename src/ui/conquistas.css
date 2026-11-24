@@ -1,0 +1,13 @@
+.aviso-conquista { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; border-color: var(--aviso); }
+.aviso-conquista .ac-icone { font-size: 28px; }
+.aviso-conquista .ac-texto { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.aviso-conquista .ac-texto span { color: var(--texto-2); font-size: 14px; }
+.lista-conquistas { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; margin-bottom: 16px; }
+.conquista { display: flex; gap: 10px; align-items: flex-start; opacity: 0.6; }
+.conquista.feita { opacity: 1; border-color: var(--verde-escuro); }
+.conquista .cq-icone { font-size: 22px; }
+.conquista .cq-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.conquista .cq-txt span { color: var(--texto-2); font-size: 13px; }
+.conquista .cq-ano { color: var(--verde) !important; }
+.conquista .cq-barra { display: block; height: 5px; background: var(--linha); border-radius: 3px; overflow: hidden; margin-top: 4px; }
+.conquista .cq-barra span { display: block; height: 100%; background: var(--verde); }

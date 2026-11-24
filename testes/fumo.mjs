@@ -303,6 +303,8 @@ try {
     await page.locator('.historia').waitFor({ timeout: 5000 })
     const rivais = await page.locator('.historia table').first().locator('tbody tr').count()
     esperar(rivais >= 4, `esperava os rivais da região (vi ${rivais})`)
+    const cq = await page.locator('.lista-conquistas .conquista').count()
+    esperar(cq >= 15, `esperava a lista de conquistas (vi ${cq})`)
     await foto('8d-historia.png')
     await page.getByRole('button', { name: 'Jogo', exact: true }).click()
   })
