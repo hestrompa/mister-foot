@@ -1,3 +1,4 @@
+import { anosExtraCarreira } from './personalidade'
 import { describe, expect, it } from 'vitest'
 import { CLUBES_POR_DIVISAO, NUM_DIVISOES, gerarMundo } from './mundo'
 import { escalarAuto, simularJogo } from './motor'
@@ -239,14 +240,18 @@ describe('fim de época (sem motor)', () => {
       expect(j.contrato).toBe(Math.max(0, a.contrato - 1))
       expect(j.forca).toBeGreaterThanOrEqual(1)
       expect(j.forca).toBeLessThanOrEqual(99)
-      if (j.idade >= 34) expect(j.forca).toBeLessThan(a.forca)
-      if (j.idade < 30 && a.forca < a.potencial) {
+      // O declínio começa aos 30 (31 para um profissional, 29 para um descontraído) e acelera 4 anos depois.
+      const declinio = 30 + anosExtraCarreira(j)
+      if (j.idade >= declinio + 4) expect(j.forca).toBeLessThan(a.forca)
+      if (j.idade < declinio && a.forca < a.potencial) {
         // O grosso da evolução vem agora do treino durante a época; no fecho, até aos 21 ainda cresce sempre.
         if (j.idade <= 21) expect(j.forca).toBeGreaterThan(a.forca)
         else expect(j.forca).toBeGreaterThanOrEqual(a.forca)
-        expect(j.forca).toBeLessThanOrEqual(a.potencial)
+        // Quem floresce tarde ganha um pouco de teto.
+        expect(j.forca).toBeLessThanOrEqual(j.potencial)
+        expect(j.potencial - a.potencial).toBeLessThanOrEqual(3)
       }
-      if (j.idade < 30 && a.forca >= a.potencial) expect(j.forca).toBe(a.forca)
+      if (j.idade < declinio && a.forca >= a.potencial) expect(j.forca).toBe(a.forca)
     }
     // A época seguinte arranca com as novas divisões.
     const e2 = novaEpoca(m, 22)

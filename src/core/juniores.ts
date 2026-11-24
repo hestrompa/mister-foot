@@ -1,5 +1,7 @@
 // Formação: jovens das camadas jovens de cada clube, gerados com semente.
 import type { Rng } from './rng'
+import { efeitoAcademia } from './academia'
+import { definirPersonalidade } from './personalidade'
 import { forcaClube, salarioDe, valorDe } from './mundo'
 import { APELIDOS_AF, APELIDOS_BR, APELIDOS_PT, NOMES_AF, NOMES_BR, NOMES_PT } from './nomes'
 import type { Jogador, Mundo, Posicao } from './types'
@@ -41,12 +43,13 @@ export function gerarJunior(mundo: Mundo, rng: Rng, clubeId: number): Jogador {
   const c = mundo.clubes[clubeId]
   const id = proximoIdJogador(mundo)
   const idade = rng.int(16, 18)
-  const forca = clamp(Math.round(forcaClube(mundo, clubeId) * 0.62 + (idade - 16) * 2 + rng.normal(0, 5)), 8, 70)
-  const perola = rng.chance(0.06)
+  const ac = efeitoAcademia(c)
+  const forca = clamp(Math.round(forcaClube(mundo, clubeId) * 0.62 + (idade - 16) * 2 + rng.normal(0, 5) + ac.forca), 8, 70)
+  const perola = rng.chance(0.06 + ac.perola)
   // Potencial à volta do nível histórico do clube (a reputação, que não muda), não da força atual:
   // assim não há efeito de bola de neve nas divisões de baixo.
   const nivel = c.reputacao / 1.15 - 3
-  const potencial = clamp(Math.round(nivel + rng.normal(0, 7) + (perola ? rng.int(10, 25) : 0)), forca + 3, 99)
+  const potencial = clamp(Math.round(nivel + ac.potencial + rng.normal(0, 7) + (perola ? rng.int(10, 25) : 0)), forca + 3, 99)
   const j: Jogador = {
     id,
     ...nome(rng),
@@ -60,6 +63,8 @@ export function gerarJunior(mundo: Mundo, rng: Rng, clubeId: number): Jogador {
     contrato: 0,
     clubeId: 0,
   }
+  // Uma academia acima do normal forma mais profissionais (sem gastar sorteios nos outros clubes).
+  if (ac.profissional > 0 && rng.chance(ac.profissional)) definirPersonalidade(j, 'profissional')
   mundo.jogadores[id] = j
   return j
 }

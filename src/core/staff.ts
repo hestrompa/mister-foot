@@ -1,6 +1,8 @@
 // Equipa técnica (staff) e treino: adjunto, treinador de guarda-redes, preparador físico e olheiro.
 // Cada clube tem no máximo um de cada. O nível (1 a 5) decide o efeito e o salário.
 // Tudo determinístico: os sorteios usam createRng com sementes derivadas do mundo.
+import { manutencaoAcademia } from './academia'
+import { anosExtraCarreira, fatorTreinoPers, personalidadeDe } from './personalidade'
 import { PESOS, atributo, mexerPerfil, type Atributo } from './atributos'
 import { createRng, type Rng } from './rng'
 import { valorDe } from './mundo'
@@ -92,7 +94,7 @@ export function nivelDe(c: Clube | undefined, f: Funcao): number {
 /** Custo do staff por jornada (34 jornadas por época, como os salários dos jogadores). */
 export function custoStaffPorJornada(c: Clube): number {
   const mensal = (staffDe(c)?.membros ?? []).reduce((s, m) => s + m.salario, 0)
-  return Math.round((mensal * 12) / 34)
+  return Math.round((mensal * 12) / 34) + manutencaoAcademia(c)
 }
 
 export function mistura(...partes: number[]): number {
@@ -202,7 +204,7 @@ export function chanceTreino(c: Clube | undefined, j: Jogador): number {
   const f = fatorIdade(j.idade)
   if (!f) return 0
   const treinador = fatorTreinador(nivelDe(c, j.posicao === 'GR' ? 'gr' : 'adjunto'))
-  return P_TREINO * f * treinador * fatorFoco(staffDe(c as Clube)?.foco ?? 'equilibrado', j)
+  return P_TREINO * f * treinador * fatorFoco(staffDe(c as Clube)?.foco ?? 'equilibrado', j) * fatorTreinoPers(j)
 }
 
 /**
@@ -256,24 +258,37 @@ export function duracaoLesao(c: Clube | undefined, jogos: number): number {
 }
 
 /**
- * Evolução no fim da época (envelhecimento). Somada ao treino médio da época (~2 até aos 21, ~1,5 até aos 25,
- * ~0,9 até aos 29), dá a curva da idade: +2..6, +1..3, +0..2. Os veteranos perdem 1..3 (30-33) e 2..5 (34+),
- * um pouco menos com um bom preparador físico.
+ * Evolução no fim da época (envelhecimento). Os jovens crescem mais quanto mais longe estão do potencial
+ * (um júnior de teto alto dá saltos; quem já está perto do teto quase não mexe). Somado ao treino da época
+ * dá a curva da idade. Alguns jogadores florescem tarde (22-26 anos). O declínio começa aos 30 (31 para
+ * um profissional, 29 para um descontraído) e acelera 4 anos depois; um bom preparador físico poupa algum.
  */
 export function evoluirFimEpoca(mundo: Mundo, j: Jogador, rng: Rng): void {
   const c = mundo.clubes[j.clubeId]
   let forca = j.forca
   let quebra = 0
-  if (j.idade >= 34) quebra = rng.int(2, 5)
-  else if (j.idade >= 30) quebra = rng.int(1, 3)
+  const extra = anosExtraCarreira(j)
+  const declinio = 30 + extra
+  if (j.idade >= declinio + 4) quebra = rng.int(2, 5)
+  else if (j.idade >= declinio) quebra = rng.int(1, 3)
   else if (forca < j.potencial) {
-    const passo = j.idade <= 21 ? rng.int(1, 3) : j.idade <= 25 ? rng.int(0, 1) : 0
+    const gap = j.potencial - forca
+    let passo = 0
+    if (j.idade <= 21) passo = Math.round(0.4 + gap * 0.08 + rng.normal(0, 0.8))
+    else if (j.idade <= 25) passo = Math.round(gap * 0.05 + rng.normal(0, 0.5))
+    passo = Math.max(j.idade <= 21 ? 1 : 0, Math.min(5, passo))
+    // Florescer tarde: um salto inesperado entre os 22 e os 26 anos (e o teto sobe um pouco).
+    if (j.idade >= 22 && j.idade <= 26 && rng.chance(0.03)) {
+      passo += rng.int(2, 4)
+      j.potencial = Math.min(99, j.potencial + 3)
+    }
     forca = Math.min(j.potencial, forca + passo)
   }
   if (quebra > 0) {
     const n = nivelDe(c, 'fisico')
-    // Aos 34+ a quebra nunca desaparece de todo.
-    if (n > 0 && (j.idade < 34 || quebra > 1) && rng.chance(0.12 * n)) quebra -= 1
+    // Na fase final da carreira a quebra nunca desaparece de todo.
+    if (n > 0 && (j.idade < declinio + 4 || quebra > 1) && rng.chance(0.12 * n)) quebra -= 1
+    if (personalidadeDe(j) === 'profissional' && quebra > 1 && rng.chance(0.3)) quebra -= 1
     forca -= quebra
   }
   j.forca = Math.max(1, Math.min(99, forca))

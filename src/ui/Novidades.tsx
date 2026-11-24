@@ -6,6 +6,9 @@ export const NOVIDADES: { data: string; itens: string[] }[] = [
     data: '24/11',
     itens: [
       'Campo 2D com os atributos: os rápidos correm mais, os bons passadores arriscam o passe longo, os bons defesas desarmam mais, remates mais fortes e guarda-redes melhores a mergulhar. Mais lances ao vivo: desarmes, cortes, lançamentos, alívios, cantos aliviados de cabeça e remates bloqueados ou ao lado.',
+      'Carreira dos jogadores: personalidade (profissional, ambicioso, leal, temperamental, líder...), histórico de jogos e golos por época, reformas entre os 33 e os 39 anos e galeria de lendas na História.',
+      'Evolução mais natural: jovens com teto alto crescem mais, os minutos contam no potencial e há quem floresça tarde.',
+      'Academia de juniores com níveis: investe no separador Mercado > Juniores para juniores melhores.',
       'Taça, Supertaça e Europa com campo 2D ao vivo e repetições, como na liga; corrigido o ecrã que podia ficar preso no fim destes jogos.',
       'Dinheiro no arranque de cada época: direitos de TV, patrocinador, lugares anuais e prémio da Liga pela classificação.',
       'Verba da direção no arranque, ligada à confiança; investidores entram a meio da época em clubes que superam o esperado.',

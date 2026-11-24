@@ -1,3 +1,5 @@
+import { Carater } from './CarreiraJogador'
+import { NIVEL_MAX_ACADEMIA, NOME_NIVEL_ACADEMIA, bonusAcademia, custoAcademia, efeitoAcademia, manutencaoAcademia, melhorarAcademia, nivelAcademia } from '../core/academia'
 import { useMemo, useState } from 'react'
 import type { Jogador, Posicao } from '../core/types'
 import { euros } from '../core/formato'
@@ -408,7 +410,7 @@ function Contratos({ jogo, feito }: { jogo: JogoComMercado; feito: (r: Resultado
           <AtributosJogador j={j} />
           {j.contrato > 2 ? <p className="nota">Ainda é cedo para renovar.</p> : (
             <>
-              {recusaRenovar(j) && <p className="erro">{recusaRenovar(j)}</p>}
+              {recusaRenovar(j, jogo.mundo) && <p className="erro">{recusaRenovar(j, jogo.mundo)}</p>}
               <p>Pede <b>{euros(comFator(pedidoRenovacao(mundo, j), nivel))}</b> por mês (comissão do empresário: {euros(comissaoContrato(comFator(pedidoRenovacao(mundo, j), nivel)))}). A moral conta: quem está contente pede menos.</p>
               <EscolhaClausula nivel={nivel} mudar={setNivel} />
               <div className="grupo-botoes">
@@ -518,6 +520,7 @@ function Juniores({ jogo, feito }: { jogo: JogoComMercado; feito: (r: Resultado)
   const div = jogo.mundo.clubes[jogo.clubeId].divisao
   return (
     <>
+      <Academia jogo={jogo} feito={feito} />
       <p className="nota">Todos os anos a formação do clube dá {lista.length || 'alguns'} juniores. Promove-os ao plantel (contrato de 3 anos) ou dispensa-os. Os que ficarem sem decisão saem livres quando fechar a janela de verão. O potencial é a opinião dos treinadores da formação, não uma certeza.</p>
       {lista.length === 0 ? <p className="nota">Não há juniores à espera. A próxima fornada chega no início da próxima época.</p> : (
         <div className="propostas">
@@ -526,6 +529,7 @@ function Juniores({ jogo, feito }: { jogo: JogoComMercado; feito: (r: Resultado)
               <div className="neg-topo">
                 <span className={`pos pos-${j.posicao}`}>{j.posicao}</span>
                 <span className="neg-nome">{j.nome}</span>
+                <Carater j={j} />
                 <Forca valor={j.forca} />
               </div>
               <p className="nota"><PotencialJunior jogo={jogo} id={j.id} /> · ganharia {euros(salarioDe(j.forca, div))}/mês</p>
@@ -539,5 +543,31 @@ function Juniores({ jogo, feito }: { jogo: JogoComMercado; feito: (r: Resultado)
         </div>
       )}
     </>
+  )
+}
+
+function Academia({ jogo, feito }: { jogo: JogoComMercado; feito: (r: Resultado) => void }) {
+  const c = jogo.mundo.clubes[jogo.clubeId]
+  const n = nivelAcademia(c)
+  const b = bonusAcademia(c)
+  const ef = efeitoAcademia(c)
+  const custo = n < NIVEL_MAX_ACADEMIA ? custoAcademia(c, n + 1) : 0
+  const manutDepois = n < NIVEL_MAX_ACADEMIA ? manutencaoAcademia({ ...c, academia: n + 1 } as typeof c) : 0
+  return (
+    <div className="cartao academia">
+      <div className="neg-topo"><span className="neg-nome">Academia: {NOME_NIVEL_ACADEMIA[n]} (nível {n} de {NIVEL_MAX_ACADEMIA})</span></div>
+      <div className="academia-nivel" aria-hidden="true">{Array.from({ length: NIVEL_MAX_ACADEMIA }, (_, k) => <span key={k} className={k < n ? 'on' : ''} />)}</div>
+      <p className="nota">
+        {b > 0
+          ? `Acima do normal para um clube desta dimensão: juniores com cerca de +${Math.round(ef.forca)} de força e +${Math.round(ef.potencial)} de potencial, mais pérolas e mais profissionais${ef.extra ? ', e um júnior a mais por época' : ''}. Manutenção: ${euros(manutencaoAcademia(c))} por jornada.`
+          : 'O normal para um clube desta dimensão. Investir dá juniores mais fortes, com mais teto e mais pérolas; a partir de dois níveis acima do normal sai um júnior a mais por época.'}
+      </p>
+      {n < NIVEL_MAX_ACADEMIA ? (
+        <div className="grupo-botoes">
+          <button className="botao principal" disabled={c.dinheiro < custo} onClick={() => feito(melhorarAcademia(c))}>Melhorar para nível {n + 1} · {euros(custo)}</button>
+          <span className="nota">depois custa {euros(manutDepois)} por jornada</span>
+        </div>
+      ) : <p className="nota">Nível máximo.</p>}
+    </div>
   )
 }

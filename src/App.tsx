@@ -14,6 +14,7 @@ import { AvisoInvestidor, AvisoTesouraria } from './ui/InicioEpoca'
 import { euros, lugares } from './core/formato'
 import type { Jogo, Mundo } from './core/types'
 import type { Escalacao } from './core/partida'
+import { anunciarReformas } from './core/carreira-noticias'
 import { epocaTerminada, fecharEpoca, indisponiveisDe, tabela } from './core/epoca'
 import { escalarAuto } from './core/motor'
 import { apagar, carregar, gravar, prepararEpoca } from './jogo/gravar'
@@ -204,6 +205,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
     setSep('jogo')
     registarFichas(jogo)
     avancarMercado(jogo)
+    anunciarReformas(jogo)
     avancarTaca(jogo as JogoComTaca)
     avancarEuropa(jogo as JogoComEuropa)
     avancarBalneario(jogo)
@@ -343,7 +345,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
       {sep === 'historia' && <Historia jogo={jogo} />}
       {sep === 'carreira' && <Carreira jogo={jogo} atualizar={atualizar} mudouClube={mudouClube} />}
 
-      {sep === 'plantel' && <Plantel mundo={mundo} clubeId={meu.id} />}
+      {sep === 'plantel' && <Plantel mundo={mundo} clubeId={meu.id} epoca={jogo.epoca} />}
 
       {sep === 'staff' && <Staff jogo={jogo} atualizar={atualizar} />}
 
@@ -410,7 +412,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
             {editar !== verClube && <button className="botao fantasma" onClick={() => setEditar(verClube)}>Editar</button>}
           </div>
           {editar === verClube && <EditarClube jogo={jogo} clubeId={verClube} atualizar={atualizar} fechar={() => setEditar(null)} />}
-          <Plantel mundo={mundo} clubeId={verClube} />
+          <Plantel mundo={mundo} clubeId={verClube} epoca={jogo.epoca} />
         </>
       )}
       <Rodape />

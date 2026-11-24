@@ -7,6 +7,7 @@ import { FORMACOES } from './partida'
 import type { Escalacao, EstatJogo, EventoJogo, Formacao, Lado, Lance, Partida, Postura } from './partida'
 import { fatorMoral } from './balneario'
 import { fatorFisico, riscoLesao, sortearLesao } from './lesoes'
+import { fatorFaltaPers, personalidadeDe } from './personalidade'
 import { atributo, fatores, notaNaPosicao, type FatoresMotor } from './atributos'
 
 /** Estado interno de um jogo a decorrer. Serializável (sem funções). */
@@ -337,7 +338,7 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
       const grC = campo[def].find((c) => c.pos === 'GR')
       const defC = pesado(rng, campo[def].filter((c) => c.pos !== 'GR'), (c) => (c.pos === 'DEF' ? 3 : 1) * c.f.def)
       const grEf = sd.gr
-      const fOrig = origem === 'penalti' ? 7 : origem === 'longe' ? 0.45 : origem === 'contra' ? 1.35 : origem === 'livre' ? 0.7 : 1
+      const fOrig = origem === 'penalti' ? (personalidadeDe(remC.j) === 'frio' ? 7.7 : 7) : origem === 'longe' ? 0.45 : origem === 'contra' ? 1.35 : origem === 'livre' ? 0.7 : 1
       // Remate do rematador (e velocidade, no contra-ataque) contra o guarda-redes.
       const fRem = remC.f.rem80 * (origem === 'contra' ? remC.f.vel40 : 1)
       const pGolo = clamp(CONVERSAO * fOrig * Math.pow(q, 0.8) * Math.pow((remC.ef * fRem + 1) / (grEf + 1), 0.6), 0.01, 0.85)
@@ -378,7 +379,7 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
     if (!cl.length) continue
     if (rng.chance(0.0195)) {
       // Quem já tem amarelo joga com cuidado: arrisca muito menos a falta.
-      const c = pesado(rng, cl, (c) => PESO_FALTA[c.pos] * (x.amarelosJogo[c.j.id] ? 0.3 : 1))!
+      const c = pesado(rng, cl, (c) => PESO_FALTA[c.pos] * fatorFaltaPers(c.j) * (x.amarelosJogo[c.j.id] ? 0.3 : 1))!
       const id = c.j.id
       x.amarelosJogo[id] = (x.amarelosJogo[id] ?? 0) + 1
       p.estat.amarelos[il]++
@@ -391,7 +392,7 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
         evs.push({ minuto: min, tipo: 'amarelo', lado, jogadorId: id, texto: `Amarelo para ${c.j.curto} (${sigla(lado)}).` })
       }
     } else if (rng.chance(0.0004)) {
-      const c = pesado(rng, cl, (c) => PESO_FALTA[c.pos])!
+      const c = pesado(rng, cl, (c) => PESO_FALTA[c.pos] * fatorFaltaPers(c.j))!
       p.estat.vermelhos[il]++
       x.expulsos.push(c.j.id)
       estado.fora.push(c.j.id)

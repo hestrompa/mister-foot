@@ -7,6 +7,7 @@ import { createRng } from './rng'
 import { simularJogo } from './motor'
 import { escalarIA } from './tatica'
 import { valorDe } from './mundo'
+import { contarJogos, fecharEpocaJogadores } from './carreira-jogador'
 import { duracaoLesao, evoluirFimEpoca, nivelDe, treinarJornada } from './staff'
 import { aplicarJogo, semanaDeTreino } from './balneario'
 import { definirFadiga, fadigaDe } from './lesoes'
@@ -224,6 +225,7 @@ export function concluirJornada(mundo: Mundo, epoca: EstadoEpoca, semente: numbe
   }
 
   // 3. Aplicar os eventos desta jornada.
+  contarJogos(epoca, daJornada)
   for (const p of daJornada) {
     const amarelosNoJogo = new Set<number>()
     for (const ev of p.eventos) {
@@ -377,6 +379,9 @@ export function fecharEpoca(mundo: Mundo, epoca: EstadoEpoca): ResumoEpoca {
       melhorMarcador = { jogadorId: id, golos }
     }
   }
+
+  // Histórico de carreira (e potencial conforme os minutos), antes de envelhecer.
+  fecharEpocaJogadores(mundo, epoca, createRng(mistura(mundo.semente, epoca.ano, 0x415c)))
 
   // Envelhecimento e evolução.
   const rng = createRng(mistura(mundo.semente, epoca.ano, 0xe90c4))

@@ -7,6 +7,8 @@ import { regiaoDe, rivaisDe } from '../core/rivalidades'
 import type { JogoComTaca } from '../core/taca'
 import { Emblema } from './Emblema'
 import './imprensa.css'
+import './carreira-jogador.css'
+import { idolosAtivos, lendas, lendasDoClube, reformas } from '../core/carreira-jogador'
 
 const ep = (ano: number) => `${ano}/${String(ano + 1).slice(2)}`
 const ORDEM: TipoRecorde[] = ['maisPontos', 'maiorVitoria', 'maisGolosJogo', 'golosJogador', 'maisGolosEpoca', 'serieVitorias', 'serieInvencivel', 'serieDerrotas']
@@ -110,6 +112,8 @@ export function Historia({ jogo }: { jogo: Jogo }) {
         </div>
       ) : <p className="nota">Ainda ninguém marcou.</p>}
 
+      <Lendas jogo={jogo} />
+
       {st.goleadores.length > 0 && (
         <>
           <h3 className="sub-tit">Melhores marcadores por época</h3>
@@ -126,5 +130,75 @@ export function Historia({ jogo }: { jogo: Jogo }) {
         </>
       )}
     </div>
+  )
+}
+
+/** Lendas do clube, galeria de lendas do futebol e reformas recentes. */
+function Lendas({ jogo }: { jogo: Jogo }) {
+  const { mundo } = jogo
+  const doClube = lendasDoClube(mundo, jogo.clubeId)
+  const idolos = idolosAtivos(mundo, jogo.clubeId, 5)
+  const todas = lendas(mundo).slice(0, 15)
+  const ref = reformas(mundo).slice(0, 12)
+  const meu = mundo.clubes[jogo.clubeId]
+  return (
+    <>
+      <h3 className="sub-tit">Lendas e ídolos do {meu.nome}</h3>
+      {doClube.length || idolos.length ? (
+        <div className="tabela-wrap">
+          <table className="tabela lendas-lista">
+            <thead><tr><th>Jogador</th><th>Pos</th><th>No clube</th><th className="num">Jogos</th><th className="num">Golos</th></tr></thead>
+            <tbody>
+              {doClube.map(({ lenda: l, jogos, golos }) => (
+                <tr key={`l${l.id}`}><td><b>{l.nome}</b> <span className="craque">lenda</span></td><td>{l.posicao}</td><td>{ep(l.de)} a {ep(l.ate)}</td><td className="num">{jogos}</td><td className="num">{golos}</td></tr>
+              ))}
+              {idolos.map(({ j, jogos, golos }) => (
+                <tr key={`a${j.id}`} className="meu"><td>{j.nome} <span className="dica">no plantel</span></td><td>{j.posicao}</td><td>{j.idade} anos</td><td className="num">{jogos}</td><td className="num">{golos}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : <p className="nota">Os jogos e golos de cada jogador contam a partir desta versão. Os ídolos do clube aparecem aqui ao fim da primeira época.</p>}
+
+      <h3 className="sub-tit">Galeria de lendas</h3>
+      {todas.length ? (
+        <div className="tabela-wrap">
+          <table className="tabela lendas-lista">
+            <thead><tr><th>Jogador</th><th>Pos</th><th>Carreira</th><th>Clubes</th><th className="num">Jogos</th><th className="num">Golos</th><th className="num">Auge</th></tr></thead>
+            <tbody>
+              {todas.map((l) => (
+                <tr key={l.id} className={l.clubes.some((c) => c[0] === jogo.clubeId) ? 'meu' : ''}>
+                  <td><b>{l.nome}</b>{l.nacionalidade !== 'PT' && <span className="nac">{l.nacionalidade}</span>}</td>
+                  <td>{l.posicao}</td>
+                  <td>{ep(l.de)} a {ep(l.ate)}</td>
+                  <td><span className="nota">{l.clubes.map((c) => mundo.clubes[c[0]]?.sigla ?? c[1]).join(', ')}</span></td>
+                  <td className="num">{l.jogos}</td><td className="num">{l.golos}</td><td className="num">{l.pico}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : <p className="nota">Quem acabar uma grande carreira (muitas épocas a titular nas divisões de cima, ou um craque) entra aqui quando se reformar.</p>}
+
+      {ref.length > 0 && (
+        <>
+          <h3 className="sub-tit">Reformas recentes</h3>
+          <div className="tabela-wrap">
+            <table className="tabela">
+              <thead><tr><th>Época</th><th>Jogador</th><th>Último clube</th><th className="num">Idade</th><th className="num">Jogos</th><th className="num">Golos</th></tr></thead>
+              <tbody>
+                {ref.map((r) => (
+                  <tr key={`${r.id}-${r.ano}`} className={r.clubeId === jogo.clubeId ? 'meu' : ''}>
+                    <td>{ep(r.ano)}</td><td>{r.nome}{r.lenda && <span className="craque">lenda</span>}</td><td>{r.clube}</td>
+                    <td className="num">{r.idade}</td><td className="num">{r.jogos}</td><td className="num">{r.golos}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="nota">Os jogos contam desde que o histórico começou a ser registado.</p>
+        </>
+      )}
+    </>
   )
 }

@@ -1,0 +1,18 @@
+.carreira-jog { margin: 4px 0 10px; }
+.carreira-jog-topo { margin: 6px 0; }
+.carater { display: inline-block; font-size: 11px; font-weight: 700; border-radius: 4px; padding: 1px 7px; margin-right: 6px; border: 1px solid var(--linha); color: var(--texto); background: var(--fundo-2); white-space: nowrap; }
+.carater-profissional { border-color: #4fae7b; color: #8fe0b2; }
+.carater-ambicioso { border-color: #d8a73c; color: #f5c451; }
+.carater-leal { border-color: #5b8fd9; color: #9cc0f5; }
+.carater-temperamental { border-color: #d45b5b; color: #f59a9a; }
+.carater-lider { border-color: #b27be0; color: #d6b3f5; }
+.carater-descontraido { border-color: #7d8a82; color: #b9c4bd; }
+.carater-frio { border-color: #4fb8c4; color: #9ee6ee; }
+.carreira-tab { font-size: 13px; max-width: 520px; }
+.carreira-tab td, .carreira-tab th { padding: 4px 8px; }
+.lendas-lista td .nota { margin: 0; font-size: 12px; }
+.academia { margin-bottom: 14px; }
+.academia-nivel { display: flex; gap: 4px; align-items: center; margin: 6px 0; }
+.academia-nivel span { width: 22px; height: 8px; border-radius: 3px; background: var(--linha); }
+.academia-nivel span.on { background: var(--aviso); }
+.academia .grupo-botoes .botao { flex: 0 0 auto; }

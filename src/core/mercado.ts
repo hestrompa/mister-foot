@@ -1,11 +1,14 @@
 // Mercado de transferências: lista de jogadores à venda, compras, vendas, propostas da IA, leilões e janelas.
 // Tudo determinístico: cada sorteio usa createRng com uma semente derivada do mundo, da época e da jornada.
+import { idadeReforma, registarReforma } from './carreira-jogador'
+import { fatorRenovacaoPers, personalidadeDe } from './personalidade'
 import { createRng, type Rng } from './rng'
 import { forcaClube, salarioDe } from './mundo'
 import { escalarAuto } from './motor'
 import { indisponiveisDe } from './epoca'
 import type { EstadoEpoca } from './partida'
 import { gerarJunior } from './juniores'
+import { efeitoAcademia } from './academia'
 import { juniorExtra } from './staff'
 import { RECEITA_FIXA, publicoEsperado, salariosPorJornada } from './financas'
 import type { Jogador, Jogo, Mundo, Posicao } from './types'
@@ -698,12 +701,18 @@ export function pedidoRenovacao(mundo: Mundo, j: Jogador): number {
   // Quem está contente facilita; quem está chateado pede mais.
   const m = moralDe(j)
   const humor = m >= 75 ? 0.95 : m < 35 ? 1.15 : 1
-  return arredonda(Math.min(justo, j.salario * 1.5) * humor)
+  return arredonda(Math.min(justo, j.salario * 1.5) * humor * fatorRenovacaoPers(j))
 }
 
 /** Um jogador muito desmotivado não quer renovar. */
-export function recusaRenovar(j: Jogador): string | null {
-  return moralDe(j) < 20 ? `${j.curto} está desmotivado e não quer ouvir falar de renovação.` : null
+export function recusaRenovar(j: Jogador, mundo?: Mundo): string | null {
+  const p = personalidadeDe(j)
+  if (moralDe(j) < 20 && p !== 'leal') return `${j.curto} está desmotivado e não quer ouvir falar de renovação.`
+  // Um ambicioso bem acima do resto do plantel quer um clube maior.
+  if (mundo && p === 'ambicioso' && j.idade <= 29 && j.forca >= forcaClube(mundo, j.clubeId) + 8) {
+    return `${j.curto} é ambicioso e acha que já merece um clube maior.`
+  }
+  return null
 }
 
 /** Máximo de anos de contrato que o jogador aceita. */
@@ -716,7 +725,7 @@ export function renovar(jogo: JogoComMercado, jogadorId: number, anos: number, n
   const j = jogo.mundo.jogadores[jogadorId]
   if (!j || j.clubeId !== jogo.clubeId) return { ok: false, texto: 'Esse jogador não é teu.' }
   if (j.contrato > 2) return { ok: false, texto: `${j.curto} ainda tem ${j.contrato} anos de contrato.` }
-  const recusa = recusaRenovar(j)
+  const recusa = recusaRenovar(j, jogo.mundo)
   if (recusa) return { ok: false, texto: recusa }
   const max = anosMaximos(j)
   const a = Math.max(1, Math.min(max, Math.round(anos)))
@@ -801,8 +810,9 @@ function fimDeContratos(jogo: JogoComMercado, rng: Rng) {
     }
     for (const id of c.plantel.slice()) {
       const j = mundo.jogadores[id]
-      // Aos 36 anos retiram-se, com ou sem contrato (se o plantel não ficar curto).
-      if (j.idade >= 36 && !impedeSaida(mundo, j)) {
+      // Na idade da reforma (33 a 39, conforme o jogador) retiram-se, com ou sem contrato (se o plantel não ficar curto).
+      if (j.idade >= idadeReforma(j) && !impedeSaida(mundo, j)) {
+        registarReforma(mundo, j, jogo.clubeId)
         c.plantel = c.plantel.filter((x) => x !== id)
         j.clubeId = 0
         j.craque = false
@@ -814,6 +824,7 @@ function fimDeContratos(jogo: JogoComMercado, rng: Rng) {
       if (cid === jogo.clubeId) fica = false
       else {
         let p = j.idade >= 34 ? 0.3 : ganho(mundo, cid, j) > 0 || j.craque ? 0.9 : 0.55
+        if (personalidadeDe(j) === 'leal') p = Math.min(0.95, p + 0.2)
         if (pesoSalarial(mundo, cid) > 1) p *= 0.5
         fica = rng.chance(p)
       }
@@ -824,13 +835,18 @@ function fimDeContratos(jogo: JogoComMercado, rng: Rng) {
         if (cid === jogo.clubeId) noticiar(st, { jornada: jogo.epoca.jornada, jogadorId: id, deId: cid, paraId: cid, valor: 0, tipo: 'renovou' })
         continue
       }
-      c.plantel = c.plantel.filter((x) => x !== id)
-      j.clubeId = 0
-      j.craque = false
-      if (j.idade >= 35) {
+      // Sem contrato a um ano da reforma: pendura as botas (um leal acaba a carreira no clube).
+      if (j.idade >= idadeReforma(j) - 1) {
+        registarReforma(mundo, j, jogo.clubeId)
+        c.plantel = c.plantel.filter((x) => x !== id)
+        j.clubeId = 0
+        j.craque = false
         noticiar(st, { jornada: jogo.epoca.jornada, jogadorId: id, deId: cid, paraId: 0, valor: 0, tipo: 'reformou' })
         continue
       }
+      c.plantel = c.plantel.filter((x) => x !== id)
+      j.clubeId = 0
+      j.craque = false
       st.livres = [...(st.livres ?? []), id]
       noticiar(st, { jornada: jogo.epoca.jornada, jogadorId: id, deId: cid, paraId: 0, valor: 0, tipo: 'saiu' })
     }
@@ -882,7 +898,7 @@ function formarJuniores(jogo: JogoComMercado, rng: Rng) {
   for (const cid of ids) {
     const c = mundo.clubes[cid]
     if (cid === jogo.clubeId) {
-      st.juniores = Array.from({ length: JUNIORES_POR_EPOCA + juniorExtra(c) }, () => gerarJunior(mundo, rng, cid).id)
+      st.juniores = Array.from({ length: JUNIORES_POR_EPOCA + juniorExtra(c) + efeitoAcademia(c).extra }, () => gerarJunior(mundo, rng, cid).id)
       continue
     }
     const n = rng.int(1, 3) + juniorExtra(c)

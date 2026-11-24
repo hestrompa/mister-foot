@@ -3,6 +3,8 @@ import type { Jogador, Mundo, Posicao } from '../core/types'
 import { euros } from '../core/formato'
 import { ATRIBUTOS, NOME_ATRIBUTO, atributo, atributosDe, pontosFortes, type Atributo } from '../core/atributos'
 import { AtributosJogador, PontoForte } from './Atributos'
+import { Carater, CarreiraJogador } from './CarreiraJogador'
+import type { EstadoEpoca } from '../core/partida'
 
 type Coluna = 'posicao' | 'nome' | 'idade' | 'forca' | 'atr' | 'valor' | 'salario' | 'contrato'
 const ORDEM_POS: Record<Posicao, number> = { GR: 0, DEF: 1, MED: 2, AV: 3 }
@@ -26,7 +28,7 @@ export function Forca({ valor }: { valor: number }) {
   )
 }
 
-export function Plantel({ mundo, clubeId }: { mundo: Mundo; clubeId: number }) {
+export function Plantel({ mundo, clubeId, epoca }: { mundo: Mundo; clubeId: number; epoca?: EstadoEpoca }) {
   const [col, setCol] = useState<Coluna>('posicao')
   const [desc, setDesc] = useState(false)
   const [aberto, setAberto] = useState<number | null>(null)
@@ -66,7 +68,7 @@ export function Plantel({ mundo, clubeId }: { mundo: Mundo; clubeId: number }) {
           {ATRIBUTOS.map((a) => <option key={a} value={a}>{NOME_ATRIBUTO[a]}</option>)}
         </select>
       </label>
-      <span className="nota">Carrega num jogador para ver todos os atributos.</span>
+      <span className="nota">Carrega num jogador para ver os atributos, a personalidade e a carreira.</span>
     </div>
     <div className="tabela-wrap">
       <table className="tabela plantel">
@@ -90,6 +92,7 @@ export function Plantel({ mundo, clubeId }: { mundo: Mundo; clubeId: number }) {
               <td>
                 <span className="nome-jogador">{j.nome}</span>
                 {j.craque && <span className="craque" title="Craque do plantel">craque</span>}
+                {aberto !== j.id && <span className="esconde-m"> <Carater j={j} /></span>}
                 {j.nacionalidade !== 'PT' && <span className="nac" title={BANDEIRAS[j.nacionalidade]}>{j.nacionalidade}</span>}
               </td>
               <td className="num">{j.idade}</td>
@@ -100,7 +103,7 @@ export function Plantel({ mundo, clubeId }: { mundo: Mundo; clubeId: number }) {
               <td className="num esconde-m">{j.contrato} {j.contrato === 1 ? 'ano' : 'anos'}</td>
             </tr>
             {aberto === j.id && (
-              <tr className="atr-linha"><td colSpan={8}><AtributosJogador j={j} /></td></tr>
+              <tr className="atr-linha"><td colSpan={8}><AtributosJogador j={j} /><CarreiraJogador j={j} mundo={mundo} epoca={epoca} /></td></tr>
             )}
             </Fragment>
           ))}

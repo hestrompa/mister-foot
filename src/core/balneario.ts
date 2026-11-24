@@ -1,6 +1,7 @@
 // Balneário: moral de cada jogador, tempo de jogo, promessas, conflitos e capitão.
 // A moral vive no próprio jogador (campo opcional, gravado com o mundo) para o motor a poder ler.
 // O estado do balneário do utilizador (capitão, promessas, mensagens) vive em jogo.balneario.
+import { personalidadeDe } from './personalidade'
 import type { Jogador, Jogo, Mundo } from './types'
 
 /** Moral de quem ainda não tem registo. */
@@ -161,7 +162,9 @@ export function lideranca(mundo: Mundo, j: Jogador, mediaDoPlantel?: number): nu
   const media = mediaDoPlantel ?? mediaPlantel(mundo, j.clubeId) ?? j.forca
   const exp = clamp((j.idade - 20) / 12, 0, 1)
   const nivel = clamp((j.forca - media) / 20 + 0.5, 0, 1)
-  return Math.round((exp * 0.6 + nivel * 0.4) * 100) / 100
+  const tr = personalidadeDe(j)
+  const bonus = tr === 'lider' ? 0.25 : tr === 'temperamental' || tr === 'descontraido' ? -0.1 : 0
+  return Math.round(clamp(exp * 0.6 + nivel * 0.4 + bonus, 0, 1.25) * 100) / 100
 }
 
 /** Líder natural do plantel (quem o balneário escolheria). */
