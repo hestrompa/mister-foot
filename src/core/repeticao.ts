@@ -56,6 +56,15 @@ export interface CenaRepeticao {
   espelhar: boolean
   /** Minuto de jogo normal (sem lance) do campo ao vivo. */
   ambiente?: boolean
+  /** Festejo do golo: como e a partir de quando. */
+  festa?: { tipo: TipoFesta; t: number }
+}
+
+/** Festejos: corrida à bandeirola, deslizar de joelhos, para os adeptos, para o banco, ou monte de jogadores. */
+export type TipoFesta = 'bandeirola' | 'joelhos' | 'adeptos' | 'banco' | 'monte'
+export const TEXTO_FESTA: Record<TipoFesta, string> = {
+  bandeirola: 'Corre para a bandeirola!', joelhos: 'De joelhos na relva!', adeptos: 'Vai festejar com os adeptos!',
+  banco: 'Corre para o banco!', monte: 'Monte de jogadores em cima dele!',
 }
 
 /** Em que parte do jogo está um minuto (0 = 1.ª parte, 1 = 2.ª, 2 e 3 = prolongamento). */
@@ -65,8 +74,12 @@ export function parteDoJogo(minuto: number): number {
 
 /** Uma finta do condutor e o carrinho falhado do adversário que a sofre. */
 export interface AcaoRep {
-  /** 'finta': o autor finta e a vítima vai ao chão; 'falta': o autor derruba a vítima (penálti). */
-  tipo: 'finta' | 'falta'
+  /**
+   * 'finta': o autor finta e a vítima vai ao chão; 'falta': o autor derruba a vítima (penálti);
+   * 'tabela': o autor devolve de primeira ao rematador; 'chapeu': o autor pica a bola por cima do guarda-redes;
+   * 'defesa': grande defesa do autor (guarda-redes); 'joelhos': o autor desliza de joelhos a festejar.
+   */
+  tipo: 'finta' | 'falta' | 'tabela' | 'chapeu' | 'defesa' | 'joelhos'
   /** Instante da finta. */
   t: number
   /** Quem finta e quem vai ao chão. */
@@ -169,6 +182,7 @@ interface Guiao {
   corte?: number
   /** A defesa foi apanhada em contra-ataque (chega atrasada). */
   contra: boolean
+  festa?: { tipo: TipoFesta; t: number }
 }
 
 /**
@@ -203,7 +217,7 @@ export function criarRepeticao(ev: EventoJogo, emCampo: Record<Lado, EmCampoRep>
     rematadorId: rem.id, ...(pas ? { passadorId: pas.id } : {}),
     tRemate: g.tRemate, tFim: g.tFim, duracao, dt: DT,
     caricas: todos.map(({ id, lado, num, pos }) => ({ id, lado, num, pos })),
-    quadros, bola: g.bola, acoes: g.acoes, cortes: g.corte != null ? [g.corte] : [],
+    quadros, bola: g.bola, acoes: g.acoes, cortes: g.corte != null ? [g.corte] : [], ...(g.festa ? { festa: g.festa } : {}),
     espelhar: (atac === 'casa') !== (parteDoJogo(ev.minuto) % 2 === 0),
   }
 }
@@ -264,7 +278,20 @@ function guiao(rng: Rng, l: Lance, rem: Lugar, pas: Lugar | undefined, dfs: Luga
       S = ala
         ? { x: 89 + r() * 5, y: 34 + (yc > 34 ? -1 : 1) * (1 + r() * 5) }
         : { x: 83 + r() * 7, y: 34 + sinal() * r() * 7 }
-      if (pas) {
+      if (pas && !ala && rng.chance(contra ? 0.25 : 0.4)) {
+        // Tabelinha: o rematador conduz, solta no colega e recebe de primeira, já dentro da área.
+        const lado = A.y > 34 ? -1 : 1
+        const A2 = { x: A.x + (contra ? 18 : 9), y: lerp(A.y, 34, 0.3) }
+        const P = { x: A2.x + 8, y: clamp(A2.y + lado * (7 + r() * 3), 6, 62) }
+        S = { x: 85 + r() * 5, y: 34 + sinal() * r() * 6 }
+        const tP = tConduz
+        const tR1 = tP + dist(A2, P) / 18
+        tS = tR1 + Math.max(0.45, dist(P, S) / 20)
+        bola.push({ t: 0, ...A, z: 0 }, { t: tP, ...A2, z: 0 }, { t: tR1, ...P, z: 0 }, { t: tS, ...S, z: 0 })
+        fixos.set(pas.id, [{ t: 0, x: P.x - 4, y: P.y + lado * 2 }, { t: tR1 - 0.4, x: P.x - 0.6, y: P.y }, { t: tR1, x: P.x - 0.9, y: P.y }, { t: tR1 + 0.9, x: P.x + 2.5, y: lerp(P.y, 34, 0.2) }])
+        fixos.set(rem.id, [{ t: 0, x: A.x - 0.9, y: A.y }, { t: tP, x: A2.x - 0.9, y: A2.y }, { t: tP + (tS - tP) * 0.5, x: lerp(A2.x, S.x, 0.55), y: lerp(A2.y, S.y, 0.45) }, { t: tS, x: S.x - 0.7, y: S.y }])
+        g.acoes.push({ tipo: 'tabela', t: tR1, autorId: pas.id, vitimaId: rem.id, de: P, ate: S })
+      } else if (pas) {
         conducaoEPasse(A, B, tConduz, pas, contra ? 0.7 : 0.55)
         tS = tConduz + Math.max(0.5, dist(B, S) / 19)
         // Cruzamento das alas vai pelo ar.
@@ -400,16 +427,24 @@ function guiao(rng: Rng, l: Lance, rem: Lugar, pas: Lugar | undefined, dfs: Luga
   const voo = (alvo: { x: number; y: number }) => Math.max(0.28, dist(P, alvo) / forcaRemate)
   const curva = l.origem === 'livre' ? { x: lerp(P.x, 105, 0.5), y: lerp(P.y, 34, 0.5) + (P.y > 34 ? 4 : -4) } : null
   const altura = l.origem === 'livre' ? 2.4 : l.origem === 'longe' ? 1.2 : 0.6
+  // Chapéu: o guarda-redes sai ao caminho e a bola passa-lhe por cima.
+  const chapeu = l.desfecho === 'golo' && !cabeca && gr && (l.origem === 'jogada' || l.origem === 'contra') && P.x > 82 && rng.chance(l.origem === 'contra' ? 0.35 : 0.2)
   switch (l.desfecho) {
     case 'golo': {
       const alvo = { x: COMPRIMENTO + 0.3, y: ytiro(true) }
-      const t1 = tR + voo(alvo)
-      arco(bola, tR, t1, P, alvo, curva, altura, cabeca ? -zIni : 0.6, 6)
+      const t1 = tR + voo(alvo) * (chapeu ? 1.5 : 1)
+      if (chapeu && gr) {
+        const frente = { x: Math.min(102, P.x + 5.5), y: lerp(P.y, alvo.y, 0.2) }
+        const ini = { x: COMPRIMENTO - 1.4, y: 34 + (P.y - 34) * 0.14 }
+        fixos.set(gr.id, [{ t: 0, ...ini }, { t: Math.max(0.2, tR - 1.1), ...ini }, { t: tR, ...frente }, { t: tR + 0.4, x: frente.x + 0.6, y: frente.y + 0.6 }, { t: tR + 1.6, x: frente.x + 0.6, y: frente.y + 0.6 }])
+        arco(bola, tR, t1, P, alvo, null, 4.2, 1.6, 8)
+        g.acoes.push({ tipo: 'chapeu', t: tR, autorId: rem.id, vitimaId: gr.id, de: P, ate: alvo })
+      } else arco(bola, tR, t1, P, alvo, curva, altura, cabeca ? -zIni : 0.6, 6)
       const yRede = (f: number) => clamp(alvo.y + (alvo.y - P.y) * f, POSTES[0] + 0.3, POSTES[1] - 0.3)
       bola.push({ t: t1 + 0.3, x: COMPRIMENTO + 1.7, y: yRede(0.04), z: 0.3 })
       bola.push({ t: t1 + 0.6, x: COMPRIMENTO + 1.9, y: yRede(0.05), z: 0 })
       g.tFim = t1
-      if (gr) {
+      if (gr && !chapeu) {
         // Mergulha para o lado certo, mas não chega.
         const lado = alvo.y > 34 ? 1 : -1
         g.mergulho = { ate: { x: 103.9, y: clamp(34 + lado * (1.2 + r() * 1.3), 31, 37) }, t1 }
@@ -422,6 +457,7 @@ function guiao(rng: Rng, l: Lance, rem: Lugar, pas: Lugar | undefined, dfs: Luga
       const t1 = tR + voo(alvo)
       arco(bola, tR, t1, P, alvo, curva, altura, cabeca ? -zIni : 0.3, 6)
       g.mergulho = { ate: alvo, t1 }
+      if (gr && Math.abs(yk - 34) > 2 && rng.chance(0.6)) g.acoes.push({ tipo: 'defesa', t: t1, autorId: gr.id, vitimaId: rem.id, de: alvo, ate: alvo })
       if (rng.chance(0.45)) {
         bola.push({ t: t1 + 0.1, x: alvo.x + 0.4, y: alvo.y, z: 0 }) // agarra
       } else {
@@ -462,7 +498,16 @@ function simular(rng: Rng, g: Guiao, la: Lugar[], ld: Lugar[], rem: Lugar, pas: 
   const bolaT = (t: number) => interp(g.bola, t)
   const golo = desfecho === 'golo'
   const yRemate = interp(g.fixos.get(rem.id) ?? [{ t: 0, x: 90, y: 34 }], g.tRemate).y
-  const festa = golo ? { x: 101, y: yRemate < 34 ? 4 : 64 } : null
+  // Festejo, sempre com semente: para onde corre o marcador.
+  const tipoFesta: TipoFesta | null = golo ? rng.pick<TipoFesta>(['bandeirola', 'bandeirola', 'joelhos', 'adeptos', 'banco', 'monte']) : null
+  if (tipoFesta) g.festa = { tipo: tipoFesta, t: g.tFim + 0.2 }
+  const ladoY = yRemate < 34 ? -1 : 1
+  const festa = !tipoFesta ? null
+    : tipoFesta === 'bandeirola' ? { x: 101, y: ladoY < 0 ? 4 : 64 }
+    : tipoFesta === 'joelhos' ? { x: 90, y: 34 + ladoY * 20 }
+    : tipoFesta === 'adeptos' ? { x: 84, y: ladoY < 0 ? 1.6 : 66.4 }
+    : tipoFesta === 'banco' ? { x: 58, y: 66.6 }
+    : { x: clamp(interp(g.fixos.get(rem.id) ?? [{ t: 0, x: 92, y: 34 }], g.tRemate).x - 4, 80, 96), y: clamp(yRemate, 20, 48) }
 
   /** Para onde cada um quer ir, no instante t. */
   const alvo = (c: Lugar, i: number, t: number): { x: number; y: number } => {
@@ -495,7 +540,13 @@ function simular(rng: Rng, g: Guiao, la: Lugar[], ld: Lugar[], rem: Lugar, pas: 
     // Depois do golo: o marcador corre para a bandeirola, os colegas perto vão abraçá-lo.
     if (festa && t > g.tFim + 0.2 && c.lado === rem.lado && c.pos !== 'GR') {
       if (c === rem) return festa
-      if (c === pas || (Math.abs(c.bx + 50 - festa.x) < 40 && c.pos !== 'DEF')) return { x: festa.x - 3 - (i % 3) * 1.5, y: festa.y + (festa.y < 34 ? 2 : -2) + (i % 2) * 2 }
+      // No monte vão todos; nos outros, quem está perto (e o que fez o passe).
+      const vai = tipoFesta === 'monte' ? c.pos !== 'DEF' || i % 2 === 0 : c === pas || (Math.abs(c.bx + 50 - festa.x) < 40 && c.pos !== 'DEF')
+      if (vai) {
+        const ang = i * 2.4
+        const raio = tipoFesta === 'monte' ? 1.2 + (i % 3) * 0.7 : 3 + (i % 3) * 1.5
+        return { x: clamp(festa.x - Math.abs(Math.cos(ang)) * raio, 1, COMPRIMENTO - 1), y: clamp(festa.y + Math.sin(ang) * raio, 1.2, LARGURA - 1.2) }
+      }
     }
     return { x: clamp(x, 1, COMPRIMENTO - 0.8), y: clamp(y, 1.5, LARGURA - 1.5) }
   }
@@ -533,7 +584,8 @@ function simular(rng: Rng, g: Guiao, la: Lugar[], ld: Lugar[], rem: Lugar, pas: 
       const a = alvo(c, i, t)
       if (corteAgora) { pos[i] = { ...a }; return }
       const depois = t > g.tFim + 0.3
-      const vmax = (c === rem && festa && depois ? 8 : depois ? 4.5 : 7) * DT
+      // Depois do golo, quem sofreu fica quase parado (cabeça baixa).
+      const vmax = (c === rem && festa && depois ? (tipoFesta === 'joelhos' ? 9 : 8) : depois && golo && c.lado !== rem.lado ? 1.2 : depois ? 4.5 : 7) * DT
       const dx = a.x - pos[i].x, dy = a.y - pos[i].y
       const d = Math.hypot(dx, dy)
       if (d > 0.01) {
@@ -546,6 +598,8 @@ function simular(rng: Rng, g: Guiao, la: Lugar[], ld: Lugar[], rem: Lugar, pas: 
       for (let i = 0; i < todos.length; i++) {
         for (let j = i + 1; j < todos.length; j++) {
           if (fixo[i] && fixo[j]) continue
+          // No monte, os colegas encostam-se ao marcador.
+          if (tipoFesta === 'monte' && t > g.tFim + 1 && todos[i].lado === rem.lado && todos[j].lado === rem.lado) continue
           const dx = pos[j].x - pos[i].x, dy = pos[j].y - pos[i].y
           const d = Math.hypot(dx, dy)
           const min = RAIO * 2 + 0.15
@@ -560,6 +614,15 @@ function simular(rng: Rng, g: Guiao, la: Lugar[], ld: Lugar[], rem: Lugar, pas: 
     }
     for (const p of pos) { p.x = clamp(p.x, -1, COMPRIMENTO + 2); p.y = clamp(p.y, 0.5, LARGURA - 0.5) }
     quadros.push(pos.map((p) => [Math.round(p.x * 100) / 100, Math.round(p.y * 100) / 100]))
+  }
+  // De joelhos: os últimos metros até ao sítio do festejo são a deslizar (rasto na relva).
+  if (tipoFesta === 'joelhos' && festa) {
+    const iR = todos.indexOf(rem)
+    const k = quadros.findIndex((q, kk) => kk * DT > g.tFim && Math.hypot(q[iR][0] - festa.x, q[iR][1] - festa.y) < 0.5)
+    if (k > 6) {
+      const de = { x: quadros[k - 6][iR][0], y: quadros[k - 6][iR][1] }
+      g.acoes.push({ tipo: 'joelhos', t: (k - 6) * DT + 0.3, autorId: rem.id, vitimaId: rem.id, de, ate: { ...festa } })
+    }
   }
   return quadros
 }

@@ -1,11 +1,26 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Clube, Mundo } from '../core/types'
 import type { Lado } from '../core/partida'
-import { bolaEm, caricasEm, COMPRIMENTO, LARGURA, POSTES, RAIO, type CenaRepeticao } from '../core/repeticao'
+import { bolaEm, caricasEm, COMPRIMENTO, LARGURA, POSTES, RAIO, TEXTO_FESTA, type AcaoRep, type CenaRepeticao } from '../core/repeticao'
 import './repeticao.css'
 
-const MARGEM = 4
+/** Margem à volta do campo (m): relva, placas e bancada. */
+const MARGEM = 7
 const ALT_M = LARGURA + MARGEM * 2
+/** Placas de publicidade e bancada (m fora da linha). */
+const PLACA = [2.4, 4.0]
+const BANCADA = 4.3
+
+/** Câmara: perto (segue a bola) ou campo inteiro. Guardado no browser. */
+type Camara = 'perto' | 'campo'
+const CHAVE_CAMARA = 'mister-foot-camara'
+function lerCamara(): Camara {
+  try { return localStorage.getItem(CHAVE_CAMARA) === 'campo' ? 'campo' : 'perto' } catch { return 'perto' }
+}
+
+const ROTULO_ACAO: Partial<Record<AcaoRep['tipo'], [string, string]>> = {
+  finta: ['Finta!', '#ffe066'], tabela: ['Tabelinha!', '#8fe3ff'], chapeu: ['Chapéu!', '#ffe066'], defesa: ['Grande defesa!', '#9cf5b0'],
+}
 
 const ORIGEM: Record<CenaRepeticao['origem'], string> = {
   jogada: 'Jogada', contra: 'Contra-ataque', canto: 'Canto', livre: 'Livre direto', penalti: 'Penálti', longe: 'Remate de longe',
@@ -60,6 +75,15 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
   const arbRef = useRef<{ x: number; y: number } | null>(null)
   const [marco, setMarco] = useState(emDireto ? 0 : 2)
   const marcoRef = useRef(marco)
+  const [camara, setCamara] = useState<Camara>(lerCamara)
+  const camRef = useRef(camara)
+  /** Redesenha já com a câmara nova (também com a repetição parada no fim). */
+  const redesenharRef = useRef<(() => void) | null>(null)
+  useEffect(() => {
+    camRef.current = camara
+    redesenharRef.current?.()
+    try { localStorage.setItem(CHAVE_CAMARA, camara) } catch { /* sem armazenamento */ }
+  }, [camara])
 
   useEffect(() => {
     const cv = tela.current, cx = caixa.current
@@ -141,8 +165,11 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
           g.fillText(nomes[k % 3], x, SY(y0 + yl / 2))
         }
       }
-      placa(-MARGEM, 1.6)
-      placa(LARGURA + MARGEM - 1.6, 1.6)
+      g.fillStyle = '#0d1117'
+      g.fillRect(0, 0, c.width, SY(-BANCADA))
+      g.fillRect(0, SY(LARGURA + BANCADA), c.width, c.height - SY(LARGURA + BANCADA))
+      placa(-PLACA[1], PLACA[1] - PLACA[0])
+      placa(LARGURA + PLACA[0], PLACA[1] - PLACA[0])
       // Vinheta suave.
       const v = g.createRadialGradient(c.width / 2, c.height / 2, c.height * 0.3, c.width / 2, c.height / 2, c.width * 0.75)
       v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.22)')
@@ -220,28 +247,128 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
       ctx.fillText(String(num), cxp, cyp + r * 0.04)
     }
 
-    const etiqueta = (x: number, y: number, txt: string) => {
-      const r = Math.max(6 * dpr, RAIO * esc)
-      ctx.font = `600 ${Math.max(10, Math.round(r * 0.95))}px system-ui, sans-serif`
+    const etiqueta = (pt: DOMPoint, txt: string) => {
+      const r = Math.max(6 * dpr, RAIO * esc) * (cam?.z ?? 1)
+      ctx.font = `600 ${Math.max(10, Math.round(Math.min(r, 13 * dpr) * 0.95))}px system-ui, sans-serif`
       const tw = ctx.measureText(txt).width
-      const px = X(x), py = Y(y) - r * 1.9
+      const px = pt.x, py = pt.y - r * 1.9
       ctx.fillStyle = 'rgba(10,14,20,0.72)'
       ctx.fillRect(px - tw / 2 - 4, py - r * 0.7, tw + 8, r * 1.4)
       ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
       ctx.fillText(txt, px, py)
     }
 
+    const faixa = (txt: string, cor: string) => {
+      const fs = Math.round(Math.max(12 * dpr, Math.min(cv.width * 0.035, 22 * dpr)))
+      ctx.save()
+      ctx.font = `800 ${fs}px system-ui, sans-serif`
+      const tw = ctx.measureText(txt).width
+      const y = cv.height - fs * 1.4
+      ctx.fillStyle = 'rgba(10,14,20,0.8)'
+      ctx.fillRect(cv.width / 2 - tw / 2 - fs * 0.6, y - fs * 0.8, tw + fs * 1.2, fs * 1.6)
+      ctx.fillStyle = cor
+      ctx.fillRect(cv.width / 2 - tw / 2 - fs * 0.6, y - fs * 0.8, fs * 0.25, fs * 1.6)
+      ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+      ctx.fillText(txt, cv.width / 2, y)
+      ctx.restore()
+    }
+    // Adeptos na bancada: pontos com as cores dos clubes (os da casa em maioria), saltam com os golos.
+    const adeptos: { x: number; y: number; cor: string; fase: number; lado: Lado }[] = []
+    {
+      let sm = 777
+      const rnd = () => { sm = (sm * 1103515245 + 12345) >>> 0; return sm / 4294967296 }
+      for (const topo of [true, false]) {
+        for (let fila = 0; fila < 4; fila++) {
+          for (let x = -MARGEM + 0.6; x < COMPRIMENTO + MARGEM; x += 1.25) {
+            if (rnd() < 0.12) continue
+            // A ponta direita da bancada de baixo é a dos visitantes.
+            const lado: Lado = !topo && x > COMPRIMENTO * 0.78 ? 'fora' : 'casa'
+            const cs = cores[lado]
+            const r = rnd()
+            const cor = r < 0.45 ? cs[0] : r < 0.7 ? cs[1] : ['#d9d2c5', '#3a3f4a', '#8a6a4e', '#c9b38f'][Math.floor(rnd() * 4)]
+            const y = topo ? -BANCADA - 0.6 - fila * 0.7 : LARGURA + BANCADA + 0.6 + fila * 0.7
+            adeptos.push({ x: x + (rnd() - 0.5) * 0.5, y, cor, fase: rnd() * 6.28, lado })
+          }
+        }
+      }
+    }
+    const golo = cena.desfecho === 'golo' && !cena.ambiente
+    // Os papelinhos e os flashes do golo (sempre os mesmos: semente fixa).
+    const papeis = Array.from({ length: 70 }, (_, i) => {
+      const a = Math.sin(i * 12.9898) * 43758.5453, b = Math.sin(i * 78.233) * 12345.678
+      const f1 = a - Math.floor(a), f2 = b - Math.floor(b)
+      return { y: 34 + (f1 - 0.5) * 30, vx: -2 - f2 * 9, vy: (f1 - 0.5) * 8, cor: i % 2 ? cores[atac][0] : cores[atac][1], g: f2 * 6.28 }
+    })
+    const desenharAdeptos = () => {
+      const pulo = golo && t > cena.tFim ? Math.max(0, 1 - (t - cena.tFim) / 3) : 0
+      for (const a of adeptos) {
+        const festa = a.lado === atac ? pulo : 0
+        const dy = Math.sin(t * (festa ? 14 : 2) + a.fase) * (0.12 + festa * 0.35)
+        const lado = Math.max(1.2, 0.5 * esc)
+        ctx.fillStyle = a.cor
+        ctx.fillRect(SX(a.x) - lado / 2, SY(a.y + dy) - lado / 2, lado, lado)
+        // Flashes das máquinas fotográficas.
+        if (festa > 0.2 && Math.sin(a.fase * 97 + Math.floor(t * 9)) > 0.985) {
+          ctx.fillStyle = '#fffbe6'
+          ctx.beginPath(); ctx.arc(SX(a.x), SY(a.y), lado * 1.6, 0, Math.PI * 2); ctx.fill()
+        }
+      }
+    }
+
     let t = 0, ultimo = performance.now(), raf = 0, parado = false
     let dtDesenho = 0, giroBola = 0
     let bAnt: { x: number; y: number } | null = null
+    // Câmara (em píxeis do ecrã sem câmara): centro, zoom e rotação, suavizados.
+    let cam: { x: number; y: number; z: number; rot: number } | null = null
+    /** Segunda vista do golo, atrás da baliza e em câmara lenta. */
+    let angulo = false
+    let tFimAngulo = 0
+    const alvoCamara = (b: { x: number; y: number }) => {
+      if (angulo) {
+        // Atrás da baliza: a baliza fica em cima, perto.
+        const golX = esp ? -1 : 1
+        return { x: X(COMPRIMENTO - 12), y: Y(34), z: cv.height / (30 * esc), rot: golX > 0 ? -Math.PI / 2 : Math.PI / 2 }
+      }
+      if (cena.ambiente || camRef.current === 'campo') return { x: cv.width / 2, y: cv.height / 2, z: 1, rot: 0 }
+      const perto = t > cena.tRemate - 1 && t < cena.tFim + 1.2
+      return { x: X(b.x), y: Y(b.y), z: w < 640 ? (perto ? 1.5 : 1.25) : perto ? 2.1 : 1.6, rot: 0 }
+    }
+    const aplicarCamara = (b: { x: number; y: number }, salto: boolean) => {
+      const a = alvoCamara(b)
+      if (!cam || salto || dtDesenho <= 0) cam = { ...a }
+      else {
+        const k = Math.min(1, dtDesenho * 3.2)
+        cam = { x: cam.x + (a.x - cam.x) * k, y: cam.y + (a.y - cam.y) * k, z: cam.z + (a.z - cam.z) * Math.min(1, dtDesenho * 1.8), rot: a.rot }
+      }
+      // Sem mostrar fora do desenho (só sem rotação).
+      if (!cam.rot) {
+        const mw = cv.width / (2 * cam.z), mh = cv.height / (2 * cam.z)
+        cam.x = Math.max(mw, Math.min(cv.width - mw, cam.x))
+        cam.y = Math.max(mh, Math.min(cv.height - mh, cam.y))
+      }
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      ctx.translate(cv.width / 2, cv.height / 2)
+      ctx.rotate(cam.rot)
+      ctx.scale(cam.z, cam.z)
+      ctx.translate(-cam.x, -cam.y)
+    }
+    /** Ponto do campo (m) para o ecrã, com a câmara. */
+    const noEcra = (mt: DOMMatrix, x: number, y: number) => mt.transformPoint(new DOMPoint(X(x), Y(y)))
     const desenhar = () => {
       if (!cv.width || !cv.height) return
-      ctx.clearRect(0, 0, cv.width, cv.height)
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      ctx.fillStyle = '#0d1117'
+      ctx.fillRect(0, 0, cv.width, cv.height)
+      const b0 = bolaEm(cena, t)
+      aplicarCamara(b0, false)
+      const mt = ctx.getTransform()
       campo()
+      desenharAdeptos()
       const ps = caricasEm(cena, t)
       const b = bolaEm(cena, t)
       // Rasto do carrinho na relva.
       for (const f of cena.acoes ?? []) {
+        if (f.tipo !== 'finta' && f.tipo !== 'falta' && f.tipo !== 'joelhos') continue
         if (t < f.t - 0.3 || t > f.t + 2) continue
         const fr = Math.min(1, Math.max(0, (t - (f.t - 0.3)) / 0.4))
         ctx.save()
@@ -318,26 +445,45 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
         ctx.stroke()
         ctx.restore()
       }
+      // Papelinhos a voar para a baliza no golo.
+      if (golo && t > cena.tFim && t < cena.tFim + 3) {
+        const dt = t - cena.tFim
+        for (const p of papeis) {
+          const px = COMPRIMENTO + 6 + p.vx * dt, py = p.y + p.vy * dt * 0.6
+          ctx.save()
+          ctx.translate(X(px), Y(py)); ctx.rotate(p.g + dt * 6)
+          ctx.globalAlpha = Math.max(0, 1 - dt / 3)
+          ctx.fillStyle = p.cor
+          ctx.fillRect(-0.35 * esc, -0.15 * esc, 0.7 * esc, 0.3 * esc)
+          ctx.restore()
+        }
+      }
+      // A partir daqui, letras sem câmara (tamanho fixo), nos sítios certos.
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      const P = (x: number, y: number) => noEcra(mt, x, y)
       // Nomes do passe e do remate.
       const iR = cena.caricas.findIndex((c) => c.id === cena.rematadorId)
-      if (rem && iR >= 0) etiqueta(ps[iR][0], ps[iR][1], rem.curto)
+      if (rem && iR >= 0) etiqueta(P(ps[iR][0], ps[iR][1]), rem.curto)
       if (pas && t < cena.tRemate) {
         const iP = cena.caricas.findIndex((c) => c.id === cena.passadorId)
-        if (iP >= 0) etiqueta(ps[iP][0], ps[iP][1], pas.curto)
+        if (iP >= 0) etiqueta(P(ps[iP][0], ps[iP][1]), pas.curto)
       }
-      // "Finta!" por cima de quem a faz.
+      // "Finta!", "Tabelinha!", "Chapéu!", "Grande defesa!" por cima de quem a faz.
+      const rLetra = Math.min(Math.max(6 * dpr, RAIO * esc) * (cam?.z ?? 1), 16 * dpr)
       for (const f of cena.acoes ?? []) {
-        if (t < f.t - 0.15 || t > f.t + 0.8) continue
+        const rot = ROTULO_ACAO[f.tipo]
+        if (!rot || t < f.t - 0.15 || t > f.t + 0.9) continue
         const iA = cena.caricas.findIndex((c) => c.id === f.autorId)
         if (iA < 0) continue
-        const r = Math.max(6 * dpr, RAIO * esc)
+        const r = rLetra
+        const pt = P(ps[iA][0], ps[iA][1])
         ctx.save()
         ctx.font = `800 ${Math.round(r * 1.2)}px system-ui, sans-serif`
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-        ctx.lineWidth = Math.max(2, r * 0.25); ctx.strokeStyle = '#10141a'; ctx.fillStyle = '#ffe066'
+        ctx.lineWidth = Math.max(2, r * 0.25); ctx.strokeStyle = '#10141a'; ctx.fillStyle = rot[1]
         const sobe = (t - f.t) * r * 1.5
-        ctx.strokeText('Finta!', X(ps[iA][0]), Y(ps[iA][1]) + r * 3 - sobe)
-        ctx.fillText('Finta!', X(ps[iA][0]), Y(ps[iA][1]) + r * 3 - sobe)
+        ctx.strokeText(rot[0], pt.x, pt.y + r * 3 - sobe)
+        ctx.fillText(rot[0], pt.x, pt.y + r * 3 - sobe)
         ctx.restore()
       }
       // Falta que dá penálti: apito e "Penálti!".
@@ -345,13 +491,14 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
         if (f.tipo !== 'falta' || t < f.t || t > (cena.cortes?.[0] ?? f.t + 1.2)) continue
         const iV = cena.caricas.findIndex((c) => c.id === f.vitimaId)
         if (iV < 0) continue
-        const r = Math.max(6 * dpr, RAIO * esc)
+        const r = rLetra
+        const pt = P(ps[iV][0], ps[iV][1])
         ctx.save()
         ctx.font = `800 ${Math.round(r * 1.5)}px system-ui, sans-serif`
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
         ctx.lineWidth = Math.max(2, r * 0.3); ctx.strokeStyle = '#10141a'; ctx.fillStyle = '#ff6b5e'
-        ctx.strokeText('Penálti!', X(ps[iV][0]), Y(ps[iV][1]) + r * 3.2)
-        ctx.fillText('Penálti!', X(ps[iV][0]), Y(ps[iV][1]) + r * 3.2)
+        ctx.strokeText('Penálti!', pt.x, pt.y + r * 3.2)
+        ctx.fillText('Penálti!', pt.x, pt.y + r * 3.2)
         ctx.restore()
       }
       // Corte para a marcação: escurece e volta.
@@ -361,11 +508,16 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
         ctx.fillStyle = `rgba(6,10,14,${(1 - d / 0.35).toFixed(3)})`
         ctx.fillRect(0, 0, cv.width, cv.height)
       }
+      // Festejo: uma faixa em baixo.
+      if (golo && !angulo && cena.festa && t > cena.festa.t + 0.6 && t < cena.festa.t + 3.5) {
+        faixa(TEXTO_FESTA[cena.festa.tipo], cores[atac][0])
+      }
+      if (angulo) faixa('Outro ângulo · atrás da baliza', '#e5675c')
       // Grande "GOLO!" no fim.
-      if (cena.desfecho === 'golo' && t > cena.tFim) {
+      if (golo && !angulo && t > cena.tFim && t < cena.tFim + 1.6) {
         const f = Math.min(1, (t - cena.tFim) / 0.35)
         ctx.save()
-        ctx.globalAlpha = f
+        ctx.globalAlpha = f * Math.min(1, (cena.tFim + 1.6 - t) / 0.4)
         ctx.font = `900 ${Math.round(Math.min(cv.width * 0.16, cv.height * 0.2) * (0.8 + 0.2 * f))}px system-ui, sans-serif`
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
         ctx.lineWidth = Math.max(3, cv.height * 0.012)
@@ -379,9 +531,20 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
     const passo = (agora: number) => {
       const dtR = Math.min(0.05, (agora - ultimo) / 1000)
       ultimo = agora
-      dtDesenho = parado ? 0 : dtR * velocidade
+      // Câmara lenta no remate (não no campo ao vivo) e na segunda vista do golo.
+      const lenta = !cena.ambiente && (angulo || (t > cena.tRemate - 0.35 && t < cena.tFim + 0.25)) ? (angulo ? 0.4 : 0.5) : 1
+      dtDesenho = parado ? 0 : dtR * velocidade * lenta
       if (!parado) {
-        t += dtR * velocidade
+        t += dtDesenho
+        if (angulo && t >= tFimAngulo) { t = cena.duracao; angulo = false; cam = null; parado = true; setAcabou(true) }
+        else if (golo && !angulo && t >= cena.duracao && tFimAngulo === 0) {
+          // Golo: volta atrás e mostra outra vez, de trás da baliza.
+          angulo = true
+          tFimAngulo = Math.min(cena.duracao, cena.tFim + 0.9)
+          t = Math.max(0, cena.tRemate - 1.4)
+          cam = null
+          rasto.length = 0
+        }
         const falta = cena.acoes?.find((a) => a.tipo === 'falta')
         const m = t >= cena.tFim ? 2 : falta && t >= falta.t ? 1 : 0
         if (m > marcoRef.current) {
@@ -389,11 +552,12 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
           setMarco(m)
           if (m === 2) revelarRef.current?.()
         }
-        if (t >= cena.duracao) { t = cena.duracao; parado = true; setAcabou(true) }
+        if (!angulo && !parado && t >= cena.duracao) { t = cena.duracao; parado = true; setAcabou(true) }
       }
       desenhar()
       if (!parado) raf = requestAnimationFrame(passo)
     }
+    redesenharRef.current = () => { cam = null; desenhar() }
     setAcabou(false)
     if (marcoRef.current === 2) setMarco(2)
     raf = requestAnimationFrame(passo)
@@ -435,6 +599,7 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
       <div className="rep-tela" ref={caixa}><canvas ref={tela} /></div>
       <div className="rep-botoes">
         <button className="botao" onClick={() => setVez((v) => v + 1)}>Ver outra vez</button>
+        <button className="botao" data-testid="rep-camara" title="Câmara que segue a bola ou o campo inteiro" onClick={() => setCamara((c) => (c === 'perto' ? 'campo' : 'perto'))}>{camara === 'perto' ? 'Câmara: perto' : 'Câmara: campo'}</button>
         <button className="botao principal" onClick={() => fimRef.current()}>{rotuloFim}</button>
       </div>
     </div>
