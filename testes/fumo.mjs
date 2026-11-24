@@ -225,6 +225,24 @@ try {
     esperar(await page.locator('.im-conf').count() === 0, 'a conferência não fechou depois de responder')
   })
 
+  await passo('plano de jogo e relatório do olheiro no pré-jogo', async () => {
+    await page.getByRole('button', { name: 'Jogo', exact: true }).click()
+    const plano = page.getByTestId('plano-jogo')
+    await plano.waitFor({ timeout: 5000 })
+    await page.getByTestId('relatorio').waitFor({ timeout: 5000 })
+    await plano.getByRole('button', { name: 'Pressão alta' }).click()
+    await plano.getByRole('button', { name: 'Canto curto' }).click()
+    await plano.getByRole('button', { name: /Instruções individuais/ }).click()
+    const sel = plano.locator('.plano-jog select').first()
+    await sel.selectOption('marcar')
+    await plano.locator('label.campo', { hasText: 'marca de perto' }).locator('select').selectOption({ index: 1 })
+    esperar(await plano.getByRole('button', { name: 'Pressão alta' }).evaluate((b) => b.classList.contains('ativo')), 'a pressão alta não ficou escolhida')
+    await plano.scrollIntoViewIfNeeded()
+    await foto('5d-plano-jogo.png')
+    await page.getByTestId('relatorio').scrollIntoViewIfNeeded()
+    await foto('5e-relatorio.png')
+  })
+
   await passo('jogar jornada ao vivo a 2x', async () => {
     await page.getByRole('button', { name: 'Jogo', exact: true }).click()
     await page.getByRole('button', { name: 'Jogar jornada' }).click()

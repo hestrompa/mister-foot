@@ -5,6 +5,8 @@ export const NOVIDADES: { data: string; itens: string[] }[] = [
   {
     data: '24/11',
     itens: [
+      'Plano de jogo no pré-jogo: marcação (à zona, individual ou pressão alta), cantos ensaiados (à área, curto ou à entrada da área), livres diretos ou cruzados, batedor e instruções individuais (apoiar o ataque, ficar atrás, rematar de longe, marcar de perto um adversário). Tudo pesa conforme os atributos dos jogadores. A marcação também se muda ao intervalo.',
+      'Relatório do olheiro sobre o próximo adversário: jogadores-chave, como costumam jogar e ideias que se aplicam com um toque. Quanto melhor o olheiro, mais o relatório diz.',
       'Campo 2D com os atributos: os rápidos correm mais, os bons passadores arriscam o passe longo, os bons defesas desarmam mais, remates mais fortes e guarda-redes melhores a mergulhar. Mais lances ao vivo: desarmes, cortes, lançamentos, alívios, cantos aliviados de cabeça e remates bloqueados ou ao lado.',
       'Carreira dos jogadores: personalidade (profissional, ambicioso, leal, temperamental, líder...), histórico de jogos e golos por época, reformas entre os 33 e os 39 anos e galeria de lendas na História.',
       'Evolução mais natural: jovens com teto alto crescem mais, os minutos contam no potencial e há quem floresça tarde.',
