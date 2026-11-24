@@ -2,7 +2,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Jogo, Mundo } from '../core/types'
 import type { Lado, Partida } from '../core/partida'
-import { avancarMinuto, definirAutoSub, iniciarJogo, type EstadoJogo } from '../core/motor'
+import { definirAutoSub, iniciarJogo, type EstadoJogo } from '../core/motor'
+import { depoisDoMinuto, novaRondaViva, passoRonda, rondaAcabou, saltarRonda, terminouVivo, type PausaVivo } from '../core/ao-vivo'
+import { useMonitor2D } from './Monitor2D'
 import { euros } from '../core/formato'
 import {
   NOME_SUPERTACA, NOME_TACA, PREMIO_FINALISTA, PREMIO_SUPERTACA, rondaPendente, precisaProlongamento, prolongar, escalacaoTaca, garantirTaca, indisponiveisTaca, jogarRondaTaca, meuJogoNaRonda,
@@ -14,6 +16,7 @@ import { SaltarJogo, sementeJornada } from './comum'
 import './taca.css'
 
 const MS_MINUTO = 450
+type FaseVivo = PausaVivo | 'jogo' | 'resumo' | 'repeticao'
 
 function Nome({ mundo, id, sigla = false }: { mundo: Mundo; id: number; sigla?: boolean }) {
   const c = mundo.clubes[id]
@@ -152,36 +155,34 @@ export function AoVivoTaca({ jogo, guardar, continuar }: { jogo: JogoComTaca; gu
   })
   const estados = ini
   const meu = estados[0]
-  const meuLado: Lado = meu.partida.casaId === clubeId ? 'casa' : 'fora'
-  const [fase, setFase] = useState<'jogo' | 'intervalo' | 'lesao' | 'pausa' | 'resumo'>('jogo')
+  const [rv] = useState(() => novaRondaViva(estados, clubeId, (e) => {
+    if (!precisaProlongamento(e)) return false
+    prolongar(e)
+    return true
+  }))
+  const meuLado: Lado = rv.meuLado
+  const [fase, setFase] = useState<FaseVivo>('jogo')
   const [vel, setVel] = useState(1)
   const [, setTick] = useState(0)
-  const feitos = useRef(new Set<string>())
   const concluido = useRef(false)
   const [lesionado, setLesionado] = useState<number | null>(null)
   const [resumo, setResumo] = useState<ResumoTaca | null>(null)
-  const terminou = (e: EstadoJogo) => e.partida.jogada || feitos.current.has(e.partida.id)
+  const terminou = (e: EstadoJogo) => terminouVivo(rv, e)
+  const mon = useMonitor2D({
+    mundo, meu, casa: mundo.clubes[meu.partida.casaId], fora: mundo.clubes[meu.partida.foraId],
+    semente: (x) => sementeJornada(jogo, 7100 + t.atual * 1000 + x),
+    voltar: (f) => setFase((f as FaseVivo | null) ?? 'jogo'),
+  })
 
-  const passo = (): 'intervalo' | 'lesao' | 'pausa' | null => {
-    let pausa: 'intervalo' | 'lesao' | 'pausa' | null = null
-    for (const e of estados) {
-      if (terminou(e)) continue
-      for (const ev of avancarMinuto(mundo, e)) {
-        if (ev.tipo === 'fim' && precisaProlongamento(e)) {
-          prolongar(e)
-          if (e === meu && !pausa) pausa = 'pausa'
-          continue
-        }
-        if (ev.tipo === 'fim') feitos.current.add(e.partida.id)
-        if (e === meu && ev.tipo === 'intervalo') pausa = 'intervalo'
-        if (e === meu && ev.tipo === 'lesao' && ev.lado === meuLado && meu.subs[meuLado] < 5 && !pausa) { pausa = 'lesao'; setLesionado(ev.jogadorId ?? null) }
-      }
-    }
-    return pausa
+  const passo = (): FaseVivo | null => {
+    const r = passoRonda(mundo, rv, mon.aoEvento)
+    if (r.pausa === 'lesao') setLesionado(r.lesionado ?? null)
+    return mon.fimDoMinuto(r.pausa)
   }
 
   const concluir = () => {
     if (concluido.current) return
+    mon.revelar()
     concluido.current = true
     const emCampo = (e: EstadoJogo): [number[], number[]] => {
       const fora = new Set(e.fora)
@@ -190,7 +191,7 @@ export function AoVivoTaca({ jogo, guardar, continuar }: { jogo: JogoComTaca; gu
     const antes = mundo.clubes[clubeId].dinheiro
     const feita = jogarRondaTaca(jogo, estados.map((e) => ({ partida: { ...e.partida, jogada: true }, emCampo: emCampo(e) })))
     guardar()
-    const minha = feita ? meuJogoNaRonda(jogo, feita)! : meu.partida
+    const minha = (feita ? meuJogoNaRonda(jogo, feita) : undefined) ?? meu.partida
     setResumo({ ronda: feita ?? ronda, minha, premio: mundo.clubes[clubeId].dinheiro - antes })
     setFase('resumo')
   }
@@ -199,9 +200,9 @@ export function AoVivoTaca({ jogo, guardar, continuar }: { jogo: JogoComTaca; gu
     if (fase !== 'jogo') return
     const h = setInterval(() => {
       if (concluido.current) return
-      const pausa = passo()
-      if (estados.every(terminou)) { clearInterval(h); concluir(); return }
-      if (pausa) setFase(pausa)
+      const d = depoisDoMinuto(passo(), rondaAcabou(rv))
+      if (d.tipo === 'pausa') { clearInterval(h); setFase(d.pausa); return }
+      if (d.tipo === 'fechar') { clearInterval(h); concluir(); return }
       setTick((x) => x + 1)
     }, MS_MINUTO / vel)
     return () => clearInterval(h)
@@ -209,8 +210,8 @@ export function AoVivoTaca({ jogo, guardar, continuar }: { jogo: JogoComTaca; gu
   }, [fase, vel])
 
   const saltar = () => {
-    let guarda = 0
-    while (!estados.every(terminou) && guarda++ < 200) passo()
+    mon.saltar()
+    saltarRonda(mundo, rv)
     setLesionado(null)
     concluir()
   }
@@ -219,7 +220,7 @@ export function AoVivoTaca({ jogo, guardar, continuar }: { jogo: JogoComTaca; gu
 
   const mp = meu.partida
   const casa = mundo.clubes[mp.casaId], fora = mundo.clubes[mp.foraId]
-  const feed = [...mp.eventos].reverse()
+  const feed = [...mp.eventos].filter((ev) => ev !== mon.escondido()).reverse()
   return (
     <div className="ao-vivo">
       <div className="av-principal">
@@ -236,8 +237,10 @@ export function AoVivoTaca({ jogo, guardar, continuar }: { jogo: JogoComTaca; gu
         <div className="controlos">
           {[1, 2, 4].map((v) => <button key={v} className={`botao ${vel === v ? 'ativo' : ''}`} onClick={() => setVel(v)}>{v}x</button>)}
           <button className="botao" disabled={fase !== 'jogo'} onClick={() => setFase('pausa')}>Pausa</button>
+          {mon.botaoModo}
         </div>
         <SaltarJogo saltar={saltar} />
+        {mon.campo({ repeticao: fase === 'repeticao', acabou: terminou(meu), vel })}
         {(fase === 'intervalo' || fase === 'lesao' || fase === 'pausa') && (
           <PainelSubs jogo={jogo} estado={meu} lado={meuLado} fase={fase} lesionado={lesionado}
             retomar={() => { setLesionado(null); setFase('jogo') }} atualizar={() => setTick((x) => x + 1)} />

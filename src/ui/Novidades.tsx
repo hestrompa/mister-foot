@@ -5,6 +5,7 @@ export const NOVIDADES: { data: string; itens: string[] }[] = [
   {
     data: '24/11',
     itens: [
+      'Taça, Supertaça e Europa com campo 2D ao vivo e repetições, como na liga; corrigido o ecrã que podia ficar preso no fim destes jogos.',
       'Dinheiro no arranque de cada época: direitos de TV, patrocinador, lugares anuais e prémio da Liga pela classificação.',
       'Verba da direção no arranque, ligada à confiança; investidores entram a meio da época em clubes que superam o esperado.',
       'Patrocínio por objetivos (arriscar antes da 1.ª jornada) e venda do nome do estádio.',

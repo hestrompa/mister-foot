@@ -378,6 +378,8 @@ try {
       await page.getByRole('button', { name: '4x' }).click()
       await page.waitForTimeout(1500)
       await foto('12b-taca-ao-vivo.png')
+      const campos = await page.locator('canvas').count()
+      esperar(campos > 0, 'a taça ao vivo devia ter o campo 2D')
       await saltarJogo()
       await page.locator('.taca-titulo').waitFor({ timeout: 10000 })
       await foto('12c-taca-resumo.png')

@@ -2,7 +2,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Jogo, Mundo } from '../core/types'
 import type { Lado, Partida } from '../core/partida'
-import { avancarMinuto, definirAutoSub, iniciarJogo, type EstadoJogo } from '../core/motor'
+import { definirAutoSub, iniciarJogo, type EstadoJogo } from '../core/motor'
+import { depoisDoMinuto, novaRondaViva, passoRonda, rondaAcabou, saltarRonda, terminouVivo, type PausaVivo } from '../core/ao-vivo'
+import { useMonitor2D } from './Monitor2D'
 import { euros } from '../core/formato'
 import { tabela } from '../core/epoca'
 import { prolongar, textoResultado } from '../core/taca'
@@ -19,6 +21,7 @@ import './taca.css'
 import './europa.css'
 
 const MS_MINUTO = 450
+type FaseVivo = PausaVivo | 'jogo' | 'resumo' | 'repeticao'
 
 function Nome({ jogo, m, id, sigla = false }: { jogo: JogoComEuropa; m: Mundo; id: number; sigla?: boolean }) {
   const c = m.clubes[id]
@@ -246,37 +249,36 @@ export function AoVivoEuropa({ jogo, guardar, continuar }: { jogo: JogoComEuropa
     return lista
   })
   const meu = ini[0]
-  const meuLado: Lado = meu.e.partida.casaId === clubeId ? 'casa' : 'fora'
-  const [fase, setFase] = useState<'jogo' | 'intervalo' | 'lesao' | 'pausa' | 'resumo'>('jogo')
+  const [rv] = useState(() => novaRondaViva(ini.map((x) => x.e), clubeId, (e, i) => {
+    const x = ini[i]
+    if (!precisaProlongEuropa(e.partida, x.ida, x.final)) return false
+    prolongar(e)
+    return true
+  }))
+  const meuLado: Lado = rv.meuLado
+  const [fase, setFase] = useState<FaseVivo>('jogo')
   const [vel, setVel] = useState(1)
   const [, setTick] = useState(0)
-  const feitos = useRef(new Set<string>())
   const concluido = useRef(false)
   const [lesionado, setLesionado] = useState<number | null>(null)
   const [resumo, setResumo] = useState<{ minha: Partida; premio: number } | null>(null)
-  const terminou = (x: EstadoEu) => x.e.partida.jogada || feitos.current.has(x.e.partida.id)
+  const terminou = (x: EstadoEu) => terminouVivo(rv, x.e)
   const jogoVista = useMemo(() => ({ ...jogo, mundo: m }), [jogo, m])
+  const mon = useMonitor2D({
+    mundo: m, meu: meu.e, casa: m.clubes[meu.e.partida.casaId], fora: m.clubes[meu.e.partida.foraId],
+    semente: (x) => sementeJornada(jogo, 8100 + dia * 1000 + x),
+    voltar: (f) => setFase((f as FaseVivo | null) ?? 'jogo'),
+  })
 
-  const passo = (): 'intervalo' | 'lesao' | 'pausa' | null => {
-    let pausa: 'intervalo' | 'lesao' | 'pausa' | null = null
-    for (const x of ini) {
-      if (terminou(x)) continue
-      for (const ev of avancarMinuto(m, x.e)) {
-        if (ev.tipo === 'fim' && precisaProlongEuropa(x.e.partida, x.ida, x.final)) {
-          prolongar(x.e)
-          if (x === meu && !pausa) pausa = 'pausa'
-          continue
-        }
-        if (ev.tipo === 'fim') feitos.current.add(x.e.partida.id)
-        if (x === meu && ev.tipo === 'intervalo') pausa = 'intervalo'
-        if (x === meu && ev.tipo === 'lesao' && ev.lado === meuLado && meu.e.subs[meuLado] < 5 && !pausa) { pausa = 'lesao'; setLesionado(ev.jogadorId ?? null) }
-      }
-    }
-    return pausa
+  const passo = (): FaseVivo | null => {
+    const r = passoRonda(m, rv, mon.aoEvento)
+    if (r.pausa === 'lesao') setLesionado(r.lesionado ?? null)
+    return mon.fimDoMinuto(r.pausa)
   }
 
   const concluir = () => {
     if (concluido.current) return
+    mon.revelar()
     concluido.current = true
     const emCampo = (e: EstadoJogo): [number[], number[]] => {
       const fora = new Set(e.fora)
@@ -294,9 +296,9 @@ export function AoVivoEuropa({ jogo, guardar, continuar }: { jogo: JogoComEuropa
     if (fase !== 'jogo') return
     const h = setInterval(() => {
       if (concluido.current) return
-      const pausa = passo()
-      if (ini.every(terminou)) { clearInterval(h); concluir(); return }
-      if (pausa) setFase(pausa)
+      const d = depoisDoMinuto(passo(), rondaAcabou(rv))
+      if (d.tipo === 'pausa') { clearInterval(h); setFase(d.pausa); return }
+      if (d.tipo === 'fechar') { clearInterval(h); concluir(); return }
       setTick((x) => x + 1)
     }, MS_MINUTO / vel)
     return () => clearInterval(h)
@@ -304,8 +306,8 @@ export function AoVivoEuropa({ jogo, guardar, continuar }: { jogo: JogoComEuropa
   }, [fase, vel])
 
   const saltar = () => {
-    let guarda = 0
-    while (!ini.every(terminou) && guarda++ < 200) passo()
+    mon.saltar()
+    saltarRonda(m, rv)
     setLesionado(null)
     concluir()
   }
@@ -316,7 +318,7 @@ export function AoVivoEuropa({ jogo, guardar, continuar }: { jogo: JogoComEuropa
 
   const mp = meu.e.partida
   const casa = m.clubes[mp.casaId], fora = m.clubes[mp.foraId]
-  const feed = [...mp.eventos].reverse()
+  const feed = [...mp.eventos].filter((ev) => ev !== mon.escondido()).reverse()
   const ag = meu.ida ? agregado(mp, meu.ida) : null
   return (
     <div className="ao-vivo">
@@ -335,8 +337,10 @@ export function AoVivoEuropa({ jogo, guardar, continuar }: { jogo: JogoComEuropa
         <div className="controlos">
           {[1, 2, 4].map((v) => <button key={v} className={`botao ${vel === v ? 'ativo' : ''}`} onClick={() => setVel(v)}>{v}x</button>)}
           <button className="botao" disabled={fase !== 'jogo'} onClick={() => setFase('pausa')}>Pausa</button>
+          {mon.botaoModo}
         </div>
         <SaltarJogo saltar={saltar} />
+        {mon.campo({ repeticao: fase === 'repeticao', acabou: terminou(meu), vel })}
         {(fase === 'intervalo' || fase === 'lesao' || fase === 'pausa') && (
           <PainelSubs jogo={jogoVista} estado={meu.e} lado={meuLado} fase={fase} lesionado={lesionado}
             retomar={() => { setLesionado(null); setFase('jogo') }} atualizar={() => setTick((x) => x + 1)} />

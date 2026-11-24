@@ -14,17 +14,17 @@ import { Repeticao2D } from './Repeticao2D'
 type Fase = 'jogo' | 'intervalo' | 'lesao' | 'pausa' | 'resumo' | 'repeticao'
 
 /** Que lances do meu jogo abrem a repetição 2D. */
-type ModoRep = 'tudo' | 'golos' | 'nada'
-const MODOS_REP: Record<ModoRep, string> = { tudo: 'Repetições: golos e ocasiões', golos: 'Repetições: só golos', nada: 'Repetições: desligadas' }
+export type ModoRep = 'tudo' | 'golos' | 'nada'
+export const MODOS_REP: Record<ModoRep, string> = { tudo: 'Repetições: golos e ocasiões', golos: 'Repetições: só golos', nada: 'Repetições: desligadas' }
 const CHAVE_REP = 'mister-foot-repeticoes'
-function lerModoRep(): ModoRep {
+export function lerModoRep(): ModoRep {
   try {
     const v = localStorage.getItem(CHAVE_REP)
     if (v === 'tudo' || v === 'golos' || v === 'nada') return v
   } catch { /* sem armazenamento */ }
   return 'tudo'
 }
-function gravarModoRep(m: ModoRep): void {
+export function gravarModoRep(m: ModoRep): void {
   try { localStorage.setItem(CHAVE_REP, m) } catch { /* ignora */ }
 }
 const MS_MINUTO = 450
