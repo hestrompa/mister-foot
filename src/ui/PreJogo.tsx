@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Jogo, Posicao } from '../core/types'
 import type { Partida } from '../core/partida'
 import { FORMACOES, type Escalacao, type Formacao, type Postura } from '../core/partida'
@@ -29,11 +29,41 @@ export function validarEscalacao(jogo: Jogo, esc: Escalacao, indisp: ReadonlySet
   if (new Set(esc.titulares).size !== 11) return 'Há jogadores repetidos no onze.'
   if (esc.titulares.some((id) => !plantel.has(id))) return 'Há jogadores no onze que já não são do clube.'
   const grs = esc.titulares.filter((id) => jogo.mundo.jogadores[id].posicao === 'GR').length
-  if (grs !== 1) return `O onze tem de ter exatamente 1 guarda-redes (tem ${grs}).`
-  if (jogo.mundo.jogadores[esc.titulares[0]].posicao !== 'GR') return 'O guarda-redes tem de estar na baliza.'
+  // Sem nenhum guarda-redes disponível, joga um de campo na baliza (como no futebol a sério).
+  const haGR = [...plantel].some((id) => jogo.mundo.jogadores[id]?.posicao === 'GR' && !indisp.has(id))
+  // Um guarda-redes pode jogar à frente (plantel curto), mas a baliza é sempre de um guarda-redes se houver.
+  if (haGR && (grs < 1 || jogo.mundo.jogadores[esc.titulares[0]].posicao !== 'GR')) return 'O guarda-redes tem de estar na baliza.'
   const fora = esc.titulares.filter((id) => indisp.has(id))
   if (fora.length) return `${fora.map((id) => jogo.mundo.jogadores[id].curto).join(', ')} ${fora.length > 1 ? 'não podem' : 'não pode'} jogar.`
   return null
+}
+
+/**
+ * Troca no onze quem não pode jogar (castigado, lesionado, já não é do clube) pelo melhor disponível
+ * da mesma posição, sem mexer no resto das escolhas do treinador. Devolve null se não houver nada a trocar.
+ */
+export function repararEscalacao(jogo: Jogo, esc: Escalacao, indisp: ReadonlySet<number>): Escalacao | null {
+  const { mundo, clubeId } = jogo
+  const plantel = mundo.clubes[clubeId].plantel
+  const mau = (id: number) => indisp.has(id) || !plantel.includes(id) || !mundo.jogadores[id]
+  if (!esc.titulares.some(mau)) return null
+  const lugaresF = lugaresFormacao(esc.formacao)
+  const titulares = [...esc.titulares]
+  for (let i = 0; i < titulares.length; i++) {
+    if (!mau(titulares[i])) continue
+    const livres = plantel.filter((id) => !indisp.has(id) && !titulares.includes(id))
+    const pos = lugaresF[i]
+    const escolha = [...livres].sort((a, b) =>
+      Number(mundo.jogadores[b].posicao === pos) - Number(mundo.jogadores[a].posicao === pos)
+      || Number(mundo.jogadores[a].posicao === 'GR') - Number(mundo.jogadores[b].posicao === 'GR')
+      || mundo.jogadores[b].forca - mundo.jogadores[a].forca)[0]
+    if (escolha == null || (pos === 'GR') !== (mundo.jogadores[escolha].posicao === 'GR')) {
+      return { ...escalarAuto(mundo, clubeId, indisp, esc.formacao), postura: esc.postura }
+    }
+    titulares[i] = escolha
+  }
+  const suplentes = esc.suplentes.filter((id) => !titulares.includes(id) && !mau(id))
+  return { ...esc, titulares, suplentes }
 }
 
 /** Jogo fora da liga (taça): outra partida, outro título e outras baixas. */
@@ -52,6 +82,10 @@ export function PreJogo({ jogo, mudar, jogar, outro }: { jogo: Jogo; mudar: (e: 
   const posAdv = tab.findIndex((l) => l.clubeId === advId)
   const posMeu = tab.findIndex((l) => l.clubeId === clubeId)
   const erro = validarEscalacao(jogo, esc, indisp)
+  // Castigos da taça/Europa, lesões e vendas: o onze é corrigido sozinho, para o botão de jogar nunca ficar preso.
+  const rep = erro ? repararEscalacao(jogo, esc, indisp) : null
+  const reparada = rep && !validarEscalacao(jogo, rep, indisp) ? rep : null
+  useEffect(() => { if (reparada) mudar(reparada) })
   const lugaresF = lugaresFormacao(esc.formacao)
   const titSet = new Set(esc.titulares)
   const banco = [

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { forcaClube, gerarMundo, NOMES_DIVISAO } from './core/mundo'
 import { salariosPorJornada } from './core/financas'
 import { ObrasBanco } from './ui/ObrasBanco'
@@ -28,11 +28,11 @@ import { Calendario } from './ui/Calendario'
 import { FimEpoca, type DadosFimEpoca } from './ui/FimEpoca'
 import { TabelaLiga } from './ui/comum'
 import { Mercado, propostasPendentes } from './ui/Mercado'
-import { avancarMercado } from './core/mercado'
-import { avancarTaca, meuJogoPendente, registarCampeao, type JogoComTaca } from './core/taca'
+import { avancarMercado, chamarJunioresUrgencia } from './core/mercado'
+import { avancarTaca, indisponiveisTaca, meuJogoPendente, registarCampeao, type JogoComTaca } from './core/taca'
 import { Staff } from './ui/Staff'
 import { AoVivoTaca, TacaSeparador, avisoTaca } from './ui/Taca'
-import { avancarEuropa, meuJogoEuropa, mundoEuropa, qualificarEuropa, type JogoComEuropa } from './core/europa'
+import { avancarEuropa, indisponiveisEuropa, meuJogoEuropa, mundoEuropa, qualificarEuropa, type JogoComEuropa } from './core/europa'
 import { AoVivoEuropa, EuropaSeparador, avisoEuropa } from './ui/Europa'
 
 import { avancarDirecao } from './core/direcao'
@@ -198,6 +198,19 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
   const [euVivo, setEuVivo] = useState<string | null>(null)
   const pendEu = pendTaca ? null : meuJogoEuropa(jogo as JogoComEuropa)
   const [fim, setFim] = useState<DadosFimEpoca | null>(null)
+
+  // Menos de 11 disponíveis para o próximo jogo: sobem juniores de urgência (o jogo nunca fica preso).
+  useEffect(() => {
+    if (aoVivo || tacaVivo || euVivo || fim || epocaTerminada(jogo.epoca)) return
+    const ind = pendTaca ? indisponiveisTaca(jogo as JogoComTaca, jogo.clubeId)
+      : pendEu ? indisponiveisEuropa(jogo as JogoComEuropa, jogo.clubeId)
+      : indisponiveisDe(mundo, jogo.epoca, jogo.clubeId)
+    const nomes = chamarJunioresUrgencia(jogo, ind)
+    if (!nomes.length) return
+    noticiaExtra(jogo, 'meu', nomes.length > 1 ? `${nomes.length} juniores chamados de urgência` : 'Júnior chamado de urgência',
+      `Com tantas baixas não havia onze para o próximo jogo. ${nomes.join(', ')} ${nomes.length > 1 ? 'sobem' : 'sobe'} ao plantel principal com contrato de 1 ano.`)
+    atualizar({ ...jogo, escalacao: { ...escalarAuto(mundo, jogo.clubeId, ind, jogo.escalacao.formacao), postura: jogo.escalacao.postura } })
+  })
 
   const mudarEscalacao = (e: Escalacao) => atualizar({ ...jogo, escalacao: e })
 

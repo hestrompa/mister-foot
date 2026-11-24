@@ -5,6 +5,7 @@ export const NOVIDADES: { data: string; itens: string[] }[] = [
   {
     data: '24/11',
     itens: [
+      'Botão de jogar nunca fica preso: castigados da taça e da Europa saem do onze sozinhos, sobem juniores de urgência se não houver onze, e a IA já não leva por cláusula o teu penúltimo guarda-redes.',
       'Cartões e lesões no campo 2D: a falta, o árbitro a mostrar o cartão (o expulso sai), ou o jogador no chão e a equipa médica a entrar. Nas repetições, o canto curto, ao segundo poste ou à entrada da área, o livre cruzado e a marcação individual aparecem como foram escolhidos no plano de jogo.',
       'Plano de jogo no pré-jogo: marcação (à zona, individual ou pressão alta), cantos ensaiados (à área, curto ou à entrada da área), livres diretos ou cruzados, batedor e instruções individuais (apoiar o ataque, ficar atrás, rematar de longe, marcar de perto um adversário). Tudo pesa conforme os atributos dos jogadores. A marcação também se muda ao intervalo.',
       'Relatório do olheiro sobre o próximo adversário: jogadores-chave, como costumam jogar e ideias que se aplicam com um toque. Quanto melhor o olheiro, mais o relatório diz.',

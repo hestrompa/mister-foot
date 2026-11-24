@@ -60,6 +60,8 @@ export interface EstadoMercado {
   proximaProposta: number
   /** Jogadores sem clube (clubeId 0), que assinam sem custo de transferência. */
   livres?: number[]
+  /** Jogadores já transferidos nesta época: a IA não os volta a vender antes da próxima. */
+  mudaram?: number[]
   /** Juniores da minha formação à espera de decisão (clubeId 0 até serem promovidos). */
   juniores?: number[]
 }
@@ -312,7 +314,7 @@ function renovarLista(jogo: JogoComMercado, rng: Rng) {
     // Candidatos: excedentes da posição, veteranos, ou suplentes fracos. Nunca o craque.
     const cands = c.plantel
       .map((id) => mundo.jogadores[id])
-      .filter((j) => !j.craque && !naLista.has(j.id) && !impedeSaida(mundo, j))
+      .filter((j) => !j.craque && !naLista.has(j.id) && !impedeSaida(mundo, j) && !st.mudaram?.includes(j.id))
     if (!cands.length) continue
     const peso = (j: Jogador) => {
       const pos = contaPos(mundo, cid)[j.posicao] - MIN_POS[j.posicao]
@@ -357,6 +359,7 @@ function transferir(jogo: JogoComMercado, jogadorId: number, paraId: number, val
   j.salario = salario
   j.contrato = contrato
   st.lista = st.lista.filter((a) => a.jogadorId !== jogadorId)
+  if (!(st.mudaram ?? []).includes(jogadorId)) st.mudaram = [...(st.mudaram ?? []), jogadorId]
   st.propostas = st.propostas.filter((p) => p.jogadorId !== jogadorId)
   // O craque de cada clube é o melhor do plantel.
   for (const c of [de, para]) {
@@ -519,7 +522,7 @@ function clausulasIA(jogo: JogoComMercado, rng: Rng) {
   const meus = meu.plantel.map((id) => mundo.jogadores[id]).filter(Boolean).sort((a, b) => b.forca - a.forca || a.id - b.id)
   for (const j of meus) {
     const valor = clausulaDe(j)
-    if (!rng.chance(0.06)) continue
+    if (!rng.chance(0.06) || impedeSaida(mundo, j)) continue
     for (const d of mundo.divisoes) {
       if (Math.abs(d.numero - meu.divisao) > 1) continue
       for (const cid of d.clubes) {
@@ -552,12 +555,14 @@ function comprasAtivas(jogo: JogoComMercado, rng: Rng, quantas: number) {
     const c = ricos.splice(i, 1)[0]
     const orcamento = c.dinheiro - (RESERVA[c.divisao - 1] ?? 0)
     let melhor: { j: Jogador; preco: number; g: number } | null = null
+    const mudou = new Set(jogo.mercado?.mudaram ?? [])
     for (const d of mundo.divisoes) {
       if (d.numero < c.divisao || d.numero > c.divisao + 1) continue
       for (const cid of d.clubes) {
         if (cid === c.id || cid === jogo.clubeId) continue
         for (const id of mundo.clubes[cid].plantel) {
           const j = mundo.jogadores[id]
+          if (mudou.has(id)) continue
           const g = ganho(mundo, c.id, j)
           if (g < 2) continue
           const preco = precoSemAnuncio(j)
@@ -663,7 +668,7 @@ function passoMercado(jogo: JogoComMercado, jornada: number) {
   for (const a of daIA) {
     if (feitas >= alvo) break
     const j = mundo.jogadores[a.jogadorId]
-    if (!j || j.clubeId === jogo.clubeId || impedeSaida(mundo, j)) continue
+    if (!j || j.clubeId === jogo.clubeId || impedeSaida(mundo, j) || st.mudaram?.includes(j.id)) continue
     const o = interessados(jogo, j, a.preco, rng).find((x) => x.valor >= a.preco * 0.9)
     if (!o || !rng.chance(0.5)) continue
     const c = mundo.clubes[o.clubeId]
@@ -939,4 +944,29 @@ export function dispensarJunior(jogo: JogoComMercado, jogadorId: number): Result
   st.juniores = (st.juniores ?? []).filter((id) => id !== jogadorId)
   st.livres = [...(st.livres ?? []), jogadorId]
   return { ok: true, texto: `${j.curto} foi dispensado e fica livre.` }
+}
+
+/**
+ * Menos de 11 jogadores disponíveis (lesões, castigos, plantel curto): sobem juniores de urgência,
+ * primeiro os que estão à espera de decisão, depois outros da formação, com contrato de 1 ano.
+ * Devolve os nomes de quem subiu (vazio se não foi preciso).
+ */
+export function chamarJunioresUrgencia(jogo: JogoComMercado, indisp: ReadonlySet<number>): string[] {
+  const { mundo } = jogo
+  const meu = mundo.clubes[jogo.clubeId]
+  const st = estadoMercado(jogo)
+  const disponiveis = () => meu.plantel.filter((id) => mundo.jogadores[id] && !indisp.has(id)).length
+  const rng = createRng(jogo.epoca.ano * 1000 + jogo.epoca.jornada * 7 + meu.plantel.length)
+  const nomes: string[] = []
+  while (disponiveis() < 11 && nomes.length < 11) {
+    const espera = juniores(jogo).sort((a, b) => b.forca - a.forca)[0]
+    const j = espera ?? gerarJunior(mundo, rng, jogo.clubeId)
+    st.juniores = (st.juniores ?? []).filter((id) => id !== j.id)
+    j.clubeId = jogo.clubeId
+    j.contrato = 1
+    j.salario = salarioDe(j.forca, meu.divisao)
+    meu.plantel.push(j.id)
+    nomes.push(j.nome)
+  }
+  return nomes
 }

@@ -105,8 +105,10 @@ export function escalarAuto(mundo: Mundo, clubeId: number, indisponiveis: Readon
   lugares.forEach((pos, i) => {
     if (escolha[i] !== undefined) return
     let melhor: Jogador | undefined
+    // Um guarda-redes só joga fora da baliza se não houver mais ninguém.
+    const soGR = pos !== 'GR' && !disp.some((p) => !usados.has(p.id) && p.posicao !== 'GR')
     for (const p of disp) {
-      if (usados.has(p.id)) continue
+      if (usados.has(p.id) || (pos !== 'GR' && p.posicao === 'GR' && !soGR)) continue
       if (!melhor || forcaNoLugar(p, pos) * fatorFisico(p) > forcaNoLugar(melhor, pos) * fatorFisico(melhor)) melhor = p
     }
     if (melhor) { escolha[i] = melhor.id; usados.add(melhor.id) }
