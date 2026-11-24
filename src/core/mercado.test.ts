@@ -70,8 +70,22 @@ describe('mercado', () => {
     const a = listaIA(j).find((x) => !pedidoRecusado(j, x.jogadorId))!
     const alvo = j.mundo.jogadores[a.jogadorId]
     const sal = pedidoSalarial(j.mundo, alvo, j.clubeId)
-    expect(comprar(j, alvo.id, Math.round(a.preco * 0.5), sal).ok).toBe(false)
+    expect(comprar(j, alvo.id, Math.round(a.preco * 0.3), sal).texto).toMatch(/nem fazem contraproposta/)
     expect(comprar(j, alvo.id, a.preco, sal).texto).toMatch(/já recusou/)
+  })
+
+  it('oferta razoável recusada traz contraproposta, que se pode aceitar na mesma jornada', () => {
+    const j = novoJogo()
+    j.mundo.clubes[j.clubeId].dinheiro = 50_000_000
+    const a = listaIA(j).find((x) => !pedidoRecusado(j, x.jogadorId))!
+    const alvo = j.mundo.jogadores[a.jogadorId]
+    const sal = pedidoSalarial(j.mundo, alvo, j.clubeId)
+    const r = comprar(j, alvo.id, Math.round(a.preco * 0.7), sal)
+    expect(r.texto).toMatch(/contraproposta/)
+    const contra = estadoMercado(j).contra![alvo.id]
+    expect(contra).toBeGreaterThan(a.preco * 0.7)
+    expect(comprar(j, alvo.id, contra - 10_000, sal).texto).toMatch(/só aceitam/)
+    expect(comprar(j, alvo.id, contra, sal).ok).toBe(true)
   })
 
   it('não compra sem dinheiro, nem com salário abaixo do pedido, nem com o mercado fechado', () => {

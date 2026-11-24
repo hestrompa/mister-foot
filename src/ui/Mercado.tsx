@@ -211,7 +211,8 @@ function Negociar({ jogo, id, fechar, feito }: { jogo: JogoComMercado; id: numbe
   const clausula = clausulaDe(j)
   const recusa = recusaDoJogador(mundo, j, jogo.clubeId)
   const st = estadoMercado(jogo)
-  const jaTentou = st.recusados.includes(id)
+  const contra = st.contra?.[id]
+  const jaTentou = st.recusados.includes(id) && !contra
   const aberta = janelaAberta(jogo.epoca)
   return (
     <div className="cartao negociar">
@@ -235,6 +236,11 @@ function Negociar({ jogo, id, fechar, feito }: { jogo: JogoComMercado; id: numbe
             <button className="botao principal" disabled={!aberta || jaTentou} onClick={() => feito(comprar(jogo, id, oferta, salario, nivel))}>
               {!aberta ? 'Mercado fechado' : jaTentou ? 'Recusaram nesta jornada' : 'Fazer oferta'}
             </button>
+            {contra && aberta && (
+              <button className="botao principal" onClick={() => feito(comprar(jogo, id, contra, salario, nivel))}>
+                Aceitar contraproposta ({euros(contra)})
+              </button>
+            )}
             <button className="botao" disabled={!aberta} onClick={() => feito(pagarClausula(jogo, id, salario, nivel))}>
               Pagar cláusula ({euros(clausula)})
             </button>

@@ -51,6 +51,8 @@ export interface EstadoMercado {
   noticias: Noticia[]
   /** Jogadores cujo clube já recusou uma oferta minha nesta jornada (uma tentativa por jornada). */
   recusados: number[]
+  /** Contrapropostas do clube vendedor nesta jornada (jogadorId -> preço que aceita). */
+  contra?: Record<number, number>
   proximaProposta: number
   /** Jogadores sem clube (clubeId 0), que assinam sem custo de transferência. */
   livres?: number[]
@@ -394,7 +396,10 @@ export function comprar(jogo: JogoComMercado, jogadorId: number, oferta: number,
   if (!janelaAberta(jogo.epoca)) return { ok: false, texto: 'O mercado está fechado.' }
   if (meu.plantel.length >= PLANTEL_MAX) return { ok: false, texto: `O plantel já tem ${PLANTEL_MAX} jogadores. Vende alguém primeiro.` }
   if (oferta + comissaoEmpresario(oferta, salario) > meu.dinheiro) return { ok: false, texto: 'Não tens dinheiro para essa oferta e a comissão do empresário.' }
-  if (st.recusados.includes(jogadorId)) return { ok: false, texto: 'O clube já recusou uma oferta tua nesta jornada. Tenta na próxima.' }
+  const contra = st.contra?.[jogadorId]
+  if (st.recusados.includes(jogadorId) && !(contra && oferta >= contra)) {
+    return { ok: false, texto: contra ? `Nesta jornada só aceitam ${contra.toLocaleString('pt-PT')} € ou mais.` : 'O clube já recusou uma oferta tua nesta jornada. Tenta na próxima.' }
+  }
   const saida = impedeSaida(mundo, j)
   if (saida) return { ok: false, texto: `${saida} Não vende.` }
   const recusa = recusaDoJogador(mundo, j, jogo.clubeId)
@@ -402,9 +407,17 @@ export function comprar(jogo: JogoComMercado, jogadorId: number, oferta: number,
   const pede = salarioComClausula(pedidoSalarial(mundo, j, jogo.clubeId), nivel)
   if (salario < pede) return { ok: false, texto: `${j.curto} quer ganhar pelo menos ${pede.toLocaleString('pt-PT')} € por mês.` }
   const de = mundo.clubes[j.clubeId]
-  if (oferta < minimoAceite(jogo, j)) {
+  const minimo = minimoAceite(jogo, j)
+  if (oferta < minimo && !(contra && oferta >= contra)) {
     st.recusados.push(jogadorId)
-    return { ok: false, texto: `O ${de.nome} recusou. Querem mais dinheiro.` }
+    // Ofertas razoáveis recebem uma contraproposta (um pouco acima do mínimo); as muito baixas, não.
+    if (oferta >= minimo * 0.6) {
+      const rng = rngDe(mundo, jogo.epoca.ano, jogo.epoca.jornada, j.id, 0xc1)
+      const v = Math.ceil((minimo * (1.03 + rng.next() * 0.09)) / 10_000) * 10_000
+      st.contra = { ...(st.contra ?? {}), [jogadorId]: v }
+      return { ok: false, texto: `O ${de.nome} recusou, mas faz uma contraproposta: vende por ${v.toLocaleString('pt-PT')} €.` }
+    }
+    return { ok: false, texto: `O ${de.nome} recusou. A oferta é tão baixa que nem fazem contraproposta.` }
   }
   transferir(jogo, jogadorId, jogo.clubeId, oferta, salario, 3)
   definirClausula(j, nivel)
@@ -585,6 +598,7 @@ function passoMercado(jogo: JogoComMercado, jornada: number) {
   // Propostas da jornada anterior caducam; recusas também.
   st.propostas = []
   st.recusados = []
+  st.contra = {}
   // Fecha a janela de verão: juniores sem decisão ficam livres.
   if (jornada === 7 && st.juniores?.length) {
     st.livres = [...(st.livres ?? []), ...st.juniores.filter((id) => mundo.jogadores[id]?.clubeId === 0)]
