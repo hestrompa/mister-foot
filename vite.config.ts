@@ -13,5 +13,6 @@ export default defineConfig({
   base: './',
   plugins: [react()],
   define: { __VERSAO__: JSON.stringify(versao()) },
-  test: { include: ['src/**/*.test.ts'] },
+  // Épocas inteiras simuladas: no CI (mais lento) os testes longos passam dos 5 s por omissão.
+  test: { include: ['src/**/*.test.ts'], testTimeout: 30000 },
 })

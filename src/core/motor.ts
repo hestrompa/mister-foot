@@ -7,6 +7,7 @@ import { FORMACOES } from './partida'
 import type { Escalacao, EstatJogo, EventoJogo, Formacao, Lado, Lance, Partida, Postura } from './partida'
 import { fatorMoral } from './balneario'
 import { fatorFisico, riscoLesao, sortearLesao } from './lesoes'
+import { atributo, fatores, notaNaPosicao, type FatoresMotor } from './atributos'
 
 /** Estado interno de um jogo a decorrer. Serializável (sem funções). */
 export interface EstadoJogo {
@@ -68,11 +69,14 @@ export function posicaoDoLugar(formacao: Formacao, i: number): Posicao {
   return 'AV'
 }
 
-/** Força efetiva de um jogador num lugar: fora da posição vale cerca de 70%. */
+/**
+ * Força efetiva de um jogador num lugar: fora da posição vale cerca de 70%, conforme os atributos
+ * que essa posição pede (um lateral com bom passe safa-se melhor a médio).
+ */
 export function forcaNoLugar(j: Jogador, pos: Posicao): number {
   if (j.posicao === pos) return j.forca
   if (pos === 'GR' || j.posicao === 'GR') return j.forca * 0.45
-  return j.forca * 0.7
+  return Math.min(j.forca, notaNaPosicao(j, pos)) * 0.74
 }
 
 /** Escolhe a melhor escalação automática para um clube, ignorando indisponíveis. */
@@ -150,6 +154,8 @@ interface EmCampo {
   j: Jogador
   pos: Posicao
   ef: number
+  /** Atributos face à força (1 = igual à força). */
+  f: FatoresMotor
 }
 
 function emCampo(mundo: Mundo, estado: EstadoJogo, lado: Lado): EmCampo[] {
@@ -157,15 +163,16 @@ function emCampo(mundo: Mundo, estado: EstadoJogo, lado: Lado): EmCampo[] {
   const out: EmCampo[] = []
   const iniciais = ex(estado).iniciais
   const m = estado.minuto
-  // Cansaço ligeiro depois dos 60' para quem começou o jogo.
-  const cansaco = m > 60 ? 1 - (m - 60) * 0.0025 : 1
+  // Cansaço ligeiro depois dos 60' para quem começou o jogo (o físico cansa menos).
+  const cansaco = (f: FatoresMotor) => m > 60 ? 1 - (m - 60) * 0.0025 * (2 - f.fis) : 1
   esc.titulares.forEach((id, i) => {
     if (estado.fora.includes(id)) return
     const j = mundo.jogadores[id]
     if (!j) return
     const pos = posicaoDoLugar(esc.formacao, i)
     // Moral e cansaço acumulado das últimas semanas mexem pouco, mas mexem.
-    out.push({ j, pos, ef: forcaNoLugar(j, pos) * (iniciais.includes(id) ? cansaco : 1) * fatorMoral(j) * fatorFisico(j) })
+    const f = fatores(j)
+    out.push({ j, pos, f, ef: forcaNoLugar(j, pos) * (iniciais.includes(id) ? cansaco(f) : 1) * fatorMoral(j) * fatorFisico(j) })
   })
   return out
 }
@@ -178,17 +185,34 @@ export interface Setores {
 }
 
 function somarSetores(campo: EmCampo[], emCasa: boolean, post: Postura): Setores {
-  const s: Record<Posicao, number> = { GR: 0, DEF: 0, MED: 0, AV: 0 }
-  for (const c of campo) s[c.pos] += c.ef
+  // Cada setor soma a força efetiva, puxada um pouco pelo atributo que esse setor pede:
+  // passe no meio-campo, remate e velocidade no ataque, defesa atrás, reflexos na baliza.
+  // Num plantel normal os fatores dão 1 em média: o perfil decide quem é bom em quê, não a força total.
+  const vazio = (): Record<Posicao, number> => ({ GR: 0, DEF: 0, MED: 0, AV: 0 })
+  const m = vazio(), a = vazio(), d = vazio()
+  let g = 0
+  for (const c of campo) {
+    const f = c.f
+    if (c.pos === 'GR') { g += c.ef * f.gr50; continue }
+    m[c.pos] += c.ef * (c.pos === 'MED' ? f.pas35 : f.pas15)
+    a[c.pos] += c.ef * (c.pos === 'AV' ? f.rem25vel15 : c.pos === 'MED' ? f.rem20 : 1)
+    d[c.pos] += c.ef * (c.pos === 'DEF' ? f.def35 : c.pos === 'MED' ? f.def20 : 1)
+  }
   const casa = emCasa ? 1.04 : 1
   const fa = post === 'ofensiva' ? 1.12 : post === 'defensiva' ? 0.88 : 1
   const fd = post === 'ofensiva' ? 0.88 : post === 'defensiva' ? 1.12 : 1
   return {
-    gr: (s.GR || 20) * casa,
-    meio: (s.MED + 0.25 * (s.DEF + s.AV)) * casa,
-    ataque: (s.AV + 0.35 * s.MED + 0.1 * s.DEF) * casa * fa,
-    defesa: (s.DEF + 0.35 * s.MED + 0.1 * s.AV) * casa * fd,
+    gr: (g || 20) * casa,
+    meio: (m.MED + 0.25 * (m.DEF + m.AV)) * casa,
+    ataque: (a.AV + 0.35 * a.MED + 0.1 * a.DEF) * casa * fa,
+    defesa: (d.DEF + 0.35 * d.MED + 0.1 * d.AV) * casa * fd,
   }
+}
+
+/** Velocidade média (face à força) de um grupo de jogadores em campo. */
+function velMedia(campo: EmCampo[], pos: Posicao): number {
+  const l = campo.filter((c) => c.pos === pos)
+  return l.length ? l.reduce((s, c) => s + c.f.vel, 0) / l.length : 1
 }
 
 function setores(_mundo: Mundo, estado: EstadoJogo, lado: Lado, campo: EmCampo[]): Setores {
@@ -202,7 +226,7 @@ export function forcaSetores(mundo: Mundo, esc: Escalacao, emCasa: boolean): Set
     const j = mundo.jogadores[id]
     if (!j) return
     const pos = posicaoDoLugar(esc.formacao, i)
-    campo.push({ j, pos, ef: forcaNoLugar(j, pos) })
+    campo.push({ j, pos, f: fatores(j), ef: forcaNoLugar(j, pos) })
   })
   return somarSetores(campo, emCasa, esc.postura)
 }
@@ -293,21 +317,25 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
   if (rng.chance(clamp(TAXA_REMATE * fRemate * Math.pow(q, 0.5), 0.05, 0.6))) {
     // Contra-ataques: aparecem mais contra quem sobe as linhas e para quem espera atrás.
     const pa = pAtac, pd = estado.escalacoes[def].postura
-    const pContra = 0.13 * (pd === 'ofensiva' ? 1.7 : pd === 'defensiva' ? 0.5 : 1) * (pa === 'defensiva' ? 1.35 : pa === 'ofensiva' ? 0.8 : 1)
+    // Avançados rápidos contra centrais lentos: mais contra-ataques.
+    const fVel = clamp(velMedia(campo[atac], 'AV') / velMedia(campo[def], 'DEF'), 0.7, 1.4)
+    const pContra = 0.13 * fVel * (pd === 'ofensiva' ? 1.7 : pd === 'defensiva' ? 0.5 : 1) * (pa === 'defensiva' ? 1.35 : pa === 'ofensiva' ? 0.8 : 1)
     const r = rng.next()
     const origem: Lance['origem'] = r < 0.03 ? 'penalti' : r < 0.11 ? 'livre' : r < 0.23 ? 'canto' : r < 0.23 + pContra ? 'contra' : r < 0.37 + pContra ? 'longe' : 'jogada'
     const atacantes = campo[atac].filter((c) => c.pos !== 'GR')
     const remC = origem === 'penalti'
-      ? atacantes.slice().sort((a, b) => b.j.forca - a.j.forca)[0]
-      : pesado(rng, atacantes, (c) => PESO_REMATE[c.pos] * Math.pow(c.ef, 0.6))
+      ? atacantes.slice().sort((a, b) => atributo(b.j, 'rem') - atributo(a.j, 'rem') || b.j.forca - a.j.forca)[0]
+      : pesado(rng, atacantes, (c) => PESO_REMATE[c.pos] * Math.pow(c.ef, 0.6) * c.f.rem150)
     if (remC) {
       const pasC = origem === 'penalti' || origem === 'livre' ? undefined
-        : pesado(rng, atacantes.filter((c) => c !== remC), (c) => PESO_PASSE[c.pos] * c.ef)
+        : pesado(rng, atacantes.filter((c) => c !== remC), (c) => PESO_PASSE[c.pos] * c.ef * c.f.pas150)
       const grC = campo[def].find((c) => c.pos === 'GR')
-      const defC = pesado(rng, campo[def].filter((c) => c.pos !== 'GR'), (c) => (c.pos === 'DEF' ? 3 : 1))
+      const defC = pesado(rng, campo[def].filter((c) => c.pos !== 'GR'), (c) => (c.pos === 'DEF' ? 3 : 1) * c.f.def)
       const grEf = sd.gr
       const fOrig = origem === 'penalti' ? 7 : origem === 'longe' ? 0.45 : origem === 'contra' ? 1.35 : origem === 'livre' ? 0.7 : 1
-      const pGolo = clamp(CONVERSAO * fOrig * Math.pow(q, 0.8) * Math.pow((remC.ef + 1) / (grEf + 1), 0.6), 0.01, 0.85)
+      // Remate do rematador (e velocidade, no contra-ataque) contra o guarda-redes.
+      const fRem = remC.f.rem80 * (origem === 'contra' ? remC.f.vel40 : 1)
+      const pGolo = clamp(CONVERSAO * fOrig * Math.pow(q, 0.8) * Math.pow((remC.ef * fRem + 1) / (grEf + 1), 0.6), 0.01, 0.85)
       const rr = rng.next()
       let desfecho: Lance['desfecho']
       if (rr < pGolo) desfecho = 'golo'
@@ -366,7 +394,7 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
     // Lesões: quem está cansado (ou voltou antes do tempo) arrisca mais. 1,15 é o risco médio de um onze normal.
     const risco = vivos.reduce((s, c) => s + riscoLesao(c.j), 0) / Math.max(1, vivos.length)
     if (vivos.length && rng.chance(0.0017 * risco / 1.15)) {
-      const c = pesado(rng, vivos, (c) => riscoLesao(c.j))!
+      const c = pesado(rng, vivos, (c) => riscoLesao(c.j) * c.f.fisLes)!
       const les = sortearLesao(rng, c.j)
       const duracao = les.jogos
       x.lesionados.push(c.j.id)

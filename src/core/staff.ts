@@ -1,6 +1,7 @@
 // Equipa técnica (staff) e treino: adjunto, treinador de guarda-redes, preparador físico e olheiro.
 // Cada clube tem no máximo um de cada. O nível (1 a 5) decide o efeito e o salário.
 // Tudo determinístico: os sorteios usam createRng com sementes derivadas do mundo.
+import { PESOS, atributo, mexerPerfil, type Atributo } from './atributos'
 import { createRng, type Rng } from './rng'
 import { valorDe } from './mundo'
 import { APELIDOS_PT, NOMES_PT } from './nomes'
@@ -47,6 +48,10 @@ export interface StaffClube {
   ano?: number
   /** Pontos de força ganhos no treino nesta época, por jogador. */
   ganhos?: Record<number, number>
+  /** Treino específico: um atributo que todos trabalham mais (sem ele, equilibrado). */
+  atributo?: Atributo
+  /** Pontos ganhos no atributo do treino específico nesta época, por jogador. */
+  ganhosAtrib?: Record<number, number>
 }
 
 export type ClubeComStaff = Clube & { staff?: StaffClube }
@@ -157,6 +162,17 @@ export function mudarFoco(mundo: Mundo, clubeId: number, foco: FocoTreino): void
   garantirEstrutura(mundo.clubes[clubeId]).foco = foco
 }
 
+/** Treino específico de um atributo (ou `null` para equilibrado). */
+export function mudarTreinoAtributo(mundo: Mundo, clubeId: number, a: Atributo | null): void {
+  const st = garantirEstrutura(mundo.clubes[clubeId])
+  if ((st.atributo ?? null) !== a) st.ganhosAtrib = {}
+  if (a) st.atributo = a
+  else delete st.atributo
+}
+
+/** Probabilidade, por semana, de o treino específico subir 1 ponto no atributo (mesmo a quem já não evolui). */
+export const P_TREINO_ATRIB = 0.05
+
 // ---------- Treino ----------
 
 /** Probabilidade base, por jornada, de um jogador abaixo do potencial ganhar 1 ponto de força. */
@@ -204,13 +220,28 @@ export function treinarJornada(mundo: Mundo, clubes: Iterable<number>, ausentes:
       const j = mundo.jogadores[id]
       if (!j || ausentes.has(id)) continue
       const p = chanceTreino(c, j)
-      if (p > 0 && rng.chance(p)) {
+      const ganhou = p > 0 && rng.chance(p)
+      if (ganhou) {
         j.forca += 1
         j.valor = valorDe(j.forca, j.idade)
         out.push(id)
         if (st) {
-          if (st.ano !== ano) { st.ano = ano; st.ganhos = {} }
+          if (st.ano !== ano) { st.ano = ano; st.ganhos = {}; st.ganhosAtrib = {} }
           st.ganhos![id] = (st.ganhos![id] ?? 0) + 1
+        }
+      }
+      // Treino específico: o atributo escolhido sobe mais do que os outros (a força geral não muda por isso).
+      // Só gasta sorteios quando há treino específico, para não mexer nos outros clubes.
+      const a = st?.atributo
+      if (a && PESOS[j.posicao][a]) {
+        const sobe = ganhou ? 3 : rng.chance(P_TREINO_ATRIB * fatorTreinador(nivelDe(c, j.posicao === 'GR' ? 'gr' : 'adjunto'))) ? 1.5 : 0
+        if (sobe) {
+          const antes = atributo(j, a)
+          mexerPerfil(j, { [a]: sobe })
+          if (st.ano !== ano) { st.ano = ano; st.ganhos = {}; st.ganhosAtrib = {} }
+          st.ganhosAtrib ??= {}
+          const d = atributo(j, a) - antes - (ganhou ? 1 : 0)
+          if (d > 0) st.ganhosAtrib[id] = (st.ganhosAtrib[id] ?? 0) + d
         }
       }
     }
@@ -246,6 +277,8 @@ export function evoluirFimEpoca(mundo: Mundo, j: Jogador, rng: Rng): void {
     forca -= quebra
   }
   j.forca = Math.max(1, Math.min(99, forca))
+  // Com a idade perde-se velocidade e físico primeiro; a experiência compensa no passe e na defesa.
+  if (j.idade >= 30) mexerPerfil(j, { vel: -1.5, fis: -1, pas: 0.5, def: 0.5 })
 }
 
 // ---------- Olheiro: estimativa do potencial ----------

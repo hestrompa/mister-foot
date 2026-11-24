@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import type { Jogador, Mundo, Posicao } from '../core/types'
 import { euros } from '../core/formato'
+import { ATRIBUTOS, NOME_ATRIBUTO, atributo, atributosDe, pontosFortes, type Atributo } from '../core/atributos'
+import { AtributosJogador, PontoForte } from './Atributos'
 
-type Coluna = 'posicao' | 'nome' | 'idade' | 'forca' | 'valor' | 'salario' | 'contrato'
+type Coluna = 'posicao' | 'nome' | 'idade' | 'forca' | 'atr' | 'valor' | 'salario' | 'contrato'
 const ORDEM_POS: Record<Posicao, number> = { GR: 0, DEF: 1, MED: 2, AV: 3 }
 
 const BANDEIRAS: Record<string, string> = { PT: 'Portugal', BR: 'Brasil', ES: 'Espanha', AO: 'Angola', CV: 'Cabo Verde', GW: 'Guiné-Bissau', MZ: 'Moçambique' }
@@ -27,18 +29,22 @@ export function Forca({ valor }: { valor: number }) {
 export function Plantel({ mundo, clubeId }: { mundo: Mundo; clubeId: number }) {
   const [col, setCol] = useState<Coluna>('posicao')
   const [desc, setDesc] = useState(false)
+  const [aberto, setAberto] = useState<number | null>(null)
+  const [ver, setVer] = useState<Atributo | 'forte'>('forte')
+  const valorVer = (j: Jogador) => ver === 'forte' ? atributosDe(j)[pontosFortes(j, 1)[0]] : atributo(j, ver)
   const jogadores = useMemo(() => {
     const l = mundo.clubes[clubeId].plantel.map((id) => mundo.jogadores[id])
     const cmp = (a: Jogador, b: Jogador): number => {
       switch (col) {
         case 'posicao': return ORDEM_POS[a.posicao] - ORDEM_POS[b.posicao] || b.forca - a.forca
         case 'nome': return a.nome.localeCompare(b.nome, 'pt')
+        case 'atr': return valorVer(a) - valorVer(b)
         default: return (a[col] as number) - (b[col] as number)
       }
     }
     const s = l.sort(cmp)
     return desc ? s.reverse() : s
-  }, [mundo, clubeId, col, desc])
+  }, [mundo, clubeId, col, desc, ver])
 
   const cab = (c: Coluna, t: string, cls = '') => (
     <th className={cls}>
@@ -52,6 +58,16 @@ export function Plantel({ mundo, clubeId }: { mundo: Mundo; clubeId: number }) {
   )
 
   return (
+    <>
+    <div className="plantel-ver">
+      <label>Atributo na tabela{' '}
+        <select value={ver} onChange={(e) => { setVer(e.target.value as Atributo | 'forte'); setCol('atr'); setDesc(true) }}>
+          <option value="forte">Ponto forte</option>
+          {ATRIBUTOS.map((a) => <option key={a} value={a}>{NOME_ATRIBUTO[a]}</option>)}
+        </select>
+      </label>
+      <span className="nota">Carrega num jogador para ver todos os atributos.</span>
+    </div>
     <div className="tabela-wrap">
       <table className="tabela plantel">
         <thead>
@@ -60,6 +76,7 @@ export function Plantel({ mundo, clubeId }: { mundo: Mundo; clubeId: number }) {
             {cab('nome', 'Nome')}
             {cab('idade', 'Idade', 'num')}
             {cab('forca', 'Força')}
+            {cab('atr', ver === 'forte' ? 'Forte' : NOME_ATRIBUTO[ver].slice(0, 3) + '.')}
             {cab('valor', 'Valor', 'num esconde-m')}
             {cab('salario', 'Salário', 'num esconde-m')}
             {cab('contrato', 'Contrato', 'num esconde-m')}
@@ -67,7 +84,8 @@ export function Plantel({ mundo, clubeId }: { mundo: Mundo; clubeId: number }) {
         </thead>
         <tbody>
           {jogadores.map((j) => (
-            <tr key={j.id}>
+            <Fragment key={j.id}>
+            <tr className={`clicavel ${aberto === j.id ? 'meu' : ''}`} onClick={() => setAberto(aberto === j.id ? null : j.id)} aria-expanded={aberto === j.id}>
               <td><span className={`pos pos-${j.posicao}`}>{j.posicao}</span></td>
               <td>
                 <span className="nome-jogador">{j.nome}</span>
@@ -76,13 +94,19 @@ export function Plantel({ mundo, clubeId }: { mundo: Mundo; clubeId: number }) {
               </td>
               <td className="num">{j.idade}</td>
               <td><Forca valor={j.forca} /></td>
+              <td>{ver === 'forte' ? <PontoForte j={j} /> : <Forca valor={atributo(j, ver)} />}</td>
               <td className="num esconde-m">{euros(j.valor)}</td>
               <td className="num esconde-m">{euros(j.salario)}</td>
               <td className="num esconde-m">{j.contrato} {j.contrato === 1 ? 'ano' : 'anos'}</td>
             </tr>
+            {aberto === j.id && (
+              <tr className="atr-linha"><td colSpan={8}><AtributosJogador j={j} /></td></tr>
+            )}
+            </Fragment>
           ))}
         </tbody>
       </table>
     </div>
+    </>
   )
 }

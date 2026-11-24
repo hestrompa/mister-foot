@@ -15,6 +15,11 @@ export interface Jogador {
   idade: number
   /** Força visível, 1 a 99. */
   forca: number
+  /**
+   * Perfil dos atributos: quanto cada um (vel, rem, pas, def, fis, gr) está acima ou abaixo da força.
+   * Opcional: sem ele, o perfil é calculado do id (ver core/atributos.ts).
+   */
+  perfil?: Record<'vel' | 'rem' | 'pas' | 'def' | 'fis' | 'gr', number>
   /** Teto de evolução, escondido do jogador até haver prospeção. */
   potencial: number
   /** Código de país (PT, BR, ...). */

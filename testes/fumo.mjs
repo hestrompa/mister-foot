@@ -70,6 +70,17 @@ try {
     await foto('3-plantel.png')
   })
 
+  await passo('plantel: atributos do jogador ao carregar na linha e ordenar por atributo', async () => {
+    await page.locator('table.plantel tbody tr').nth(5).click()
+    await page.locator('table.plantel .atributos').waitFor({ timeout: 5000 })
+    const n = await page.locator('table.plantel .atr').count()
+    esperar(n >= 4, `esperava pelo menos 4 atributos, encontrei ${n}`)
+    await page.getByLabel('Atributo na tabela').selectOption('vel')
+    await foto('3b-plantel-atributos.png')
+    await page.getByLabel('Atributo na tabela').selectOption('forte')
+    await page.locator('table.plantel tbody tr.meu').click()
+  })
+
   await passo('separador Clube mostra "Estádio"', async () => {
     await page.getByRole('button', { name: 'Clube', exact: true }).or(page.getByRole('tab', { name: 'Clube', exact: true })).first().click()
     await page.getByText('Estádio').first().waitFor({ timeout: 5000 })
@@ -124,7 +135,9 @@ try {
     await page.getByRole('button', { name: /^Mercado/ }).first().click()
     await page.getByText('Mercado aberto').first().waitFor({ timeout: 5000 })
     await page.getByLabel('Divisão').selectOption('4')
+    await page.getByLabel('Ordenar por atributo').selectOption('rem')
     await page.locator('table.mercado-tab tbody tr').first().click()
+    await page.locator('.negociar .atributos').waitFor({ timeout: 5000 })
     await page.getByRole('button', { name: 'Fazer oferta' }).click()
     await page.locator('[role=status]').first().waitFor({ timeout: 5000 })
     await foto('4b-mercado.png')
@@ -154,6 +167,8 @@ try {
     await page.getByRole('region', { name: 'Treinador adjunto' }).waitFor({ timeout: 5000 })
     await page.getByRole('radio', { name: 'Médios' }).click()
     await page.getByText(/médios evoluem mais depressa/).waitFor({ timeout: 5000 })
+    await page.getByRole('radiogroup', { name: 'Treino específico' }).getByRole('radio', { name: 'Velocidade' }).click()
+    await page.getByText(/Treinam-no/).waitFor({ timeout: 5000 })
     const adj = page.getByRole('region', { name: 'Olheiro' })
     await adj.getByRole('button', { name: /^(Trocar|Contratar)$/ }).click()
     await adj.locator('.st-candidatos li').first().getByRole('button', { name: 'Contratar' }).click()

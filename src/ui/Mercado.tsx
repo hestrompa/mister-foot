@@ -10,6 +10,8 @@ import {
 } from '../core/mercado'
 import { Emblema } from './Emblema'
 import { Forca } from './Plantel'
+import { AtributosJogador, PontoForte } from './Atributos'
+import { ATRIBUTOS, NOME_ATRIBUTO, atributo, type Atributo } from '../core/atributos'
 import { estimativaPotencial } from '../core/staff'
 
 function PotencialJunior({ jogo, id }: { jogo: JogoComMercado; id: number }) {
@@ -66,9 +68,10 @@ function ClubeCurto({ jogo, id }: { jogo: JogoComMercado; id: number }) {
   return <span className="clube-linha"><Emblema clube={c} tamanho={18} /> <span className="nm-longo">{c.nome}</span><span className="nm-sigla">{c.sigla}</span> <span className="div-tag">{c.divisao}.ª</span></span>
 }
 
-function Filtros({ pos, setPos, div, setDiv, posso, setPosso, nome, setNome }: {
+function Filtros({ pos, setPos, div, setDiv, posso, setPosso, nome, setNome, atr, setAtr }: {
   pos: Posicao | 'todas'; setPos: (p: Posicao | 'todas') => void; div: number; setDiv: (d: number) => void
   posso: boolean; setPosso: (b: boolean) => void; nome?: string; setNome?: (s: string) => void
+  atr: Atributo | null; setAtr: (a: Atributo | null) => void
 }) {
   return (
     <div className="filtros">
@@ -79,6 +82,10 @@ function Filtros({ pos, setPos, div, setDiv, posso, setPosso, nome, setNome }: {
         <select value={div} onChange={(e) => setDiv(Number(e.target.value))} aria-label="Divisão">
           <option value={0}>Todas as divisões</option>
           {[1, 2, 3, 4].map((d) => <option key={d} value={d}>{d}.ª Divisão</option>)}
+        </select>
+        <select value={atr ?? ''} onChange={(e) => setAtr((e.target.value || null) as Atributo | null)} aria-label="Ordenar por atributo">
+          <option value="">Ordenar por força</option>
+          {ATRIBUTOS.map((a) => <option key={a} value={a}>Ordenar por {NOME_ATRIBUTO[a].toLowerCase()}</option>)}
         </select>
         <label className="chk"><input type="checkbox" checked={posso} onChange={(e) => setPosso(e.target.checked)} /> Só o que posso pagar</label>
         {setNome && <input className="procura" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome do jogador" />}
@@ -94,6 +101,7 @@ function Comprar({ jogo, soLista, feito }: { jogo: JogoComMercado; soLista: bool
   const [div, setDiv] = useState(0)
   const [posso, setPosso] = useState(true)
   const [nome, setNome] = useState('')
+  const [atr, setAtr] = useState<Atributo | null>(null)
   const [sel, setSel] = useState<number | null>(null)
   const st = estadoMercado(jogo)
 
@@ -109,24 +117,24 @@ function Comprar({ jogo, soLista, feito }: { jogo: JogoComMercado; soLista: bool
         (!posso || preco <= meu.dinheiro) &&
         (!q || j.nome.toLowerCase().includes(q)) &&
         !recusaDoJogador(mundo, j, jogo.clubeId))
-      .sort((a, b) => b.j.forca - a.j.forca || a.preco - b.preco)
+      .sort((a, b) => (atr ? atributo(b.j, atr) - atributo(a.j, atr) : 0) || b.j.forca - a.j.forca || a.preco - b.preco)
       .slice(0, MAX_LINHAS)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jogo, soLista, pos, div, posso, nome, meu.dinheiro, st.lista.length])
+  }, [jogo, soLista, pos, div, posso, nome, atr, meu.dinheiro, st.lista.length])
 
   return (
     <>
       <p className="nota">{soLista
         ? 'Jogadores que os clubes querem vender e que aceitam vir para cá. Pelo preço pedido é quase certo; abaixo, arriscas uma recusa (uma tentativa por jornada).'
         : 'Qualquer jogador de outro clube que aceite vir para cá. Quem não está à venda custa bem mais, e o craque ainda mais.'}</p>
-      <Filtros pos={pos} setPos={setPos} div={div} setDiv={setDiv} posso={posso} setPosso={setPosso} nome={soLista ? undefined : nome} setNome={soLista ? undefined : setNome} />
+      <Filtros pos={pos} setPos={setPos} div={div} setDiv={setDiv} posso={posso} setPosso={setPosso} nome={soLista ? undefined : nome} setNome={soLista ? undefined : setNome} atr={atr} setAtr={setAtr} />
       {sel != null && mundo.jogadores[sel]?.clubeId !== jogo.clubeId && (
         <Negociar key={sel} jogo={jogo} id={sel} fechar={() => setSel(null)} feito={(r) => { if (r.ok) setSel(null); feito(r) }} />
       )}
       {linhas.length === 0 ? <p className="nota">Nenhum jogador com estes filtros.</p> : (
         <div className="tabela-wrap">
           <table className="tabela mercado-tab">
-            <thead><tr><th>Pos</th><th>Nome</th><th className="num">Idade</th><th>Força</th><th className="esconde-m">Clube</th><th className="num">Preço</th></tr></thead>
+            <thead><tr><th>Pos</th><th>Nome</th><th className="num">Idade</th><th>Força</th><th>{atr ? NOME_ATRIBUTO[atr] : 'Forte'}</th><th className="esconde-m">Clube</th><th className="num">Preço</th></tr></thead>
             <tbody>
               {linhas.map(({ j, preco }) => (
                 <tr key={j.id} className={`clicavel ${sel === j.id ? 'meu' : ''}`} onClick={() => setSel(j.id)}>
@@ -134,6 +142,7 @@ function Comprar({ jogo, soLista, feito }: { jogo: JogoComMercado; soLista: bool
                   <td><span className="nome-jogador">{j.curto}</span>{j.craque && <span className="craque">craque</span>}</td>
                   <td className="num">{j.idade}</td>
                   <td><Forca valor={j.forca} /></td>
+                  <td>{atr ? <Forca valor={atributo(j, atr)} /> : <PontoForte j={j} />}</td>
                   <td className="esconde-m"><ClubeCurto jogo={jogo} id={j.clubeId} /></td>
                   <td className="num">{euros(preco)}</td>
                 </tr>
@@ -213,6 +222,7 @@ function Negociar({ jogo, id, fechar, feito }: { jogo: JogoComMercado; id: numbe
         <button className="botao fantasma fechar" onClick={fechar} aria-label="Fechar">Fechar</button>
       </div>
       <p className="nota">{j.idade} anos · <ClubeCurto jogo={jogo} id={j.clubeId} /> · valor {euros(j.valor)} · ganha {euros(j.salario)}/mês</p>
+      <AtributosJogador j={j} />
       {recusa ? <p className="erro">{recusa}</p> : (
         <>
           <div className="neg-ajustes">
@@ -316,6 +326,7 @@ function Anunciar({ jogo, id, fechar, feito }: { jogo: JogoComMercado; id: numbe
         <button className="botao fantasma fechar" onClick={fechar} aria-label="Fechar">Fechar</button>
       </div>
       <p className="nota">{j.idade} anos · valor {euros(j.valor)} · ganha {euros(j.salario)}/mês · contrato {j.contrato} {j.contrato === 1 ? 'ano' : 'anos'}</p>
+      <AtributosJogador j={j} />
       <div className="neg-ajustes">
         <Ajuste rotulo="Preço" valor={preco} setValor={setPreco} base={j.valor} dica="pedido à venda, ou base do leilão" />
       </div>
@@ -388,6 +399,7 @@ function Contratos({ jogo, feito }: { jogo: JogoComMercado; feito: (r: Resultado
             <button className="botao fantasma fechar" onClick={() => setSel(null)}>Fechar</button>
           </div>
           <p className="nota">{j.idade} anos · ganha {euros(j.salario)}/mês · contrato {j.contrato} {j.contrato === 1 ? 'ano' : 'anos'}</p>
+          <AtributosJogador j={j} />
           {j.contrato > 2 ? <p className="nota">Ainda é cedo para renovar.</p> : (
             <>
               {recusaRenovar(j) && <p className="erro">{recusaRenovar(j)}</p>}
@@ -405,7 +417,7 @@ function Contratos({ jogo, feito }: { jogo: JogoComMercado; feito: (r: Resultado
       )}
       <div className="tabela-wrap">
         <table className="tabela mercado-tab">
-          <thead><tr><th>Pos</th><th>Nome</th><th className="num">Idade</th><th>Força</th><th className="num esconde-m">Salário</th><th className="num">Contrato</th></tr></thead>
+          <thead><tr><th>Pos</th><th>Nome</th><th className="num">Idade</th><th>Força</th><th>Forte</th><th className="num esconde-m">Salário</th><th className="num">Contrato</th></tr></thead>
           <tbody>
             {plantel.map((x) => (
               <tr key={x.id} className={`clicavel ${sel === x.id ? 'meu' : ''}`} onClick={() => setSel(x.id)}>
@@ -413,6 +425,7 @@ function Contratos({ jogo, feito }: { jogo: JogoComMercado; feito: (r: Resultado
                 <td><span className="nome-jogador">{x.curto}</span>{x.craque && <span className="craque">craque</span>}</td>
                 <td className="num">{x.idade}</td>
                 <td><Forca valor={x.forca} /></td>
+                <td><PontoForte j={x} /></td>
                 <td className="num esconde-m">{euros(x.salario)}</td>
                 <td className={`num ${x.contrato <= 1 ? 'acaba' : ''}`}>{x.contrato <= 1 ? 'acaba' : `${x.contrato} anos`}</td>
               </tr>
@@ -440,7 +453,7 @@ function Livres({ jogo, feito }: { jogo: JogoComMercado; feito: (r: Resultado) =
       {lista.length === 0 ? <p className="nota">Não há jogadores livres{pos !== 'todas' ? ' nesta posição' : ''}. Aparecem no início de cada época.</p> : (
         <div className="tabela-wrap">
           <table className="tabela mercado-tab">
-            <thead><tr><th>Pos</th><th>Nome</th><th className="num">Idade</th><th>Força</th><th className="num">Pede</th></tr></thead>
+            <thead><tr><th>Pos</th><th>Nome</th><th className="num">Idade</th><th>Força</th><th>Forte</th><th className="num">Pede</th></tr></thead>
             <tbody>
               {lista.map((x) => (
                 <tr key={x.id} className={`clicavel ${sel === x.id ? 'meu' : ''}`} onClick={() => setSel(x.id)}>
@@ -448,6 +461,7 @@ function Livres({ jogo, feito }: { jogo: JogoComMercado; feito: (r: Resultado) =
                   <td><span className="nome-jogador">{x.curto}</span>{recusaDoLivre(mundo, x, jogo.clubeId, jogo.epoca.jornada) && <span className="nac" title="Acha que vale mais do que este clube">não vem</span>}</td>
                   <td className="num">{x.idade}</td>
                   <td><Forca valor={x.forca} /></td>
+                  <td><PontoForte j={x} /></td>
                   <td className="num">{euros(pedidoLivre(mundo, x, jogo.clubeId))}/mês</td>
                 </tr>
               ))}
@@ -476,6 +490,7 @@ function AssinarLivre({ jogo, j, fechar, feito }: { jogo: JogoComMercado; j: Jog
         <button className="botao fantasma fechar" onClick={fechar}>Fechar</button>
       </div>
       <p className="nota">{j.idade} anos · livre · ganhava {euros(j.salario)}/mês</p>
+      <AtributosJogador j={j} />
       {recusa ? <p className="erro">{recusa}</p> : <>
       <div className="neg-ajustes">
         <Ajuste rotulo="Salário por mês" valor={salario} setValor={setSalario} base={pede} dica={`Pede ${euros(pede)} · prémio ${euros(premioAssinatura(salario))} · empresário ${euros(comissaoContrato(salario))}`} />
@@ -508,6 +523,7 @@ function Juniores({ jogo, feito }: { jogo: JogoComMercado; feito: (r: Resultado)
                 <Forca valor={j.forca} />
               </div>
               <p className="nota"><PotencialJunior jogo={jogo} id={j.id} /> · ganharia {euros(salarioDe(j.forca, div))}/mês</p>
+              <AtributosJogador j={j} />
               <div className="grupo-botoes">
                 <button className="botao principal" onClick={() => feito(promoverJunior(jogo, j.id))}>Promover</button>
                 <button className="botao" onClick={() => feito(dispensarJunior(jogo, j.id))}>Dispensar</button>

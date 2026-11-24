@@ -256,3 +256,18 @@ h1, h2, h3 { margin: 0; }
 .saltar-link { background: none; border: none; padding: 4px 2px; font-size: 12px; color: var(--texto-2); text-decoration: underline; cursor: pointer; }
 .saltar-link:hover { color: var(--texto); }
 .botao.pequeno { padding: 5px 10px; font-size: 13px; }
+
+/* Atributos do jogador */
+.atributos { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px 16px; margin: 8px 0; }
+.atr { display: grid; grid-template-columns: 92px 1fr 26px; align-items: center; gap: 8px; font-size: 13px; }
+.atr-nome { color: var(--texto-2); }
+.atr-forte .atr-nome { color: var(--texto); font-weight: 700; }
+.atr-fora { opacity: 0.55; }
+.atr-barra { height: 6px; background: #ffffff14; border-radius: 3px; overflow: hidden; }
+.atr-barra span { display: block; height: 100%; border-radius: 3px; }
+.atr-num { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.ponto-forte { font-size: 12px; font-weight: 700; white-space: nowrap; color: var(--texto-2); font-variant-numeric: tabular-nums; }
+.atr-linha td { background: var(--fundo-2); }
+.plantel-ver { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-bottom: 8px; font-size: 14px; }
+.plantel-ver .nota { margin: 0; }
+.st-atr { margin-left: 6px; }

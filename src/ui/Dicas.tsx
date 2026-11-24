@@ -12,7 +12,7 @@ export const DICAS: Record<string, { titulo: string; texto: string }> = {
   },
   plantel: {
     titulo: 'O teu plantel',
-    texto: 'A força vai de 1 a 99. Os jovens crescem até ao potencial; a partir dos 30 anos começam a perder força. Toca no cabeçalho de uma coluna para ordenar.',
+    texto: 'A força vai de 1 a 99. Os jovens crescem até ao potencial; a partir dos 30 anos começam a perder força. Cada jogador tem atributos (velocidade, remate, passe, defesa, físico): toca nele para os ver. Toca no cabeçalho de uma coluna para ordenar.',
   },
   balneario: {
     titulo: 'Balneário',
