@@ -3,12 +3,12 @@ import { useEffect, useRef, useState } from 'react'
 import type { Jogo } from '../core/types'
 import { FORMACOES, type EventoJogo, type Formacao, type Lado, type LinhaTabela, type Partida, type Postura } from '../core/partida'
 import { escalarIA } from '../core/tatica'
-import { avancarMinuto, definirAutoSub, mudarFormacao, posseDoMinuto, iniciarJogo, mudarPostura, substituir, type EstadoJogo } from '../core/motor'
+import { avancarMinuto, definirAutoSub, lancesDoMinuto, mudarFormacao, posseDoMinuto, iniciarJogo, mudarPostura, substituir, type EstadoJogo } from '../core/motor'
 import { concluirJornada, indisponiveisDe, partidasDaJornada, tabela } from '../core/epoca'
 import { Emblema } from './Emblema'
 import { POSTURAS } from './PreJogo'
 import { SaltarJogo, sementeJornada, TabelaLiga } from './comum'
-import { criarAmbiente, criarRepeticao, DURACAO_AMBIENTE, fimEmCampo, type CenaRepeticao } from '../core/repeticao'
+import { criarAmbiente, criarRepeticao, DURACAO_AMBIENTE, emCampoDe, fimEmCampo, type CenaRepeticao } from '../core/repeticao'
 import { Repeticao2D } from './Repeticao2D'
 
 type Fase = 'jogo' | 'intervalo' | 'lesao' | 'pausa' | 'resumo' | 'repeticao'
@@ -136,18 +136,12 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
         if (ev.tipo === 'fim') feitos.current.add(e.partida.id)
         if (ev.tipo === 'golo') flash.current[e.partida.id] = tickRef.current
         if (e !== meu && ev.tipo === 'golo' && ev.lance) {
-          const cena = criarRepeticao(ev, {
-            casa: { escalacao: e.escalacoes.casa, fora: e.fora },
-            fora: { escalacao: e.escalacoes.fora, fora: e.fora },
-          }, (sementeJornada(jogo, 700 + ev.minuto) ^ (ev.jogadorId ?? 0) ^ e.partida.casaId * 977) >>> 0)
+          const cena = criarRepeticao(ev, emCampoDe(mundo, e), (sementeJornada(jogo, 700 + ev.minuto) ^ (ev.jogadorId ?? 0) ^ e.partida.casaId * 977) >>> 0)
           if (cena) (outrasCenas.current[e.partida.id] ??= []).push(cena)
         }
         if (e === meu) {
           if ((ev.tipo === 'golo' || ev.tipo === 'oportunidade') && ev.lance) {
-            const cena = criarRepeticao(ev, {
-              casa: { escalacao: e.escalacoes.casa, fora: e.fora },
-              fora: { escalacao: e.escalacoes.fora, fora: e.fora },
-            }, (sementeJornada(jogo, 500 + ev.minuto) ^ (ev.jogadorId ?? 0)) >>> 0)
+            const cena = criarRepeticao(ev, emCampoDe(mundo, e), (sementeJornada(jogo, 500 + ev.minuto) ^ (ev.jogadorId ?? 0)) >>> 0)
             if (cena) {
               cenas.current.push(cena)
               const m = modoRepRef.current
@@ -185,8 +179,8 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
       if (posse) {
         const ant = ultimaCena.current
         const cena = criarAmbiente({
-          emCampo: { casa: { escalacao: meu.escalacoes.casa, fora: meu.fora }, fora: { escalacao: meu.escalacoes.fora, fora: meu.fora } },
-          posse, minuto: meu.minuto,
+          emCampo: emCampoDe(mundo, meu),
+          posse, minuto: meu.minuto, ...lancesDoMinuto(meu),
           posturas: { casa: meu.escalacoes.casa.postura, fora: meu.escalacoes.fora.postura },
           antes: pontape.current || !ant ? undefined : { ...fimEmCampo(ant), posse: ant.ambiente ? ant.atacante : undefined },
           semente: sementeJornada(jogo, 900 + meu.minuto),

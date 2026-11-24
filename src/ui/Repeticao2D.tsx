@@ -20,6 +20,8 @@ function lerCamara(): Camara {
 
 const ROTULO_ACAO: Partial<Record<AcaoRep['tipo'], [string, string]>> = {
   finta: ['Finta!', '#ffe066'], tabela: ['Tabelinha!', '#8fe3ff'], chapeu: ['Chapéu!', '#ffe066'], defesa: ['Grande defesa!', '#9cf5b0'],
+  arrancada: ['Arrancada!', '#ffb347'], desarme: ['Desarme!', '#9cf5b0'], corte: ['Corte!', '#9cf5b0'], bloqueio: ['Bloqueado!', '#9cf5b0'],
+  lancamento: ['Lançamento', '#e6edf3'], cabeca: ['Corte de cabeça!', '#9cf5b0'],
 }
 
 const ORIGEM: Record<CenaRepeticao['origem'], string> = {
@@ -368,7 +370,7 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
       const b = bolaEm(cena, t)
       // Rasto do carrinho na relva.
       for (const f of cena.acoes ?? []) {
-        if (f.tipo !== 'finta' && f.tipo !== 'falta' && f.tipo !== 'joelhos') continue
+        if (f.tipo !== 'finta' && f.tipo !== 'falta' && f.tipo !== 'joelhos' && f.tipo !== 'desarme') continue
         if (t < f.t - 0.3 || t > f.t + 2) continue
         const fr = Math.min(1, Math.max(0, (t - (f.t - 0.3)) / 0.4))
         ctx.save()

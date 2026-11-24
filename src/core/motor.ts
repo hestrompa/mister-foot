@@ -39,6 +39,9 @@ interface Extra {
   fimMinuto: number
   /** Quem teve a bola no último minuto jogado (para o campo 2D ao vivo). */
   posseMinuto?: Lado
+  /** Remate sem perigo do último minuto e canto sem remate (só para o 2D encenar; não decide nada). */
+  remateMinuto?: { lado: Lado; lance: Lance }
+  cantoMinuto?: Lado
 }
 
 export const MAX_SUBS = 5
@@ -307,6 +310,8 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
   // Jogada de ataque deste minuto.
   const atac: Lado = rng.chance(posseCasa) ? 'casa' : 'fora'
   x.posseMinuto = atac
+  x.remateMinuto = undefined
+  x.cantoMinuto = undefined
   const def = outro(atac)
   const sa = set[atac], sd = set[def]
   const q = (sa.ataque + 1) / (sd.defesa + 1)
@@ -357,11 +362,13 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
       } else {
         const clara = desfecho === 'poste' || origem === 'penalti' || (desfecho === 'defesa' && rng.chance(0.3)) || (desfecho === 'fora' && rng.chance(0.06))
         if (clara) evs.push({ minuto: min, tipo: 'oportunidade', lado: atac, jogadorId: remC.j.id, outroId: pasC?.j.id, lance, texto: textoOportunidade(lance, remC.j.curto, grC?.j.curto) })
-        if (desfecho !== 'poste' && rng.chance(0.3)) p.estat.cantos[ia]++
+        else x.remateMinuto = { lado: atac, lance }
+        if (desfecho !== 'poste' && rng.chance(0.3)) { p.estat.cantos[ia]++; x.cantoMinuto = atac }
       }
     }
   } else if (rng.chance(0.02)) {
     p.estat.cantos[ia]++
+    x.cantoMinuto = atac
   }
 
   // Cartões e lesões.
@@ -556,4 +563,10 @@ export function simularJogo(mundo: Mundo, partida: Partida, casa: Escalacao, for
 /** Quem teve a bola no último minuto jogado (undefined antes do apito inicial). */
 export function posseDoMinuto(estado: EstadoJogo): Lado | undefined {
   return ex(estado).posseMinuto
+}
+
+/** Remate sem perigo e canto do último minuto (para o campo 2D ao vivo). */
+export function lancesDoMinuto(estado: EstadoJogo): { remate?: { lado: Lado; lance: Lance }; canto?: Lado } {
+  const x = ex(estado)
+  return { ...(x.remateMinuto ? { remate: x.remateMinuto } : {}), ...(x.cantoMinuto ? { canto: x.cantoMinuto } : {}) }
 }

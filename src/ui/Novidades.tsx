@@ -5,6 +5,7 @@ export const NOVIDADES: { data: string; itens: string[] }[] = [
   {
     data: '24/11',
     itens: [
+      'Campo 2D com os atributos: os rápidos correm mais, os bons passadores arriscam o passe longo, os bons defesas desarmam mais, remates mais fortes e guarda-redes melhores a mergulhar. Mais lances ao vivo: desarmes, cortes, lançamentos, alívios, cantos aliviados de cabeça e remates bloqueados ou ao lado.',
       'Taça, Supertaça e Europa com campo 2D ao vivo e repetições, como na liga; corrigido o ecrã que podia ficar preso no fim destes jogos.',
       'Dinheiro no arranque de cada época: direitos de TV, patrocinador, lugares anuais e prémio da Liga pela classificação.',
       'Verba da direção no arranque, ligada à confiança; investidores entram a meio da época em clubes que superam o esperado.',

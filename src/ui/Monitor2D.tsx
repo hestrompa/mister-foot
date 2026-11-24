@@ -2,8 +2,8 @@
 import { useRef, useState, type ReactNode } from 'react'
 import type { Clube, Mundo } from '../core/types'
 import type { EventoJogo } from '../core/partida'
-import { posseDoMinuto, type EstadoJogo } from '../core/motor'
-import { criarAmbiente, criarRepeticao, DURACAO_AMBIENTE, fimEmCampo, type CenaRepeticao } from '../core/repeticao'
+import { lancesDoMinuto, posseDoMinuto, type EstadoJogo } from '../core/motor'
+import { criarAmbiente, criarRepeticao, DURACAO_AMBIENTE, emCampoDe, fimEmCampo, type CenaRepeticao } from '../core/repeticao'
 import { Repeticao2D } from './Repeticao2D'
 import { gravarModoRep, lerModoRep, MODOS_REP, type ModoRep } from './AoVivo'
 
@@ -43,7 +43,7 @@ export function useMonitor2D({ mundo, meu, casa, fora, semente, voltar }: {
   const esc = useRef<{ ev: EventoJogo; golo: boolean } | null>(null)
   const [, setTick] = useState(0)
 
-  const emCampo = () => ({ casa: { escalacao: meu.escalacoes.casa, fora: meu.fora }, fora: { escalacao: meu.escalacoes.fora, fora: meu.fora } })
+  const emCampo = () => emCampoDe(mundo, meu)
 
   const revelar = () => {
     const x = esc.current
@@ -86,7 +86,7 @@ export function useMonitor2D({ mundo, meu, casa, fora, semente, voltar }: {
     if (posse) {
       const ant = ultimaCena.current
       const cena = criarAmbiente({
-        emCampo: emCampo(), posse, minuto: meu.minuto,
+        emCampo: emCampo(), posse, minuto: meu.minuto, ...lancesDoMinuto(meu),
         posturas: { casa: meu.escalacoes.casa.postura, fora: meu.escalacoes.fora.postura },
         antes: pontape.current || !ant ? undefined : { ...fimEmCampo(ant), posse: ant.ambiente ? ant.atacante : undefined },
         semente: semente(900 + meu.minuto),

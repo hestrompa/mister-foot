@@ -137,9 +137,11 @@ describe('campo ao vivo (minutos sem lance)', () => {
       }
       const iR = n.caricas.findIndex((kk) => kk.id === n.rematadorId)
       expect(n.caricas[iR].lado).toBe(posse)
-      const b = bolaEm(n, n.duracao)
+      // A bola acaba com ele, ou ainda a caminho dele (passe a meio no fim do minuto).
+      const b = bolaEm(n, n.duracao), b1 = bolaEm(n, n.duracao - 0.1)
       const p = caricasEm(n, n.duracao)[iR]
-      expect(Math.hypot(p[0] - b.x, p[1] - b.y)).toBeLessThan(4)
+      const aCaminho = Math.hypot(p[0] - b.x, p[1] - b.y) < Math.hypot(p[0] - b1.x, p[1] - b1.y) - 0.3
+      expect(Math.hypot(p[0] - b.x, p[1] - b.y) < 4 || aCaminho).toBe(true)
       c = n
     }
   })
@@ -152,5 +154,64 @@ describe('campo ao vivo (minutos sem lance)', () => {
       return xs.reduce((a, b) => a + b, 0) / xs.length
     }
     expect(med('ofensiva')).toBeGreaterThan(med('defensiva') + 4)
+  })
+})
+
+describe('2D com atributos e mais lances', () => {
+  const base = { minuto: 20, posturas: { casa: 'equilibrada', fora: 'equilibrada' } as const }
+  const comAtrib = (velCasa: number, velFora: number): Record<Lado, EmCampoRep> => {
+    const at = (esc: typeof escA, v: number) => Object.fromEntries(esc.titulares.map((id) => [id, { vel: v, rem: 60, pas: 60, def: 60, fis: 60, gr: 60 }]))
+    return { casa: { ...emCampo.casa, atrib: at(escA, velCasa) }, fora: { ...emCampo.fora, atrib: at(escB, velFora) } }
+  }
+  const jogar = (ec: Record<Lado, EmCampoRep>, n: number, extra: (k: number) => Partial<Parameters<typeof criarAmbiente>[0]> = () => ({})) => {
+    const cenas = []
+    let c = criarAmbiente({ ...base, emCampo: ec, posse: 'casa', semente: 7 })
+    for (let k = 0; k < n; k++) {
+      const posse: Lado = (k * 7919) % 5 < 2 ? 'fora' : 'casa'
+      c = criarAmbiente({ ...base, emCampo: ec, minuto: 20 + (k % 20), posse, antes: { ...fimEmCampo(c), posse: c.atacante }, semente: 300 + k, ...extra(k) })
+      cenas.push(c)
+    }
+    return cenas
+  }
+
+  it('no campo ao vivo há desarmes, cortes, lançamentos, cantos aliviados e remates bloqueados', () => {
+    const tipos = new Set<string>()
+    const cenas = jogar(emCampo, 300, (k) => {
+      const posse: Lado = (k * 7919) % 5 < 2 ? 'fora' : 'casa'
+      const at = posse === 'casa' ? escA : escB
+      if (k % 9 === 4) return { remate: { lado: posse, lance: { origem: 'jogada', desfecho: k % 2 ? 'fora' : 'defesa', corredor: 0, rematadorId: at.titulares[9] } }, ...(k % 4 === 0 ? { canto: posse } : {}) }
+      if (k % 11 === 5) return { canto: posse }
+      return {}
+    })
+    for (const c of cenas) {
+      for (const a of c.acoes) tipos.add(a.tipo)
+      for (const q of c.quadros) for (const [x, y] of q) { expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true) }
+      for (const b of c.bola) { expect(b.x).toBeGreaterThan(-2); expect(b.x).toBeLessThan(COMPRIMENTO + 2); expect(b.y).toBeGreaterThan(-2); expect(b.y).toBeLessThan(70) }
+    }
+    for (const t of ['desarme', 'corte', 'lancamento', 'cabeca', 'bloqueio']) expect(tipos.has(t), t).toBe(true)
+  })
+
+  it('a equipa mais rápida corre mais', () => {
+    const cenas = jogar(comAtrib(90, 35), 80)
+    let rapida = 0, lenta = 0
+    for (const c of cenas) {
+      if (c.cortes.length) continue
+      for (let f = 1; f < c.quadros.length; f++) c.caricas.forEach((k, i) => {
+        const d = Math.hypot(c.quadros[f][i][0] - c.quadros[f - 1][i][0], c.quadros[f][i][1] - c.quadros[f - 1][i][1])
+        if (k.lado === 'casa') rapida = Math.max(rapida, d); else lenta = Math.max(lenta, d)
+      })
+    }
+    expect(rapida).toBeGreaterThan(lenta + 0.1)
+  })
+
+  it('contra-ataque de avançado rápido contra defesa lento: arrancada', () => {
+    let arr = 0
+    for (let s = 1; s <= 12; s++) {
+      const c = criarRepeticao(evento('contra', 'golo', 0), comAtrib(90, 35), s)!
+      if (c.acoes.some((a) => a.tipo === 'arrancada')) arr++
+    }
+    expect(arr).toBeGreaterThan(6)
+    const c = criarRepeticao(evento('contra', 'golo', 0), comAtrib(35, 90), 3)!
+    expect(c.acoes.some((a) => a.tipo === 'arrancada')).toBe(false)
   })
 })
