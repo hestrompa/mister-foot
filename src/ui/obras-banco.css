@@ -11,3 +11,16 @@
 .ob-barra { height: 10px; border-radius: 5px; background: var(--fundo-2); border: 1px solid var(--linha); overflow: hidden; }
 .ob-barra span { display: block; height: 100%; background: var(--verde); }
 .botao:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Dinheiro de arranque da época */
+.inicio-epoca { margin-bottom: 12px; }
+.inicio-epoca .ie-total { font-size: 1.35rem; font-weight: 700; color: var(--verde); margin: 4px 0 8px; }
+.inicio-epoca .ie-total span { font-size: 0.85rem; font-weight: 400; color: inherit; opacity: 0.75; }
+.inicio-epoca .ie-tabela { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.inicio-epoca .ie-tabela td { padding: 4px 6px; border-top: 1px solid rgba(127, 127, 127, 0.2); vertical-align: top; }
+.inicio-epoca .ie-tabela .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.inicio-epoca .ie-d { opacity: 0.7; font-size: 0.82rem; }
+.inicio-epoca .ie-nota { font-size: 0.82rem; opacity: 0.75; margin: 8px 0 0; }
+.inicio-epoca .ie-mais { color: var(--verde); }
+.inicio-epoca .ie-menos { color: var(--f-fraca); }
+.inicio-epoca .ie-res td { font-weight: 700; border-top: 2px solid rgba(127, 127, 127, 0.4); }

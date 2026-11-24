@@ -3,7 +3,8 @@ import type { EstadoEpoca, Partida } from '../core/partida'
 import { escalarAuto } from '../core/motor'
 import { gestaoIA } from '../core/ia-financas'
 import { garantirStaff, staffIA } from '../core/staff-ia'
-import { epocaTerminada, fecharEpoca, indisponiveisDe, novaEpoca } from '../core/epoca'
+import { epocaTerminada, fecharEpoca, indisponiveisDe, novaEpoca, tabela } from '../core/epoca'
+import { pagarInicioEpoca } from '../core/inicio-epoca'
 import { registarCampeao, type JogoComTaca } from '../core/taca'
 import { avancarDirecao, iniciarEpocaDirecao } from '../core/direcao'
 import { feriasBalneario } from '../core/balneario'
@@ -50,7 +51,11 @@ export function prepararEpoca(jogo: Jogo): Jogo {
   garantirRivais(jogo.mundo)
   if (jogo.epoca) { gestaoIA(jogo.mundo, jogo.clubeId); staffIA(jogo.mundo, jogo.clubeId); feriasBalneario(jogo.mundo) }
   else garantirStaff(jogo.mundo)
+  // Tabelas finais da época que acabou (o calendário antigo ainda diz quem jogou em cada divisão).
+  const anterior = jogo.epoca
+  const anteriores = anterior ? anterior.calendario.map((_, d) => tabela(jogo.mundo, anterior, d + 1)) : []
   jogo.epoca = novaEpoca(jogo.mundo, sementeEpoca(jogo))
+  pagarInicioEpoca(jogo.mundo, jogo.epoca, anteriores)
   jogo.escalacao = escalarAuto(jogo.mundo, jogo.clubeId, indisponiveisDe(jogo.mundo, jogo.epoca, jogo.clubeId), jogo.escalacao?.formacao)
   iniciarEpocaDirecao(jogo)
   avancarImprensa(jogo)
@@ -78,6 +83,22 @@ export function carregar(): Jogo | null {
   } catch {
     return null
   }
+}
+
+/** Texto da gravação para guardar num ficheiro (cópia de segurança ou passar para outro aparelho). */
+export function exportarTexto(jogo: Jogo): string {
+  const dados = jogo.epoca ? { ...jogo, epoca: compactar(jogo.epoca) } : jogo
+  return JSON.stringify({ app: 'mister-foot', exportado: new Date().toISOString(), jogo: dados })
+}
+
+/** Lê uma cópia de segurança. Devolve uma mensagem de erro, ou null se ficou gravada (carregar() abre-a). */
+export function importarTexto(texto: string): string | null {
+  let d: { app?: string; jogo?: Jogo }
+  try { d = JSON.parse(texto) } catch { return 'O ficheiro não é uma gravação do Mister-foot.' }
+  const j = d?.app === 'mister-foot' ? d.jogo : (d as unknown as Jogo)
+  if (!j?.mundo?.clubes || j.mundo.versao !== 1 || !j.mundo.clubes[j.clubeId]) return 'O ficheiro não é uma gravação do Mister-foot.'
+  try { localStorage.setItem(CHAVE, JSON.stringify(j)) } catch { return 'Não foi possível gravar neste aparelho (sem espaço?).' }
+  return null
 }
 
 export function apagar(): void {

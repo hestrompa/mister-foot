@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { forcaClube, gerarMundo } from './core/mundo'
 import { salariosPorJornada } from './core/financas'
 import { ObrasBanco } from './ui/ObrasBanco'
+import { AbrirCopia, descarregarCopia } from './ui/CopiaSeguranca'
 import { euros, lugares } from './core/formato'
 import type { Jogo, Mundo } from './core/types'
 import type { Escalacao } from './core/partida'
@@ -49,6 +50,8 @@ export default function App() {
       <Inicio
         temJogo={!!jogo}
         continuar={() => setEcra('jogo')}
+        copia={jogo ? () => descarregarCopia(jogo) : undefined}
+        aberto={() => { const j = carregar(); if (j) { setJogo(j); setEcra('jogo') } }}
         novo={(treinador, semente) => {
           setMundoNovo({ mundo: gerarMundo(semente), treinador })
           setEcra('escolher')
@@ -78,7 +81,7 @@ function Rodape() {
   return <footer className="rodape">Mister-foot · {__VERSAO__} · clubes e jogadores fictícios</footer>
 }
 
-function Inicio({ temJogo, continuar, novo }: { temJogo: boolean; continuar: () => void; novo: (t: string, s: number) => void }) {
+function Inicio({ temJogo, continuar, novo, copia, aberto }: { temJogo: boolean; continuar: () => void; novo: (t: string, s: number) => void; copia?: () => void; aberto: () => void }) {
   const [treinador, setTreinador] = useState('')
   const [semente, setSemente] = useState('')
   return (
@@ -112,6 +115,14 @@ function Inicio({ temJogo, continuar, novo }: { temJogo: boolean; continuar: () 
         </label>
         <button className="botao principal" type="submit">Gerar mundo</button>
       </form>
+      <div className="cartao copia-seguranca">
+        <h2>Cópia de segurança</h2>
+        <p className="dica">A carreira fica gravada neste browser. Guarda uma cópia num ficheiro para a passar para outro aparelho ou não a perder se limpares o browser.</p>
+        <div className="copia-botoes">
+          {copia && <button type="button" className="botao" onClick={copia}>Guardar cópia num ficheiro</button>}
+          <AbrirCopia temJogo={temJogo} aberto={aberto} />
+        </div>
+      </div>
       <Rodape />
     </div>
   )

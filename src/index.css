@@ -271,3 +271,11 @@ h1, h2, h3 { margin: 0; }
 .plantel-ver { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-bottom: 8px; font-size: 14px; }
 .plantel-ver .nota { margin: 0; }
 .st-atr { margin-left: 6px; }
+
+/* Cópia de segurança no ecrã inicial */
+.copia-seguranca h2 { font-size: 18px; margin: 0 0 6px; }
+.copia-seguranca .dica { margin: 0 0 10px; }
+.copia-botoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.copia-seguranca .erro { color: var(--f-fraca); margin: 6px 0 0; }
+.abrir-copia { display: contents; }
+.copia-seguranca .erro { flex-basis: 100%; }

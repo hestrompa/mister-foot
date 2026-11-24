@@ -4,6 +4,7 @@ import { concluirJornada, epocaTerminada, fecharEpoca, novaEpoca, tabela } from 
 import type { Jogo, Mundo } from '../core/types'
 import { avancarMercado, type JogoComMercado } from '../core/mercado'
 import { prepararEpoca } from './gravar'
+import type { EpocaComInicio } from '../core/inicio-epoca'
 import { garantirStaff, staffIA } from '../core/staff-ia'
 import { salariosPorJornada } from '../core/financas'
 import { avancarTaca, jogarRondaTaca, meuJogoPendente, registarCampeao, type JogoComTaca } from '../core/taca'
@@ -116,7 +117,7 @@ export interface MedidaDinheiro {
   total: number
   transferencias: number
   /** Média por clube (divisão no início da época) de cada fluxo de dinheiro na época. */
-  fluxos: Record<'bilheteira' | 'fixas' | 'salarios' | 'estadio' | 'taca' | 'europa' | 'resto' | 'saldo', number>[]
+  fluxos: Record<'inicio' | 'bilheteira' | 'fixas' | 'salarios' | 'estadio' | 'taca' | 'europa' | 'resto' | 'saldo', number>[]
 }
 
 const pct = (v: number[], p: number) => { const s = v.slice().sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(p * s.length))] }
@@ -153,8 +154,9 @@ export function medirDinheiro(semente: number, epocas: number, divUtilizador = 3
     let n = 0
     const clubeAntes = new Map(Object.values(mundo.jogadores).map((j) => [j.id, j.clubeId]))
     const divAntes = new Map(Object.values(mundo.clubes).map((c) => [c.id, c.divisao]))
-    const dinAntes = new Map(Object.values(mundo.clubes).map((c) => [c.id, c.dinheiro]))
-    const fl = mundo.divisoes.map(() => ({ bilheteira: 0, fixas: 0, salarios: 0, estadio: 0, taca: 0, europa: 0, resto: 0, saldo: 0 }))
+    const ini = (jogo.epoca as EpocaComInicio).inicio ?? {}
+    const dinAntes = new Map(Object.values(mundo.clubes).map((c) => [c.id, c.dinheiro - (ini[c.id]?.total ?? 0)]))
+    const fl = mundo.divisoes.map(() => ({ inicio: 0, bilheteira: 0, fixas: 0, salarios: 0, estadio: 0, taca: 0, europa: 0, resto: 0, saldo: 0 }))
     const somarBalanco = () => {
       for (const [k, b] of Object.entries(jogo.epoca.ultimoBalanco ?? {})) {
         const f = fl[(divAntes.get(Number(k)) ?? 1) - 1]
@@ -180,10 +182,11 @@ export function medirDinheiro(semente: number, epocas: number, divUtilizador = 3
     for (const c of Object.values(mundo.clubes)) {
       const f = fl[(divAntes.get(c.id) ?? 1) - 1]
       const t = jt.taca?.receitas[c.id] ?? 0, eu = jt.europa?.receitas[c.id] ?? 0
+      f.inicio += ini[c.id]?.total ?? 0
       f.taca += t; f.europa += eu; f.saldo += c.dinheiro - (dinAntes.get(c.id) ?? 0)
     }
     for (const f of fl) {
-      f.resto = f.saldo - f.bilheteira - f.fixas - f.salarios - f.estadio - f.taca - f.europa
+      f.resto = f.saldo - f.inicio - f.bilheteira - f.fixas - f.salarios - f.estadio - f.taca - f.europa
       for (const k of Object.keys(f) as (keyof typeof f)[]) f[k] = Math.round(f[k] / 18)
     }
     const m: MedidaDinheiro = { ano, p10: [], p50: [], p90: [], max: [], min: [], vermelho: 0, emprestimo: 0, obras: 0, salarios: [], forcaMedia: [], plantelMin: 99, plantelMax: 0, total: 0, transferencias, fluxos: fl }

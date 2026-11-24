@@ -86,6 +86,13 @@ try {
     await page.getByText('Estádio').first().waitFor({ timeout: 5000 })
   })
 
+  await passo('arranque da época mostra o dinheiro de TV, patrocínio, sócios e prémio', async () => {
+    const r = page.getByRole('region', { name: 'Arranque da época' })
+    await r.waitFor({ timeout: 5000 })
+    await r.getByText('Direitos de TV').waitFor({ timeout: 5000 })
+    await r.getByText('Lugares anuais').waitFor({ timeout: 5000 })
+  })
+
   await passo('obras no estádio e empréstimo ao banco', async () => {
     await page.getByRole('region', { name: 'Obras no estádio' }).waitFor({ timeout: 5000 })
     const banco = page.getByRole('region', { name: 'Banco' })
@@ -388,6 +395,18 @@ try {
     esperar(sw <= iw + 1, `scrollWidth ${sw} > innerWidth ${iw}`)
     await page.getByRole('button', { name: 'Calendário' }).click()
     await foto('13c-calendario-telemovel.png')
+  })
+
+  await passo('cópia de segurança: guardar num ficheiro e voltar a abrir', async () => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.getByRole('button', { name: 'Menu' }).click()
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Guardar cópia num ficheiro' }).click()])
+    const caminho = await dl.path()
+    esperar(/^mister-foot-.*\.json$/.test(dl.suggestedFilename()), `nome estranho: ${dl.suggestedFilename()}`)
+    await foto('14-copia-seguranca.png')
+    page.once('dialog', (d) => d.accept())
+    await page.getByLabel('Ficheiro da cópia de segurança').setInputFiles(caminho)
+    await page.locator('.topo-dinheiro').waitFor({ timeout: 5000 })
   })
 
   await ctx.close()

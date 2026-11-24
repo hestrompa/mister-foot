@@ -5,6 +5,10 @@ import { lotacaoAtual, avancarObra } from './estadio'
 import { cobrarPrestacao } from './banco'
 import { custoStaffPorJornada } from './staff'
 import { rivalidade } from './rivalidades'
+import type { InjecaoEpoca } from './inicio-epoca'
+
+/** Parte das receitas fixas que chega por jornada quando a época teve dinheiro de arranque (ver inicio-epoca.ts). */
+const PARTE_JORNADA = 0.65
 
 /** Receitas fixas por jornada (TV e patrocínios), por divisão. */
 export const RECEITA_FIXA = [50_000, 15_000, 5_000, 5_000]
@@ -61,7 +65,7 @@ export function salariosPorJornada(mundo: Mundo, clubeId: number): number {
  * Aplica o dinheiro de uma jornada a todos os clubes que jogaram e devolve o balanço de cada um.
  * `tabelas[divisao-1]` é a tabela de antes da jornada (para a procura).
  */
-export function aplicarFinancas(mundo: Mundo, partidas: Partida[], tabelas: LinhaTabela[][]): Record<number, Balanco> {
+export function aplicarFinancas(mundo: Mundo, partidas: Partida[], tabelas: LinhaTabela[][], inicio?: Record<number, InjecaoEpoca>): Record<number, Balanco> {
   const out: Record<number, Balanco> = {}
   const posDe = (clubeId: number, div: number) => {
     const t = tabelas[div - 1] ?? []
@@ -73,8 +77,10 @@ export function aplicarFinancas(mundo: Mundo, partidas: Partida[], tabelas: Linh
       const c = mundo.clubes[id]
       const emCasa = id === p.casaId
       const publico = emCasa ? publicoEsperado(c, mundo.clubes[p.foraId], posDe(id, c.divisao), (tabelas[c.divisao - 1] ?? []).length || 18) : 0
-      const bilheteira = publico * c.bilhete
-      const fixas = RECEITA_FIXA[c.divisao - 1] ?? 0
+      // Com lugares anuais pagos no arranque, esses adeptos não pagam bilhete outra vez.
+      const ini = inicio?.[id]
+      const bilheteira = Math.max(0, publico - (ini?.socios ?? 0)) * c.bilhete
+      const fixas = Math.round((RECEITA_FIXA[c.divisao - 1] ?? 0) * (ini ? PARTE_JORNADA : 1))
       const staff = custoStaffPorJornada(c)
       const salarios = salariosPorJornada(mundo, id) + staff
       const banco = cobrarPrestacao(c)

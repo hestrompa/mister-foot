@@ -1,5 +1,6 @@
 // Calendário, tabela, castigos, lesões, subidas e descidas. IMPLEMENTAÇÃO: agente da época.
 import { aplicarFinancas } from './financas'
+import { somarContas, type EpocaComInicio } from './inicio-epoca'
 import type { Mundo } from './types'
 import type { EstadoEpoca, EstatJogo, Indisponivel, LinhaTabela, Partida, ResumoEpoca } from './partida'
 import { createRng } from './rng'
@@ -197,7 +198,8 @@ export function concluirJornada(mundo: Mundo, epoca: EstadoEpoca, semente: numbe
 
   // 1b. Dinheiro da jornada (com as tabelas de antes dela).
   const tabelas = epoca.calendario.map((_, d) => tabela(mundo, epoca, d + 1))
-  epoca.ultimoBalanco = aplicarFinancas(mundo, daJornada, tabelas)
+  epoca.ultimoBalanco = aplicarFinancas(mundo, daJornada, tabelas, (epoca as EpocaComInicio).inicio)
+  somarContas(epoca, epoca.ultimoBalanco)
 
   // Quem estava de fora antes do jogo (não conta como "não foi escolhido" para a moral).
   const ausentes = new Set(Object.keys(epoca.indisponiveis).map(Number).filter((id) => epoca.indisponiveis[id].jogos > 0))

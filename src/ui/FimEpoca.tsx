@@ -8,6 +8,7 @@ import { EuropaFimEpoca } from './Europa'
 import { BalancoDirecao } from './Carreira'
 import { euros } from '../core/formato'
 import { TAXA_IRC } from '../core/epoca'
+import { InicioEpoca } from './InicioEpoca'
 
 export interface DadosFimEpoca {
   resumo: ResumoEpoca
@@ -73,6 +74,7 @@ export function FimEpoca({ jogo, d, continuar }: { jogo: Jogo; d: DadosFimEpoca;
           </div>
         )}
       </div>
+      <InicioEpoca jogo={jogo} />
       <div className="barra-acao">
         <button className="botao principal grande" onClick={continuar}>Começar nova época</button>
       </div>
