@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { Jogo } from '../core/types'
 import { FORMACOES, type EventoJogo, type Formacao, type Lado, type LinhaTabela, type Partida, type Postura } from '../core/partida'
 import { escalarIA } from '../core/tatica'
-import { avancarMinuto, definirAutoSub, lancesDoMinuto, mudarFormacao, posseDoMinuto, iniciarJogo, mudarPostura, substituir, type EstadoJogo } from '../core/motor'
+import { avancarMinuto, definirAutoSub, lancesDoMinuto, mudarFormacao, posseDoMinuto, iniciarJogo, mudarPostura, mudarMarcacao, substituir, type EstadoJogo } from '../core/motor'
+import { EscolhaMarcacao } from './PlanoJogo'
 import { concluirJornada, indisponiveisDe, partidasDaJornada, tabela } from '../core/epoca'
 import { Emblema } from './Emblema'
 import { POSTURAS } from './PreJogo'
@@ -390,6 +391,7 @@ export function PainelSubs({ jogo, estado, lado, fase, lesionado, retomar, atual
             onClick={() => { mudarPostura(estado, lado, x.v as Postura); atualizar() }}>{x.t}</button>
         ))}
       </div>
+      <EscolhaMarcacao valor={esc.plano?.marcacao ?? 'zona'} mudar={(m) => { mudarMarcacao(estado, lado, m); atualizar() }} />
       <label className="ps-formacao">
         <span className="dica">Formação</span>
         <select value={esc.formacao} onChange={(e) => { mudarFormacao(mundo, estado, lado, e.target.value as Formacao); setSai(null); atualizar() }}>

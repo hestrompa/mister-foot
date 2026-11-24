@@ -5,6 +5,7 @@ import { fatorRenovacaoPers, personalidadeDe } from './personalidade'
 import { createRng, type Rng } from './rng'
 import { forcaClube, salarioDe } from './mundo'
 import { escalarAuto } from './motor'
+import { manterPlano } from './plano'
 import { indisponiveisDe } from './epoca'
 import type { EstadoEpoca } from './partida'
 import { gerarJunior } from './juniores'
@@ -376,7 +377,7 @@ function corrigirEscalacao(jogo: JogoComMercado) {
     return
   }
   const nova = escalarAuto(jogo.mundo, jogo.clubeId, indisponiveisDe(jogo.mundo, jogo.epoca, jogo.clubeId), esc.formacao)
-  jogo.escalacao = { ...nova, postura: esc.postura }
+  jogo.escalacao = manterPlano(nova, esc)
 }
 
 export interface Resultado { ok: boolean; texto: string }

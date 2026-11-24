@@ -1,6 +1,7 @@
 // Contrato comum do M1: tipos de jogo, eventos e época.
 // motor.ts e epoca.ts implementam as funções declaradas nos seus ficheiros;
 // a UI só usa o que está aqui e as funções exportadas por esses dois ficheiros.
+import type { PlanoJogo } from './plano'
 
 export type Formacao = '4-4-2' | '4-3-3' | '4-5-1' | '3-5-2' | '3-4-3' | '5-3-2' | '5-4-1' | '4-2-4' | '5-0-5'
 
@@ -19,6 +20,8 @@ export interface Escalacao {
   titulares: number[]
   /** Até 9 suplentes. */
   suplentes: number[]
+  /** Marcação, bolas paradas e instruções individuais (ver plano.ts). Sem plano, joga-se o habitual. */
+  plano?: PlanoJogo
 }
 
 export type Lado = 'casa' | 'fora'
@@ -34,6 +37,10 @@ export interface Lance {
   desfecho: 'golo' | 'defesa' | 'poste' | 'fora'
   /** Lado do campo por onde veio: -1 esquerda, 0 meio, 1 direita. */
   corredor: -1 | 0 | 1
+  /** Esquema ensaiado nas bolas paradas (canto/livre) ou remate de fora por instrução. */
+  esquema?: 'area' | 'curto' | 'entrada' | 'direto' | 'cruzar'
+  /** Quem marcava o rematador de perto (marcação individual), se havia. */
+  marcadorId?: number
 }
 
 export type TipoEvento =

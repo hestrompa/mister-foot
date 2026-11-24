@@ -17,6 +17,7 @@ import type { Escalacao } from './core/partida'
 import { anunciarReformas } from './core/carreira-noticias'
 import { epocaTerminada, fecharEpoca, indisponiveisDe, tabela } from './core/epoca'
 import { escalarAuto } from './core/motor'
+import { manterPlano } from './core/plano'
 import { apagar, carregar, gravar, prepararEpoca } from './jogo/gravar'
 import { Emblema } from './ui/Emblema'
 import { Dicas } from './ui/Dicas'
@@ -228,7 +229,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
       // Lesionados ou castigados no onze: refaz a escalação mantendo formação e postura.
       const ind = indisponiveisDe(mundo, jogo.epoca, jogo.clubeId)
       if (jogo.escalacao.titulares.some((id) => ind.has(id))) {
-        atualizar({ ...jogo, escalacao: { ...escalarAuto(mundo, jogo.clubeId, ind, jogo.escalacao.formacao), postura: jogo.escalacao.postura } })
+        atualizar({ ...jogo, escalacao: manterPlano(escalarAuto(mundo, jogo.clubeId, ind, jogo.escalacao.formacao), jogo.escalacao) })
       }
       return
     }
@@ -268,7 +269,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
           avancarEuropa(jogo as JogoComEuropa)
           const ind = indisponiveisDe(mundo, jogo.epoca, jogo.clubeId)
           if (jogo.escalacao.titulares.some((id) => ind.has(id))) {
-            atualizar({ ...jogo, escalacao: { ...escalarAuto(mundo, jogo.clubeId, ind, jogo.escalacao.formacao), postura: jogo.escalacao.postura } })
+            atualizar({ ...jogo, escalacao: manterPlano(escalarAuto(mundo, jogo.clubeId, ind, jogo.escalacao.formacao), jogo.escalacao) })
           } else atualizar(jogo)
         }} />
       </div>
@@ -285,7 +286,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
           registarFichas(jogo)
           const ind = indisponiveisDe(mundo, jogo.epoca, jogo.clubeId)
           if (jogo.escalacao.titulares.some((id) => ind.has(id))) {
-            atualizar({ ...jogo, escalacao: { ...escalarAuto(mundo, jogo.clubeId, ind, jogo.escalacao.formacao), postura: jogo.escalacao.postura } })
+            atualizar({ ...jogo, escalacao: manterPlano(escalarAuto(mundo, jogo.clubeId, ind, jogo.escalacao.formacao), jogo.escalacao) })
           } else atualizar(jogo)
         }} />
       </div>

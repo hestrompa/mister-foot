@@ -9,6 +9,7 @@ import { fatorMoral } from './balneario'
 import { fatorFisico, riscoLesao, sortearLesao } from './lesoes'
 import { fatorFaltaPers, personalidadeDe } from './personalidade'
 import { atributo, fatores, notaNaPosicao, type FatoresMotor } from './atributos'
+import { EFEITO_INSTRUCAO, fatorMarcado, type Instrucao, type Marcacao, type PlanoJogo } from './plano'
 
 /** Estado interno de um jogo a decorrer. Serializável (sem funções). */
 export interface EstadoJogo {
@@ -160,6 +161,19 @@ interface EmCampo {
   ef: number
   /** Atributos face à força (1 = igual à força). */
   f: FatoresMotor
+  /** Instrução individual do plano de jogo. */
+  inst?: Instrucao
+  /** Quem o marca de perto (marcação individual do adversário). */
+  marcador?: Jogador
+}
+
+/** Quem do lado `lado` está a marcar de perto e a quem (o marcador tem de estar em campo). */
+function marcacaoIndividual(estado: EstadoJogo, lado: Lado): { marcador: number; alvo: number } | null {
+  const esc = estado.escalacoes[lado]
+  const pl = esc.plano
+  if (!pl?.alvo || !pl.instrucoes) return null
+  const marcador = esc.titulares.find((id) => pl.instrucoes![id] === 'marcar' && !estado.fora.includes(id))
+  return marcador != null ? { marcador, alvo: pl.alvo } : null
 }
 
 function emCampo(mundo: Mundo, estado: EstadoJogo, lado: Lado): EmCampo[] {
@@ -167,8 +181,10 @@ function emCampo(mundo: Mundo, estado: EstadoJogo, lado: Lado): EmCampo[] {
   const out: EmCampo[] = []
   const iniciais = ex(estado).iniciais
   const m = estado.minuto
-  // Cansaço ligeiro depois dos 60' para quem começou o jogo (o físico cansa menos).
-  const cansaco = (f: FatoresMotor) => m > 60 ? 1 - (m - 60) * 0.0025 * (2 - f.fis) : 1
+  // Cansaço ligeiro depois dos 60' para quem começou o jogo (o físico cansa menos). Pressão alta cansa mais.
+  const kPressao = esc.plano?.marcacao === 'pressao' ? 1.7 : 1
+  const cansaco = (f: FatoresMotor) => m > 60 ? 1 - (m - 60) * 0.0025 * kPressao * (2 - f.fis) : 1
+  const mi = marcacaoIndividual(estado, lado === 'casa' ? 'fora' : 'casa')
   esc.titulares.forEach((id, i) => {
     if (estado.fora.includes(id)) return
     const j = mundo.jogadores[id]
@@ -176,7 +192,12 @@ function emCampo(mundo: Mundo, estado: EstadoJogo, lado: Lado): EmCampo[] {
     const pos = posicaoDoLugar(esc.formacao, i)
     // Moral e cansaço acumulado das últimas semanas mexem pouco, mas mexem.
     const f = fatores(j)
-    out.push({ j, pos, f, ef: forcaNoLugar(j, pos) * (iniciais.includes(id) ? cansaco(f) : 1) * fatorMoral(j) * fatorFisico(j) })
+    let ef = forcaNoLugar(j, pos) * (iniciais.includes(id) ? cansaco(f) : 1) * fatorMoral(j) * fatorFisico(j)
+    // Marcado de perto: rende menos, conforme a qualidade do marcador.
+    const marcador = mi && mi.alvo === id ? mundo.jogadores[mi.marcador] : undefined
+    if (marcador) ef *= fatorMarcado(marcador, j)
+    const inst = esc.plano?.instrucoes?.[id]
+    out.push({ j, pos, f, ef, ...(inst ? { inst } : {}), ...(marcador ? { marcador } : {}) })
   })
   return out
 }
@@ -188,28 +209,57 @@ export interface Setores {
   defesa: number
 }
 
-function somarSetores(campo: EmCampo[], emCasa: boolean, post: Postura): Setores {
+function somarSetores(campo: EmCampo[], emCasa: boolean, post: Postura, plano?: PlanoJogo): Setores {
   // Cada setor soma a força efetiva, puxada um pouco pelo atributo que esse setor pede:
   // passe no meio-campo, remate e velocidade no ataque, defesa atrás, reflexos na baliza.
   // Num plantel normal os fatores dão 1 em média: o perfil decide quem é bom em quê, não a força total.
   const vazio = (): Record<Posicao, number> => ({ GR: 0, DEF: 0, MED: 0, AV: 0 })
   const m = vazio(), a = vazio(), d = vazio()
-  let g = 0
+  let g = 0, ataqueExtra = 0, defesaExtra = 0
   for (const c of campo) {
     const f = c.f
     if (c.pos === 'GR') { g += c.ef * f.gr50; continue }
-    m[c.pos] += c.ef * (c.pos === 'MED' ? f.pas35 : f.pas15)
+    m[c.pos] += c.ef * (c.pos === 'MED' ? f.pas35 : f.pas15) * (c.inst === 'marcar' ? 0.8 : 1)
     a[c.pos] += c.ef * (c.pos === 'AV' ? f.rem25vel15 : c.pos === 'MED' ? f.rem20 : 1)
     d[c.pos] += c.ef * (c.pos === 'DEF' ? f.def35 : c.pos === 'MED' ? f.def20 : 1)
+    // Instruções individuais trocam um bocado de defesa por ataque (ou o contrário): o que se ganha
+    // depende do remate (e velocidade) do jogador, o que se perde da defesa dele. Ninguém ganha de graça.
+    if (c.inst) {
+      const e = EFEITO_INSTRUCAO[c.inst]
+      // Subir: ganha com remate e velocidade, perde o que corria atrás (físico e velocidade).
+      // Ficar atrás: ganha com a defesa, perde o que dava à saída de bola (passe e velocidade).
+      // Um avançado a subir (ou um central a ficar atrás) já está onde a instrução o manda: muda pouco.
+      const k = (c.inst === 'subir' && c.pos === 'AV') || (c.inst === 'segurar' && c.pos === 'DEF') ? 0.4 : 1
+      if (c.inst === 'subir') { ataqueExtra += k * c.ef * e.ataque * Math.sqrt(f.rem * f.vel); defesaExtra += k * c.ef * e.defesa * Math.sqrt(f.fis * f.vel) }
+      else if (c.inst === 'segurar') { ataqueExtra += k * c.ef * e.ataque * Math.sqrt(f.pas * f.vel); defesaExtra += k * c.ef * e.defesa * f.def }
+      else ataqueExtra += c.ef * e.ataque * f.rem
+    }
   }
+  // Marcação: a pressão alta ganha bola conforme a velocidade e o físico, mas joga com a linha subida;
+  // a individual rende o que os defesas valem a defender (a velocidade dos avançados conta no jogo).
+  let fMeio = 1, fDef = 1
+  const mc = plano?.marcacao
+  if (mc === 'pressao') {
+    const campoJ = campo.filter((c) => c.pos !== 'GR')
+    const pf = campoJ.length ? campoJ.reduce((s, c) => s + (c.f.fis + c.f.vel) / 2, 0) / campoJ.length : 1
+    fMeio = 1.04 + 0.9 * (pf - 1)
+    fDef = 0.985
+  } else if (mc === 'homem') {
+    const defs = campo.filter((c) => c.pos === 'DEF')
+    const df = defs.length ? defs.reduce((s, c) => s + c.f.def, 0) / defs.length : 1
+    fDef = 1.02 * (1 + 0.8 * (df - 1))
+  }
+  const a0 = a.AV + 0.35 * a.MED + 0.1 * a.DEF
+  const d0 = d.DEF + 0.35 * d.MED + 0.1 * d.AV
   const casa = emCasa ? 1.04 : 1
   const fa = post === 'ofensiva' ? 1.12 : post === 'defensiva' ? 0.88 : 1
   const fd = post === 'ofensiva' ? 0.88 : post === 'defensiva' ? 1.12 : 1
   return {
     gr: (g || 20) * casa,
-    meio: (m.MED + 0.25 * (m.DEF + m.AV)) * casa,
-    ataque: (a.AV + 0.35 * a.MED + 0.1 * a.DEF) * casa * fa,
-    defesa: (d.DEF + 0.35 * d.MED + 0.1 * d.AV) * casa * fd,
+    meio: (m.MED + 0.25 * (m.DEF + m.AV)) * casa * fMeio,
+    ataque: Math.max(1, a0 + ataqueExtra) * casa * fa,
+    // As trocas contam em proporção a cada setor (o ataque soma menos do que a defesa).
+    defesa: Math.max(1, d0 + defesaExtra * (d0 / Math.max(1, a0))) * casa * fd * fDef,
   }
 }
 
@@ -220,7 +270,8 @@ function velMedia(campo: EmCampo[], pos: Posicao): number {
 }
 
 function setores(_mundo: Mundo, estado: EstadoJogo, lado: Lado, campo: EmCampo[]): Setores {
-  return somarSetores(campo, lado === 'casa', estado.escalacoes[lado].postura)
+  const esc = estado.escalacoes[lado]
+  return somarSetores(campo, lado === 'casa', esc.postura, esc.plano)
 }
 
 /** Força de cada setor de uma escalação antes do jogo (para a antevisão). */
@@ -230,9 +281,10 @@ export function forcaSetores(mundo: Mundo, esc: Escalacao, emCasa: boolean): Set
     const j = mundo.jogadores[id]
     if (!j) return
     const pos = posicaoDoLugar(esc.formacao, i)
-    campo.push({ j, pos, f: fatores(j), ef: forcaNoLugar(j, pos) })
+    const inst = esc.plano?.instrucoes?.[id]
+    campo.push({ j, pos, f: fatores(j), ef: forcaNoLugar(j, pos), ...(inst ? { inst } : {}) })
   })
-  return somarSetores(campo, emCasa, esc.postura)
+  return somarSetores(campo, emCasa, esc.postura, esc.plano)
 }
 
 function pesado<T>(rng: Rng, itens: T[], peso: (t: T) => number): T | undefined {
@@ -250,6 +302,7 @@ function pesado<T>(rng: Rng, itens: T[], peso: (t: T) => number): T | undefined 
 const PESO_REMATE: Record<Posicao, number> = { GR: 0, DEF: 0.5, MED: 1.6, AV: 4 }
 const PESO_PASSE: Record<Posicao, number> = { GR: 0.05, DEF: 0.8, MED: 3, AV: 1.5 }
 const PESO_FALTA: Record<Posicao, number> = { GR: 0.2, DEF: 3, MED: 2, AV: 1 }
+const PESO_CABECA: Record<Posicao, number> = { GR: 0, DEF: 2, MED: 1, AV: 2.6 }
 
 function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v))
@@ -258,8 +311,13 @@ function clamp(v: number, lo: number, hi: number) {
 function textoGolo(l: Lance, rem: string, pas?: string): string {
   switch (l.origem) {
     case 'contra': return `Golo! Contra-ataque rápido e ${rem} finaliza.`
-    case 'canto': return `Golo! ${rem} de cabeça na sequência de um canto.`
-    case 'livre': return `Golo de livre! ${rem} põe a bola no ângulo.`
+    case 'canto':
+      if (l.esquema === 'curto') return pas ? `Golo! Canto curto, ${pas} combina e ${rem} finaliza.` : `Golo! Canto curto bem trabalhado e ${rem} finaliza.`
+      if (l.esquema === 'entrada') return `Golo! Canto atrasado e ${rem} remata da entrada da área.`
+      return l.esquema === 'area' && pas ? `Golo! ${pas} cruza para o segundo poste e ${rem} cabeceia.` : `Golo! ${rem} de cabeça na sequência de um canto.`
+    case 'livre':
+      if (l.esquema === 'cruzar') return pas ? `Golo! Livre cruzado por ${pas} e ${rem} cabeceia.` : `Golo! Livre cruzado e ${rem} cabeceia.`
+      return `Golo de livre! ${rem} põe a bola no ângulo.`
     case 'penalti': return `Golo! ${rem} não falha o penálti.`
     case 'longe': return `Golaço! ${rem} de fora da área.`
     default: return pas ? `Golo! ${rem} remata cruzado após passe de ${pas}.` : `Golo! ${rem} remata cruzado.`
@@ -315,32 +373,79 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
   x.cantoMinuto = undefined
   const def = outro(atac)
   const sa = set[atac], sd = set[def]
-  const q = (sa.ataque + 1) / (sd.defesa + 1)
+  const plA = estado.escalacoes[atac].plano, plD = estado.escalacoes[def].plano
+  const mcA = plA?.marcacao, mcD = plD?.marcacao
+  // Avançados rápidos contra centrais lentos: mais contra-ataques e, contra marcação individual, menos defesa.
+  const fVel = clamp(velMedia(campo[atac], 'AV') / velMedia(campo[def], 'DEF'), 0.7, 1.4)
+  const fHomem = mcD === 'homem' ? clamp(1 - 0.8 * (fVel - 1), 0.8, 1.1) : 1
+  const q = (sa.ataque + 1) / (sd.defesa * fHomem + 1)
   const ia = idx(atac)
-  // Postura: ao ataque há mais gente na área e mais remates; à defesa, menos.
+  // Postura: ao ataque há mais gente na área e mais remates; à defesa, menos. A pressão alta também remata mais.
   const pAtac = estado.escalacoes[atac].postura
-  const fRemate = pAtac === 'ofensiva' ? 1.06 : pAtac === 'defensiva' ? 0.94 : 1
+  const fRemate = (pAtac === 'ofensiva' ? 1.06 : pAtac === 'defensiva' ? 0.94 : 1) * (mcA === 'pressao' ? 1.04 : 1)
   if (rng.chance(clamp(TAXA_REMATE * fRemate * Math.pow(q, 0.5), 0.05, 0.6))) {
-    // Contra-ataques: aparecem mais contra quem sobe as linhas e para quem espera atrás.
+    // Contra-ataques: aparecem mais contra quem sobe as linhas (e pressiona alto) e para quem espera atrás.
     const pa = pAtac, pd = estado.escalacoes[def].postura
-    // Avançados rápidos contra centrais lentos: mais contra-ataques.
-    const fVel = clamp(velMedia(campo[atac], 'AV') / velMedia(campo[def], 'DEF'), 0.7, 1.4)
     const pContra = 0.13 * fVel * (pd === 'ofensiva' ? 1.7 : pd === 'defensiva' ? 0.5 : 1) * (pa === 'defensiva' ? 1.35 : pa === 'ofensiva' ? 0.8 : 1)
+      * (mcD === 'pressao' ? 1.3 : 1)
     const r = rng.next()
-    const origem: Lance['origem'] = r < 0.03 ? 'penalti' : r < 0.11 ? 'livre' : r < 0.23 ? 'canto' : r < 0.23 + pContra ? 'contra' : r < 0.37 + pContra ? 'longe' : 'jogada'
+    let origem: Lance['origem'] = r < 0.03 ? 'penalti' : r < 0.11 ? 'livre' : r < 0.23 ? 'canto' : r < 0.23 + pContra ? 'contra' : r < 0.37 + pContra ? 'longe' : 'jogada'
     const atacantes = campo[atac].filter((c) => c.pos !== 'GR')
-    const remC = origem === 'penalti'
-      ? atacantes.slice().sort((a, b) => atributo(b.j, 'rem') - atributo(a.j, 'rem') || b.j.forca - a.j.forca)[0]
-      : pesado(rng, atacantes, (c) => PESO_REMATE[c.pos] * Math.pow(c.ef, 0.6) * c.f.rem150)
+    const defensores = campo[def].filter((c) => c.pos !== 'GR')
+    const batedor = plA?.batedor != null ? atacantes.find((c) => c.j.id === plA.batedor) : undefined
+    let esquema: Lance['esquema']
+    if (origem === 'canto') esquema = plA?.canto
+    else if (origem === 'livre') esquema = plA?.livre
+    // Peso de cada jogador como rematador: a posição, a força, o remate e a instrução individual.
+    const pesoRem = (c: EmCampo, longe: boolean) => PESO_REMATE[c.pos] * Math.pow(c.ef, 0.6) * c.f.rem150
+      * (c.inst ? EFEITO_INSTRUCAO[c.inst].remate : 1) * (longe && c.inst === 'rematar' ? 2 : 1) * (c.marcador ? 0.6 : 1)
+    // Bolas paradas pelo ar: ganha quem tem mais físico (os centrais sobem à área).
+    const pesoCabeca = (c: EmCampo) => PESO_CABECA[c.pos] * Math.pow(c.ef, 0.6) * c.f.fis ** 2.5 * (c.marcador ? 0.6 : 1)
+    let remC: EmCampo | undefined
+    if (origem === 'penalti') {
+      remC = batedor ?? atacantes.slice().sort((a, b) => atributo(b.j, 'rem') - atributo(a.j, 'rem') || b.j.forca - a.j.forca)[0]
+    } else if (esquema === 'area' || esquema === 'cruzar') {
+      remC = pesado(rng, atacantes.filter((c) => c !== batedor), pesoCabeca)
+    } else if (esquema === 'entrada') {
+      remC = pesado(rng, atacantes.filter((c) => c.pos !== 'DEF'), (c) => pesoRem(c, true) * c.f.rem ** 1.5)
+    } else if (origem === 'livre' && esquema === 'direto' && batedor) {
+      remC = batedor
+    } else {
+      remC = pesado(rng, atacantes, (c) => pesoRem(c, origem === 'longe'))
+    }
+    // Instrução de rematar de longe: na jogada corrida, metade das vezes tenta de fora.
+    if (remC && origem === 'jogada' && remC.inst === 'rematar' && rng.chance(0.5)) origem = 'longe'
     if (remC) {
-      const pasC = origem === 'penalti' || origem === 'livre' ? undefined
-        : pesado(rng, atacantes.filter((c) => c !== remC), (c) => PESO_PASSE[c.pos] * c.ef * c.f.pas150)
+      let pasC: EmCampo | undefined
+      if (origem === 'penalti' || (origem === 'livre' && esquema !== 'cruzar')) pasC = undefined
+      else if (esquema === 'cruzar' || esquema === 'area' || esquema === 'curto') {
+        // Quem cruza (ou combina no canto curto): o batedor, senão o melhor passe.
+        pasC = batedor && batedor !== remC ? batedor
+          : pesado(rng, atacantes.filter((c) => c !== remC), (c) => PESO_PASSE[c.pos] * c.ef * c.f.pas ** 3)
+      } else pasC = pesado(rng, atacantes.filter((c) => c !== remC), (c) => PESO_PASSE[c.pos] * c.ef * c.f.pas150)
       const grC = campo[def].find((c) => c.pos === 'GR')
-      const defC = pesado(rng, campo[def].filter((c) => c.pos !== 'GR'), (c) => (c.pos === 'DEF' ? 3 : 1) * c.f.def)
+      const defC = remC.marcador ? defensores.find((c) => c.j === remC!.marcador)
+        : pesado(rng, defensores, (c) => (c.pos === 'DEF' ? 3 : 1) * c.f.def)
       const grEf = sd.gr
-      const fOrig = origem === 'penalti' ? (personalidadeDe(remC.j) === 'frio' ? 7.7 : 7) : origem === 'longe' ? 0.45 : origem === 'contra' ? 1.35 : origem === 'livre' ? 0.7 : 1
+      let fOrig = origem === 'penalti' ? (personalidadeDe(remC.j) === 'frio' ? 7.7 : 7) : origem === 'longe' ? 0.45 : origem === 'contra' ? 1.35 : origem === 'livre' ? 0.7 : 1
       // Remate do rematador (e velocidade, no contra-ataque) contra o guarda-redes.
-      const fRem = remC.f.rem80 * (origem === 'contra' ? remC.f.vel40 : 1)
+      let fRem = remC.f.rem80 * (origem === 'contra' ? remC.f.vel40 : 1)
+      if (esquema === 'area' || esquema === 'cruzar') {
+        // Cabeceamento: físico do rematador contra o dos melhores de cabeça deles; a zona fecha melhor a área.
+        const fisDef = defensores.map((c) => c.f.fis).sort((x, y) => y - x).slice(0, 3)
+        const md = fisDef.length ? fisDef.reduce((s2, v) => s2 + v, 0) / fisDef.length : 1
+        fRem = Math.pow(remC.f.fis / md, 1.5) * (pasC ? pasC.f.pas ** 0.5 : 1)
+        fOrig = (esquema === 'cruzar' ? 0.8 : 1.05) * (mcD === 'zona' || !mcD ? 0.9 : 1)
+      } else if (esquema === 'curto') {
+        fOrig = 0.95 * (pasC ? pasC.f.pas ** 1.5 : 1) * (mcD === 'homem' ? 1.1 : 1)
+      } else if (esquema === 'entrada') {
+        fOrig = 0.72 * remC.f.rem ** 1.2 * (mcD === 'zona' || !mcD ? 1.1 : 1)
+      } else if (esquema === 'direto') {
+        fOrig = 0.66 * remC.f.rem ** 1.2
+      } else if (origem === 'longe' && remC.inst === 'rematar') {
+        // Quem tem ordem para rematar de longe e sabe rematar escolhe melhor o momento.
+        fOrig = 0.5 * remC.f.rem ** 1.5
+      }
       const pGolo = clamp(CONVERSAO * fOrig * Math.pow(q, 0.8) * Math.pow((remC.ef * fRem + 1) / (grEf + 1), 0.6), 0.01, 0.85)
       const rr = rng.next()
       let desfecho: Lance['desfecho']
@@ -354,6 +459,8 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
         ...(pasC ? { passadorId: pasC.j.id } : {}),
         ...(defC ? { defensorId: defC.j.id } : {}),
         ...(grC ? { guardaRedesId: grC.j.id } : {}),
+        ...(esquema && (origem === 'canto' || origem === 'livre') ? { esquema } : {}),
+        ...(remC.marcador ? { marcadorId: remC.marcador.id } : {}),
       }
       p.estat.remates[ia]++
       if (desfecho === 'golo' || desfecho === 'defesa') p.estat.rematesBaliza[ia]++
@@ -377,7 +484,9 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
     const il = idx(lado)
     const cl = campo[lado].filter((c) => !estado.fora.includes(c.j.id))
     if (!cl.length) continue
-    if (rng.chance(0.0195)) {
+    // Marcação individual e pressão alta fazem mais faltas.
+    const mcl = estado.escalacoes[lado].plano?.marcacao
+    if (rng.chance(0.0195 * (mcl === 'homem' ? 1.2 : mcl === 'pressao' ? 1.15 : 1))) {
       // Quem já tem amarelo joga com cuidado: arrisca muito menos a falta.
       const c = pesado(rng, cl, (c) => PESO_FALTA[c.pos] * fatorFaltaPers(c.j) * (x.amarelosJogo[c.j.id] ? 0.3 : 1))!
       const id = c.j.id
@@ -508,6 +617,19 @@ export function mudarPostura(estado: EstadoJogo, lado: Lado, postura: Postura): 
   estado.partida.eventos.push({
     minuto: estado.minuto, tipo: 'postura', lado,
     texto: `${lado === 'casa' ? 'A equipa da casa' : 'A equipa visitante'} passa a jogar de forma ${NOME_POSTURA[postura]}.`,
+  })
+}
+
+const TEXTO_MARCACAO: Record<Marcacao, string> = { zona: 'passa a marcar à zona', homem: 'passa a marcar homem a homem', pressao: 'sobe as linhas e pressiona alto' }
+
+/** Muda a marcação a meio do jogo (intervalo, pausas). */
+export function mudarMarcacao(estado: EstadoJogo, lado: Lado, marcacao: Marcacao): void {
+  const esc = estado.escalacoes[lado]
+  if ((esc.plano?.marcacao ?? 'zona') === marcacao || estado.partida.jogada) return
+  esc.plano = { ...(esc.plano ?? {}), marcacao }
+  estado.partida.eventos.push({
+    minuto: estado.minuto, tipo: 'postura', lado,
+    texto: `${lado === 'casa' ? 'A equipa da casa' : 'A equipa visitante'} ${TEXTO_MARCACAO[marcacao]}.`,
   })
 }
 

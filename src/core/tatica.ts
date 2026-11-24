@@ -3,6 +3,7 @@ import type { Mundo } from './types'
 import type { Escalacao, Formacao, Postura } from './partida'
 import { escalarAuto, forcaNoLugar, posicaoDoLugar } from './motor'
 import { forcaClube } from './mundo'
+import { planoIA } from './plano'
 
 /** Formações que os treinadores da IA consideram (as extremas ficam para o jogador). */
 export const FORMACOES_IA: Formacao[] = ['4-4-2', '4-3-3', '4-5-1', '3-5-2', '5-3-2', '3-4-3', '5-4-1']
@@ -35,5 +36,8 @@ export function escalarIA(mundo: Mundo, clubeId: number, advId: number, emCasa: 
     if (r > melhorR) { melhor = esc; melhorR = r }
   }
   const esc = melhor ?? escalarAuto(mundo, clubeId, indisponiveis)
-  return { ...esc, postura: posturaIA(forcaClube(mundo, clubeId), forcaClube(mundo, advId), emCasa) }
+  const comPostura: Escalacao = { ...esc, postura: posturaIA(forcaClube(mundo, clubeId), forcaClube(mundo, advId), emCasa) }
+  // O plano de jogo olha para o provável onze do adversário (sem saber as baixas dele).
+  const adv = mundo.clubes[advId] ? escalarAuto(mundo, advId, new Set()) : undefined
+  return { ...comPostura, plano: planoIA(mundo, comPostura, adv) }
 }

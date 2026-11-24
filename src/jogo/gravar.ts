@@ -1,6 +1,7 @@
 import type { Jogo } from '../core/types'
 import type { EstadoEpoca, Partida } from '../core/partida'
 import { escalarAuto } from '../core/motor'
+import { manterPlano } from '../core/plano'
 import { gestaoIA } from '../core/ia-financas'
 import { garantirStaff, staffIA } from '../core/staff-ia'
 import { epocaTerminada, fecharEpoca, indisponiveisDe, novaEpoca, tabela } from '../core/epoca'
@@ -69,7 +70,7 @@ export function prepararEpoca(jogo: Jogo): Jogo {
     const d = anteriores.findIndex((t) => t.some((l) => l.clubeId === jogo.clubeId))
     if (d >= 0) registarEpocaFinancas(jogo, anterior, d + 1, anteriores[d].findIndex((l) => l.clubeId === jogo.clubeId) + 1)
   }
-  jogo.escalacao = escalarAuto(jogo.mundo, jogo.clubeId, indisponiveisDe(jogo.mundo, jogo.epoca, jogo.clubeId), jogo.escalacao?.formacao)
+  jogo.escalacao = manterPlano(escalarAuto(jogo.mundo, jogo.clubeId, indisponiveisDe(jogo.mundo, jogo.epoca, jogo.clubeId), jogo.escalacao?.formacao), jogo.escalacao)
   iniciarEpocaDirecao(jogo)
   avancarImprensa(jogo)
   return jogo

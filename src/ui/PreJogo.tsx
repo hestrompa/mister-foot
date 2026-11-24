@@ -8,7 +8,9 @@ import { Emblema } from './Emblema'
 import { Forca } from './Plantel'
 import { EstadoFisico } from './Balneario'
 import { FormaPills, minhaPartida } from './comum'
-import { Antevisao } from './Antevisao'
+import { Antevisao, escalacaoAdversario } from './Antevisao'
+import { PlanoJogoCartao } from './PlanoJogo'
+import { manterPlano } from '../core/plano'
 
 export const POSTURAS: { v: Postura; t: string }[] = [
   { v: 'defensiva', t: 'Defensiva' }, { v: 'equilibrada', t: 'Equilibrada' }, { v: 'ofensiva', t: 'Ofensiva' },
@@ -92,7 +94,7 @@ export function PreJogo({ jogo, mudar, jogar, outro }: { jogo: Jogo; mudar: (e: 
         <label className="campo">Formação
           <select value={esc.formacao} onChange={(e) => {
             const f = e.target.value as Formacao
-            mudar({ ...escalarAuto(mundo, clubeId, indisp, f), postura: esc.postura })
+            mudar(manterPlano(escalarAuto(mundo, clubeId, indisp, f), esc))
           }}>
             {(Object.keys(FORMACOES) as Formacao[]).map((f) => <option key={f} value={f}>{f}</option>)}
           </select>
@@ -104,10 +106,12 @@ export function PreJogo({ jogo, mudar, jogar, outro }: { jogo: Jogo; mudar: (e: 
             ))}
           </div>
         </div>
-        <button className="botao" onClick={() => { setSel(null); mudar({ ...escalarAuto(mundo, clubeId, indisp, esc.formacao), postura: esc.postura }) }}>Escalação automática</button>
+        <button className="botao" onClick={() => { setSel(null); mudar(manterPlano(escalarAuto(mundo, clubeId, indisp, esc.formacao), esc)) }}>Escalação automática</button>
       </div>
 
-      <Antevisao jogo={jogo} partida={outro?.partida} indispAdv={outro?.indispAdv} />
+      <Antevisao jogo={jogo} partida={outro?.partida} indispAdv={outro?.indispAdv} aplicar={(pl) => mudar({ ...esc, plano: pl })} />
+
+      <PlanoJogoCartao jogo={jogo} mudar={mudar} escAdv={escalacaoAdversario(jogo, outro?.partida, outro?.indispAdv) ?? undefined} />
 
       <p className="nota">{sel == null ? 'Toca num titular e depois num jogador do banco para os trocar.' : `A trocar ${mundo.jogadores[sel].curto}: escolhe quem entra.`}</p>
 
