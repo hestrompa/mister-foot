@@ -9,7 +9,7 @@ import { concluirJornada, indisponiveisDe, partidasDaJornada, tabela } from '../
 import { Emblema } from './Emblema'
 import { POSTURAS } from './PreJogo'
 import { SaltarJogo, sementeJornada, TabelaLiga } from './comum'
-import { criarAmbiente, criarRepeticao, DURACAO_AMBIENTE, emCampoDe, fimEmCampo, type CenaRepeticao } from '../core/repeticao'
+import { criarAmbiente, criarIncidente, criarRepeticao, DURACAO_AMBIENTE, emCampoDe, fimEmCampo, type CenaRepeticao } from '../core/repeticao'
 import { Repeticao2D } from './Repeticao2D'
 
 type Fase = 'jogo' | 'intervalo' | 'lesao' | 'pausa' | 'resumo' | 'repeticao'
@@ -156,6 +156,11 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
                 escondido.current = { ev, golo: ev.tipo === 'golo' }
               }
             }
+          }
+          // Cartões e lesões também se veem no campo (só com as repetições todas ligadas).
+          if ((ev.tipo === 'amarelo' || ev.tipo === 'vermelho' || ev.tipo === 'lesao') && !saltando.current && !repPend.current && modoRepRef.current === 'tudo') {
+            const cena = criarIncidente(ev, emCampoDe(mundo, e), (sementeJornada(jogo, 600 + ev.minuto) ^ (ev.jogadorId ?? 0)) >>> 0)
+            if (cena) repPend.current = cena
           }
           if (ev.tipo === 'golo' || ev.tipo === 'intervalo') pontape.current = true
           if (ev.tipo === 'intervalo') pausa = 'intervalo'

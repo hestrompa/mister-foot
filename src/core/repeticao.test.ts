@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { gerarMundo } from './mundo'
 import { escalarAuto } from './motor'
-import { bolaEm, caricasEm, COMPRIMENTO, criarAmbiente, criarRepeticao, fimEmCampo, POSTES, type EmCampoRep } from './repeticao'
+import { bolaEm, caricasEm, COMPRIMENTO, criarAmbiente, criarIncidente, criarRepeticao, fimEmCampo, POSTES, type EmCampoRep } from './repeticao'
 import type { EventoJogo, Lado, Lance } from './partida'
 
 const m = gerarMundo(11)
@@ -213,5 +213,43 @@ describe('2D com atributos e mais lances', () => {
     expect(arr).toBeGreaterThan(6)
     const c = criarRepeticao(evento('contra', 'golo', 0), comAtrib(35, 90), 3)!
     expect(c.acoes.some((a) => a.tipo === 'arrancada')).toBe(false)
+  })
+})
+
+describe('cartões e lesões no 2D', () => {
+  for (const tipo of ['amarelo', 'vermelho', 'lesao'] as const) {
+    it(`${tipo}: o jogador está em campo, a cena tem o momento certo e não há saltos`, () => {
+      for (let s = 1; s <= 10; s++) {
+        const id = escB.titulares[1 + (s % 10)]
+        const ev: EventoJogo = { minuto: 30 + s, tipo, lado: 'fora', jogadorId: id, texto: 'x' }
+        const c = criarIncidente(ev, { casa: emCampo.casa, fora: { ...emCampo.fora, fora: [id] } }, s)!
+        expect(c.incidente).toEqual({ tipo, jogadorId: id, t: c.tFim })
+        expect(c.caricas.some((k) => k.id === id)).toBe(true)
+        expect(c.duracao).toBeGreaterThan(c.incidente!.t)
+        expect(c.acoes.some((a) => a.tipo === (tipo === 'lesao' ? 'lesao' : 'cartao'))).toBe(true)
+        for (let f = 1; f < c.quadros.length; f++) for (let i = 0; i < c.caricas.length; i++) {
+          expect(Math.hypot(c.quadros[f][i][0] - c.quadros[f - 1][i][0], c.quadros[f][i][1] - c.quadros[f - 1][i][1])).toBeLessThan(1.6)
+        }
+      }
+    })
+  }
+  it('outros eventos não têm cena', () => {
+    expect(criarIncidente({ minuto: 3, tipo: 'substituicao', lado: 'casa', jogadorId: escA.titulares[3], texto: '' }, emCampo, 1)).toBeNull()
+  })
+})
+
+describe('bolas paradas ensaiadas e marcação no 2D', () => {
+  const com = (origem: Lance['origem'], esquema: Lance['esquema'], s: number) => {
+    const e = evento(origem, 'golo', 1)
+    return criarRepeticao({ ...e, lance: { ...e.lance!, esquema, passadorId: escA.titulares[7] } }, emCampo, s)!
+  }
+  it('canto curto, à entrada e ao segundo poste; livre cruzado vai à cabeça', () => {
+    expect(com('canto', 'curto', 2).acoes.some((a) => a.tipo === 'curto')).toBe(true)
+    const ent = com('canto', 'entrada', 2)
+    expect(bolaEm(ent, ent.tRemate).x).toBeLessThan(90)
+    expect(com('canto', 'area', 2).acoes.some((a) => a.tipo === 'poste2')).toBe(true)
+    const lc = com('livre', 'cruzar', 3)
+    expect(bolaEm(lc, lc.tRemate).x).toBeGreaterThan(92)
+    expect(bolaEm(lc, lc.tRemate).z).toBeGreaterThan(1)
   })
 })

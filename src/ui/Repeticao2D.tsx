@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Clube, Mundo } from '../core/types'
 import type { Lado } from '../core/partida'
-import { bolaEm, caricasEm, COMPRIMENTO, LARGURA, POSTES, RAIO, TEXTO_FESTA, type AcaoRep, type CenaRepeticao } from '../core/repeticao'
+import { bolaEm, caricasEm, COMPRIMENTO, LARGURA, POSTES, RAIO, T_MACAS, TEXTO_FESTA, type AcaoRep, type CenaRepeticao } from '../core/repeticao'
 import './repeticao.css'
 
 /** Margem à volta do campo (m): relva, placas e bancada. */
@@ -21,11 +21,14 @@ function lerCamara(): Camara {
 const ROTULO_ACAO: Partial<Record<AcaoRep['tipo'], [string, string]>> = {
   finta: ['Finta!', '#ffe066'], tabela: ['Tabelinha!', '#8fe3ff'], chapeu: ['Chapéu!', '#ffe066'], defesa: ['Grande defesa!', '#9cf5b0'],
   arrancada: ['Arrancada!', '#ffb347'], desarme: ['Desarme!', '#9cf5b0'], corte: ['Corte!', '#9cf5b0'], bloqueio: ['Bloqueado!', '#9cf5b0'],
-  lancamento: ['Lançamento', '#e6edf3'], cabeca: ['Corte de cabeça!', '#9cf5b0'],
+  lancamento: ['Lançamento', '#e6edf3'], cabeca: ['Corte de cabeça!', '#9cf5b0'], lesao: ['Ficou no chão!', '#ff8a80'],
+  curto: ['Canto curto!', '#8fe3ff'], entrada: ['À entrada da área!', '#8fe3ff'], poste2: ['Segundo poste!', '#8fe3ff'],
 }
 
+const TIPO_INCIDENTE = { amarelo: 'Cartão amarelo', vermelho: 'Cartão vermelho', lesao: 'Lesão' } as const
+
 const ORIGEM: Record<CenaRepeticao['origem'], string> = {
-  jogada: 'Jogada', contra: 'Contra-ataque', canto: 'Canto', livre: 'Livre direto', penalti: 'Penálti', longe: 'Remate de longe',
+  jogada: 'Jogada', contra: 'Contra-ataque', canto: 'Canto', livre: 'Livre', penalti: 'Penálti', longe: 'Remate de longe',
 }
 
 function rgb(hex: string): [number, number, number] {
@@ -395,16 +398,44 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
       })
       // Árbitro: atrás do lance, na diagonal, sem chocar com ninguém.
       const dArb = cena.ambiente && cena.atacante === 'fora' ? -1 : 1
-      const alvoArb = { x: Math.max(13, Math.min(b.x - 9 * dArb, 92)), y: b.y < 34 ? Math.min(66, b.y + 11) : Math.max(2, b.y - 11) }
+      let alvoArb = { x: Math.max(13, Math.min(b.x - 9 * dArb, 92)), y: b.y < 34 ? Math.min(66, b.y + 11) : Math.max(2, b.y - 11) }
+      // Cartão: o árbitro vai ter com o jogador para o mostrar.
+      const inc = cena.incidente
+      const iInc = inc ? cena.caricas.findIndex((c) => c.id === inc.jogadorId) : -1
+      if (inc && inc.tipo !== 'lesao' && iInc >= 0 && t > inc.t - 1.7) {
+        const [px, py] = ps[iInc]
+        alvoArb = { x: px - 2.6, y: py + (py < 34 ? 2.2 : -2.2) }
+      }
       if (!arb || dtDesenho <= 0 || Math.hypot(alvoArb.x - arb.x, alvoArb.y - arb.y) > 40) arb = { ...alvoArb }
       else {
         const dx = alvoArb.x - arb.x, dy = alvoArb.y - arb.y, d = Math.hypot(dx, dy)
-        const passo = Math.min(d, 6.5 * dtDesenho)
+        const passo = Math.min(d, (inc ? 8 : 6.5) * dtDesenho)
         if (d > 0.01) arb = { x: arb.x + (dx / d) * passo, y: arb.y + (dy / d) * passo }
       }
       arbRef.current = arb
       carica(arb.x, arb.y, '#15181d', '#f2d200', 'A', false, t * 2, 3)
-      // Primeiro os de trás, a bola por cima.
+      // O cartão, levantado por cima da cabeça do árbitro.
+      if (inc && inc.tipo !== 'lesao' && t >= inc.t) {
+        ctx.save()
+        ctx.translate(X(arb.x), Y(arb.y))
+        ctx.rotate(-0.25)
+        ctx.fillStyle = inc.tipo === 'amarelo' ? '#ffd400' : '#e02020'
+        ctx.strokeStyle = '#10141a'; ctx.lineWidth = Math.max(1, 0.12 * esc)
+        const cw = 1.1 * esc, ch = 1.6 * esc
+        ctx.fillRect(0.6 * esc, -RAIO * esc - ch, cw, ch); ctx.strokeRect(0.6 * esc, -RAIO * esc - ch, cw, ch)
+        ctx.restore()
+      }
+      // Lesão: a equipa médica sai do banco e vai ao jogador.
+      if (inc && inc.tipo === 'lesao' && iInc >= 0 && t > inc.t + 1.5) {
+        const f = Math.min(1, (t - inc.t - 1.5) / T_MACAS)
+        const [px, py] = ps[iInc]
+        for (const k of [-1, 1]) {
+          const de = { x: 52.5 + k * 1.6, y: LARGURA + 1.6 }
+          const ate = { x: px + k * 1.4, y: py + (py < 34 ? -1.2 : 1.2) }
+          const mx = de.x + (ate.x - de.x) * f, my = de.y + (ate.y - de.y) * f
+          carica(mx, my, '#f4f4f4', '#c62828', '+', false, 0, f < 1 ? 5 : 0)
+        }
+      }      // Primeiro os de trás, a bola por cima.
       cena.caricas.forEach((c, i) => {
         const [x, y] = ps[i]
         const gr = c.pos === 'GR'
@@ -488,9 +519,10 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
         ctx.fillText(rot[0], pt.x, pt.y + r * 3 - sobe)
         ctx.restore()
       }
-      // Falta que dá penálti: apito e "Penálti!".
+      // Falta que dá penálti: apito e "Penálti!" (nos cartões, "Falta!").
       for (const f of cena.acoes ?? []) {
         if (f.tipo !== 'falta' || t < f.t || t > (cena.cortes?.[0] ?? f.t + 1.2)) continue
+        const txtFalta = cena.origem === 'penalti' ? 'Penálti!' : 'Falta!'
         const iV = cena.caricas.findIndex((c) => c.id === f.vitimaId)
         if (iV < 0) continue
         const r = rLetra
@@ -499,8 +531,21 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
         ctx.font = `800 ${Math.round(r * 1.5)}px system-ui, sans-serif`
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
         ctx.lineWidth = Math.max(2, r * 0.3); ctx.strokeStyle = '#10141a'; ctx.fillStyle = '#ff6b5e'
-        ctx.strokeText('Penálti!', pt.x, pt.y + r * 3.2)
-        ctx.fillText('Penálti!', pt.x, pt.y + r * 3.2)
+        ctx.strokeText(txtFalta, pt.x, pt.y + r * 3.2)
+        ctx.fillText(txtFalta, pt.x, pt.y + r * 3.2)
+        ctx.restore()
+      }
+      // "Amarelo!" / "Vermelho!" ao lado do árbitro.
+      if (inc && inc.tipo !== 'lesao' && t >= inc.t && t < inc.t + 1.8 && arb) {
+        const r = rLetra
+        const pt = P(arb.x, arb.y)
+        ctx.save()
+        ctx.font = `900 ${Math.round(r * 1.6)}px system-ui, sans-serif`
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+        ctx.lineWidth = Math.max(2, r * 0.3); ctx.strokeStyle = '#10141a'; ctx.fillStyle = inc.tipo === 'amarelo' ? '#ffd400' : '#ff4d4d'
+        const txt = inc.tipo === 'amarelo' ? 'Amarelo!' : 'Vermelho!'
+        ctx.strokeText(txt, pt.x, pt.y - r * 3.2)
+        ctx.fillText(txt, pt.x, pt.y - r * 3.2)
         ctx.restore()
       }
       // Corte para a marcação: escurece e volta.
@@ -580,7 +625,7 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
     jogada: `Ataque perigoso do ${lado.nome}...`, contra: `Contra-ataque do ${lado.nome}!`, canto: `Canto para o ${lado.nome}...`,
     livre: `Livre perigoso para o ${lado.nome}...`, longe: `O ${lado.nome} arrisca de longe...`, penalti: `O ${lado.nome} entra na área...`,
   }
-  const tipo = cena.origem === 'penalti' && marco === 0 ? 'Jogada' : ORIGEM[cena.origem]
+  const tipo = cena.incidente ? TIPO_INCIDENTE[cena.incidente.tipo] : cena.origem === 'penalti' && marco === 0 ? 'Jogada' : ORIGEM[cena.origem]
   const texto = marco === 2 ? cena.texto : cena.origem === 'penalti' && marco === 1 ? `Penálti para o ${lado.nome}!` : TEASER[cena.origem]
   if (cena.ambiente) {
     return (

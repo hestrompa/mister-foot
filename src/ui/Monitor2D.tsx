@@ -3,7 +3,7 @@ import { useRef, useState, type ReactNode } from 'react'
 import type { Clube, Mundo } from '../core/types'
 import type { EventoJogo } from '../core/partida'
 import { lancesDoMinuto, posseDoMinuto, type EstadoJogo } from '../core/motor'
-import { criarAmbiente, criarRepeticao, DURACAO_AMBIENTE, emCampoDe, fimEmCampo, type CenaRepeticao } from '../core/repeticao'
+import { criarAmbiente, criarIncidente, criarRepeticao, DURACAO_AMBIENTE, emCampoDe, fimEmCampo, type CenaRepeticao } from '../core/repeticao'
 import { Repeticao2D } from './Repeticao2D'
 import { gravarModoRep, lerModoRep, MODOS_REP, type ModoRep } from './AoVivo'
 
@@ -62,6 +62,10 @@ export function useMonitor2D({ mundo, meu, casa, fora, semente, voltar }: {
         repPend.current = cena
         esc.current = { ev, golo: ev.tipo === 'golo' }
       }
+    }
+    if ((ev.tipo === 'amarelo' || ev.tipo === 'vermelho' || ev.tipo === 'lesao') && !saltando.current && !repPend.current && modoRepRef.current === 'tudo') {
+      const cena = criarIncidente(ev, emCampo(), (semente(600 + ev.minuto) ^ (ev.jogadorId ?? 0)) >>> 0)
+      if (cena) repPend.current = cena
     }
     if (ev.tipo === 'golo' || ev.tipo === 'intervalo') pontape.current = true
   }

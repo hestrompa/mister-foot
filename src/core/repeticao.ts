@@ -59,6 +59,8 @@ export interface CenaRepeticao {
   ambiente?: boolean
   /** Festejo do golo: como e a partir de quando. */
   festa?: { tipo: TipoFesta; t: number }
+  /** Cartão ou lesão encenado: quem, e o instante do cartão (ou de ficar no chão). */
+  incidente?: { tipo: 'amarelo' | 'vermelho' | 'lesao'; jogadorId: number; t: number }
 }
 
 /** Festejos: corrida à bandeirola, deslizar de joelhos, para os adeptos, para o banco, ou monte de jogadores. */
@@ -80,7 +82,7 @@ export interface AcaoRep {
    * 'tabela': o autor devolve de primeira ao rematador; 'chapeu': o autor pica a bola por cima do guarda-redes;
    * 'defesa': grande defesa do autor (guarda-redes); 'joelhos': o autor desliza de joelhos a festejar.
    */
-  tipo: 'finta' | 'falta' | 'tabela' | 'chapeu' | 'defesa' | 'joelhos' | 'arrancada' | 'desarme' | 'corte' | 'bloqueio' | 'lancamento' | 'cabeca' | 'cartao' | 'lesao'
+  tipo: 'finta' | 'falta' | 'tabela' | 'chapeu' | 'defesa' | 'joelhos' | 'curto' | 'entrada' | 'poste2' | 'marcacao' | 'arrancada' | 'desarme' | 'corte' | 'bloqueio' | 'lancamento' | 'cabeca' | 'cartao' | 'lesao'
   /** Instante da finta. */
   t: number
   /** Quem finta e quem vai ao chão. */
@@ -244,7 +246,8 @@ export function criarRepeticao(ev: EventoJogo, emCampo: Record<Lado, EmCampoRep>
   let pas = de(l.passadorId)
   if (pas && (pas.lado !== atac || pas === rem)) pas = undefined
   const gr = ld.find((c) => c.id === l.guardaRedesId) ?? ld.find((c) => c.pos === 'GR')
-  let dfs = de(l.defensorId)
+  // Marcação individual: quem marcava o rematador é o defesa do lance.
+  let dfs = de(l.marcadorId ?? l.defensorId)
   if (!dfs || dfs.lado !== def || dfs === gr) dfs = ld.find((c) => c.pos === 'DEF') ?? ld.find((c) => c !== gr)
 
   const g = guiao(rng, l, rem, pas, dfs, gr, la, ld)
@@ -372,41 +375,76 @@ function guiao(rng: Rng, l: Lance, rem: Lugar, pas: Lugar | undefined, dfs: Luga
     case 'canto': {
       const lado = l.corredor === 0 ? sinal() : l.corredor
       const C = { x: 104.4, y: lado < 0 ? 0.7 : 67.3 }
-      const marcador = pas ?? rng.pick(la.filter((c) => c !== rem && c.pos !== 'GR'))
-      S = { x: 95 + r() * 4, y: 34 + sinal() * r() * 5 }
+      const marcador = l.esquema === 'curto' ? rng.pick(la.filter((c) => c !== rem && c !== pas && c.pos !== 'GR')) ?? pas : pas ?? rng.pick(la.filter((c) => c !== rem && c.pos !== 'GR'))
+      const aFrente = lado < 0 ? -1 : 1
       bola.push({ t: 0, ...C, z: 0 }, { t: 0.9, ...C, z: 0 })
-      tS = 0.9 + dist(C, S) / 17
-      arco(bola, 0.9, tS, C, S, { x: 100, y: lerp(C.y, S.y, 0.55) }, 4.5, 1.6)
-      if (marcador) {
-        const aFrente = lado < 0 ? -1 : 1
-        fixos.set(marcador.id, [{ t: 0, x: C.x - 2.4, y: C.y - aFrente * 1.6 }, { t: 0.9, x: C.x - 0.6, y: C.y - aFrente * 0.5 }, { t: 1.7, x: C.x - 5, y: C.y - aFrente * 4 }])
+      if (marcador) fixos.set(marcador.id, [{ t: 0, x: C.x - 2.4, y: C.y - aFrente * 1.6 }, { t: 0.9, x: C.x - 0.6, y: C.y - aFrente * 0.5 }, { t: 1.7, x: C.x - 5, y: C.y - aFrente * 4 }])
+      if (l.esquema === 'curto' && pas && pas !== marcador) {
+        // Canto curto: toca para o colega ao lado, que entra pela linha e cruza (ou passa atrasado).
+        const K = { x: 99.5, y: C.y - aFrente * 6 }
+        const K2 = { x: 96.5, y: C.y - aFrente * 13 }
+        bola.push({ t: 1.4, ...K, z: 0 }, { t: 2.3, ...K2, z: 0 })
+        fixos.set(pas.id, [{ t: 0, x: K.x - 1.5, y: K.y - aFrente * 1.5 }, { t: 1.3, x: K.x - 0.9, y: K.y }, { t: 2.3, x: K2.x - 0.9, y: K2.y }, { t: 3.1, x: K2.x - 3, y: K2.y - aFrente * 3 }])
+        g.acoes.push({ tipo: 'curto', t: 1.4, autorId: pas.id, vitimaId: rem.id, de: K, ate: K2 })
+        S = { x: 92 + r() * 4, y: 34 + sinal() * r() * 4 }
+        tS = 2.3 + dist(K2, S) / 18
+        cabeca = rng.chance(0.4 + 0.4 * n01(rem.a.fis))
+        if (cabeca) arco(bola, 2.3, tS, K2, S, null, 2.4, 1.6, 6); else bola.push({ t: tS, ...S, z: 0 })
+      } else if (l.esquema === 'entrada') {
+        // Canto atrasado para a entrada da área: remate de primeira.
+        S = { x: 86 + r() * 3, y: 34 + sinal() * (2 + r() * 6) }
+        tS = 0.9 + dist(C, S) / 21
+        arco(bola, 0.9, tS, C, S, null, 1.4, 0, 6)
+        g.acoes.push({ tipo: 'entrada', t: tS, autorId: rem.id, vitimaId: rem.id, de: S, ate: S })
+      } else {
+        // À área; no esquema "área" a bola vai ao segundo poste.
+        const poste2 = l.esquema === 'area'
+        S = poste2 ? { x: 98 + r() * 3, y: 34 - aFrente * (3 + r() * 3) } : { x: 95 + r() * 4, y: 34 + sinal() * r() * 5 }
+        tS = 0.9 + dist(C, S) / 17
+        arco(bola, 0.9, tS, C, S, { x: 100, y: lerp(C.y, S.y, 0.55) }, poste2 ? 5.2 : 4.5, 1.6)
+        if (poste2) g.acoes.push({ tipo: 'poste2', t: tS, autorId: rem.id, vitimaId: rem.id, de: S, ate: S })
+        cabeca = true
       }
       corridaRematador(sinal() * (3 + r() * 3))
-      cabeca = true
       g.tRemate = tS
-      forcaRemate = 16
+      forcaRemate = cabeca ? 16 : 26
       break
     }
     case 'livre': {
-      const F = { x: 76 + r() * 7, y: 34 + (l.corredor || sinal()) * (3 + r() * 9) }
-      S = F
+      const cruzar = l.esquema === 'cruzar'
+      const F = cruzar
+        ? { x: 70 + r() * 10, y: 34 + (l.corredor || sinal()) * (15 + r() * 10) }
+        : { x: 76 + r() * 7, y: 34 + (l.corredor || sinal()) * (3 + r() * 9) }
       bola.push({ t: 0, ...F, z: 0 })
       const lateral = F.y > 34 ? 1 : -1
-      fixos.set(rem.id, [{ t: 0, x: F.x - 3.2, y: F.y + lateral * 2 }, { t: 0.9, x: F.x - 3.2, y: F.y + lateral * 2 }, { t: 1.5, x: F.x - 0.7, y: F.y + lateral * 0.3 }])
-      g.tRemate = 1.5
-      tS = 1.5
-      bola.push({ t: g.tRemate, ...F, z: 0 })
-      forcaRemate = 24
-      // Barreira a 9,15 m, na linha da baliza.
+      const batedor = cruzar ? (pas ?? rng.pick(la.filter((c) => c !== rem && c.pos !== 'GR'))) : rem
+      fixos.set(batedor.id, [{ t: 0, x: F.x - 3.2, y: F.y + lateral * 2 }, { t: 0.9, x: F.x - 3.2, y: F.y + lateral * 2 }, { t: 1.5, x: F.x - 0.7, y: F.y + lateral * 0.3 }, { t: 2.3, x: F.x + 1.5, y: F.y }])
+      bola.push({ t: 1.5, ...F, z: 0 })
+      if (cruzar) {
+        // Livre cruzado para a área: cabeceamento.
+        S = { x: 93 + r() * 5, y: 34 + sinal() * r() * 5 }
+        tS = 1.5 + dist(F, S) / 19
+        arco(bola, 1.5, tS, F, S, { x: lerp(F.x, S.x, 0.6), y: lerp(F.y, S.y, 0.4) }, 3.6, 1.6, 7)
+        corridaRematador(sinal() * (2 + r() * 3))
+        cabeca = true
+        g.tRemate = tS
+        forcaRemate = 16
+      } else {
+        S = F
+        g.tRemate = 1.5
+        tS = 1.5
+        forcaRemate = 24
+      }
+      // Barreira a 9,15 m, na linha da baliza (no livre cruzado, só dois).
       const golo = { x: COMPRIMENTO, y: 34 }
       const d = dist(F, golo)
       const ux = (golo.x - F.x) / d, uy = (golo.y - F.y) / d
       const W = { x: F.x + ux * 9.15, y: F.y + uy * 9.15 }
-      const muro = ld.filter((c) => c !== gr && c !== dfs).sort((a, b) => b.bx - a.bx).slice(0, d < 24 ? 4 : 3)
+      const muro = ld.filter((c) => c !== gr && c !== dfs).sort((a, b) => b.bx - a.bx).slice(0, cruzar ? 2 : d < 24 ? 4 : 3)
       muro.forEach((c, i) => {
         const o = (i - (muro.length - 1) / 2) * (RAIO * 2 + 0.1) + lateral * 1.2
         const p = { x: W.x - uy * o, y: W.y + ux * o }
-        fixos.set(c.id, [{ t: 0, ...p }, { t: g.tRemate + 0.5, ...p }])
+        fixos.set(c.id, [{ t: 0, ...p }, { t: 1.5 + 0.5, ...p }])
         g.barreira.push(c.id)
       })
       break
@@ -463,7 +501,9 @@ function guiao(rng: Rng, l: Lance, rem: Lugar, pas: Lugar | undefined, dfs: Luga
   // Defesa encarregado do rematador: chega atrasado, pelo lado da baliza.
   if (dfs && !g.barreira.includes(dfs.id) && l.origem !== 'penalti') {
     // Bom defesa (e rápido) chega mais perto; contra um avançado mais rápido fica para trás.
-    const atraso = Math.max(1.35, (g.contra ? 3.5 : 1.8) * (1.25 - 0.5 * n01(dfs.a.def)) + clamp((rem.a.vel - dfs.a.vel) / 30, -0.5, 1))
+    // Na marcação individual anda colado ao rematador.
+    const colado = l.marcadorId != null && dfs.id === l.marcadorId ? 0.6 : 1
+    const atraso = Math.max(1.35, ((g.contra ? 3.5 : 1.8) * (1.25 - 0.5 * n01(dfs.a.def)) + clamp((rem.a.vel - dfs.a.vel) / 30, -0.5, 1)) * colado)
     const ini = { x: clamp(S.x + 6 + r() * 3, 0, 103), y: clamp(S.y + sinal() * (3 + r() * 4), 3, 65) }
     fixos.set(dfs.id, [{ t: 0, ...ini }, { t: Math.max(0.6, g.tRemate - 0.6), x: clamp(S.x + atraso, 0, 103), y: lerp(ini.y, S.y, 0.6) }, { t: g.tRemate + 0.3, x: clamp(S.x + Math.max(2.6, atraso * 0.8), 0, 103), y: lerp(ini.y, S.y, 0.8) }])
   }
@@ -478,8 +518,8 @@ function guiao(rng: Rng, l: Lance, rem: Lugar, pas: Lugar | undefined, dfs: Luga
     return 34 + sinal() * (4.4 + r() * 5)
   }
   const voo = (alvo: { x: number; y: number }) => Math.max(0.28, dist(P, alvo) / forcaRemate)
-  const curva = l.origem === 'livre' ? { x: lerp(P.x, 105, 0.5), y: lerp(P.y, 34, 0.5) + (P.y > 34 ? 4 : -4) } : null
-  const altura = l.origem === 'livre' ? 2.4 : l.origem === 'longe' ? 1.2 : 0.6
+  const curva = l.origem === 'livre' && !cabeca ? { x: lerp(P.x, 105, 0.5), y: lerp(P.y, 34, 0.5) + (P.y > 34 ? 4 : -4) } : null
+  const altura = l.origem === 'livre' && !cabeca ? 2.4 : l.origem === 'longe' ? 1.2 : 0.6
   // Chapéu: o guarda-redes sai ao caminho e a bola passa-lhe por cima.
   const chapeu = l.desfecho === 'golo' && !cabeca && gr && (l.origem === 'jogada' || l.origem === 'contra') && P.x > 82 && rng.chance(l.origem === 'contra' ? 0.35 : 0.2)
   switch (l.desfecho) {
@@ -1126,4 +1166,120 @@ export function fimEmCampo(c: CenaRepeticao): { pos: Record<number, [number, num
   })
   const [bx, by] = conv(clamp(b.x, 2, COMPRIMENTO - 2), clamp(b.y, 2, LARGURA - 2))
   return { pos, bola: { x: bx, y: by }, vel }
+}
+
+// ---------------------------------------------------------------------------
+// Cartões e lesões: uma cena curta (a falta e o cartão, ou o jogador que fica no chão e a assistência).
+// Como nas repetições, quem tem a bola ataca para a direita.
+
+/** Instante em que a equipa médica chega ao lesionado (s). */
+export const T_MACAS = 1.6
+
+/** Cria a cena de um cartão ou de uma lesão (null para outros eventos ou se o jogador não estiver em campo). */
+export function criarIncidente(ev: EventoJogo, emCampo: Record<Lado, EmCampoRep>, semente: number): CenaRepeticao | null {
+  if (ev.tipo !== 'amarelo' && ev.tipo !== 'vermelho' && ev.tipo !== 'lesao') return null
+  if (ev.jogadorId == null) return null
+  const rng = createRng(semente >>> 0 || 1)
+  const r = () => rng.next()
+  const doJog = ev.lado
+  const atac: Lado = doJog === 'casa' ? 'fora' : 'casa'
+  // O jogador do cartão já pode estar em `fora` (expulso, lesionado): aqui ainda está em campo.
+  const semEle = (e: EmCampoRep): EmCampoRep => ({ ...e, fora: e.fora.filter((id) => id !== ev.jogadorId) })
+  const la = lugares(atac, semEle(emCampo[atac]))
+  const ld = lugares(doJog, semEle(emCampo[doJog]))
+  const todos = [...la, ...ld]
+  const prot = ld.find((c) => c.id === ev.jogadorId)
+  if (!prot) return null
+  const lesao = ev.tipo === 'lesao'
+  // Sítio: perto da zona do jogador (x medido para o atacante, que vai para a direita).
+  const zona = COMPRIMENTO - (prot.pos === 'GR' ? 14 : prot.bx + 6)
+  const F = { x: clamp(zona + (r() - 0.5) * 10, 18, 88), y: clamp(prot.by + (r() - 0.5) * 12, 6, 62) }
+  const cands = la.filter((c) => c.pos !== 'GR').sort((a, b) => dist({ x: COMPRIMENTO - a.bx, y: a.by }, F) - dist({ x: COMPRIMENTO - b.bx, y: b.by }, F))
+  const vit = cands[0]
+  const tF = 1.4
+  const bola: PontoBola[] = []
+  const fixos = new Map<number, Ponto[]>()
+  const acoes: AcaoRep[] = []
+  const A = { x: F.x - 12, y: clamp(F.y + (r() - 0.5) * 8, 4, 64) }
+  const lado = F.y > 34 ? -1 : 1
+  let tCartao = 0
+  let duracao = 0
+  if (!lesao) {
+    // A falta: o adversário conduz, o jogador do cartão entra de carrinho por trás/de lado.
+    const rola = { x: F.x + 4 + r() * 3, y: F.y + lado * (1 + r() * 2) }
+    bola.push({ t: 0, ...A, z: 0 }, { t: tF, ...F, z: 0 }, { t: tF + 0.7, ...rola, z: 0 })
+    const chaoV = { x: F.x + 1.2, y: F.y + lado * 0.4 }
+    fixos.set(vit.id, [{ t: 0, x: A.x - 0.9, y: A.y }, { t: tF, x: F.x - 0.9, y: F.y }, { t: tF + 0.35, ...chaoV }, { t: 4.5, ...chaoV }])
+    const ini = { x: F.x + 4, y: clamp(F.y - lado * 6, 2, 66) }
+    const toque = { x: F.x - 0.3, y: F.y - lado * 1.4 }
+    const chaoC = { x: F.x + 0.4, y: F.y - lado * 2.4 }
+    tCartao = tF + 1.9
+    const caminho: Ponto[] = [{ t: 0, ...ini }, { t: tF - 0.1, ...toque }, { t: tF + 0.3, ...chaoC }, { t: tF + 0.9, ...chaoC }, { t: tCartao, x: chaoC.x - 1, y: chaoC.y - lado * 1.5 }]
+    if (ev.tipo === 'vermelho') {
+      // Expulso: sai a caminho do túnel (meio-campo, lado do banco).
+      const ini = { x: chaoC.x - 1, y: chaoC.y - lado * 1.5 }
+      const banco = { x: 52.5, y: LARGURA - 1 }
+      const dB = dist(ini, banco) || 1
+      const anda = Math.min(dB, 7)
+      caminho.push({ t: tCartao + 0.8, ...ini }, { t: tCartao + 3.2, x: ini.x + ((banco.x - ini.x) / dB) * anda, y: ini.y + ((banco.y - ini.y) / dB) * anda })
+    }
+    fixos.set(prot.id, caminho)
+    acoes.push({ tipo: 'falta', t: tF, autorId: prot.id, vitimaId: vit.id, de: toque, ate: chaoC })
+    acoes.push({ tipo: 'cartao', t: tCartao, autorId: prot.id, vitimaId: vit.id, de: chaoC, ate: chaoC })
+    duracao = tCartao + (ev.tipo === 'vermelho' ? 3.2 : 1.8)
+  } else {
+    // Lesão: o jogador vai a um lance (ou arranca) e fica no chão; o adversário põe a bola fora.
+    const P0 = { x: F.x + 3, y: clamp(F.y - lado * 5, 2, 66) }
+    const chao = { x: F.x + 0.6, y: F.y - lado * 1.6 }
+    fixos.set(prot.id, [{ t: 0, ...P0 }, { t: tF - 0.1, x: F.x + 0.4, y: F.y - lado * 1.4 }, { t: tF + 0.4, ...chao }, { t: 9, ...chao }])
+    const fora = { x: F.x + 8, y: F.y > 34 ? LARGURA + 0.6 : -0.6 }
+    bola.push({ t: 0, ...A, z: 0 }, { t: tF, ...F, z: 0 }, { t: tF + 0.9, x: F.x + 3, y: F.y, z: 0 })
+    arco(bola, tF + 1.1, tF + 1.9, { x: F.x + 3, y: F.y }, fora, null, 1.2, 0, 5)
+    fixos.set(vit.id, [{ t: 0, x: A.x - 0.9, y: A.y }, { t: tF, x: F.x - 0.9, y: F.y }, { t: tF + 1.0, x: F.x + 2.1, y: F.y }, { t: tF + 1.5, x: F.x + 2.4, y: F.y + lado * 0.5 }])
+    acoes.push({ tipo: 'lesao', t: tF + 0.4, autorId: prot.id, vitimaId: prot.id, de: chao, ate: chao })
+    tCartao = tF + 0.4
+    duracao = tF + 1.9 + T_MACAS + 1.4
+  }
+  // Os outros: param o que estavam a fazer e aproximam-se (com calma), os colegas do caído protestam.
+  const n = Math.ceil(duracao / DT) + 1
+  const pos = todos.map((c) => { const f = fixos.get(c.id); return f ? { x: f[0].x, y: f[0].y } : { x: clamp(c.lado === atac ? c.bx + (A.x - 30) * 0.7 : COMPRIMENTO - (c.pos === 'GR' ? 1.5 : c.bx * 0.4 + (COMPRIMENTO - A.x) * 0.4), 2, 103), y: clamp(c.by * 0.7 + A.y * 0.3, 2, 66) } })
+  const vel = todos.map(() => ({ x: 0, y: 0 }))
+  const quadros: [number, number][][] = []
+  for (let k = 0; k < n; k++) {
+    const t = k * DT
+    const b = interp(bola, Math.min(t, tF))
+    todos.forEach((c, i) => {
+      const f = fixos.get(c.id)
+      if (f && t <= f[f.length - 1].t) { const p = interp(f, t); pos[i] = { x: p.x, y: p.y }; return }
+      if (c.pos === 'GR') return
+      const perto = Math.hypot(pos[i].x - F.x, pos[i].y - F.y) < 25
+      let a: { x: number; y: number }
+      if (t < tF) a = { x: c.lado === atac ? c.bx + (b.x - 30) * 0.7 : COMPRIMENTO - (c.bx * 0.4 + (COMPRIMENTO - b.x) * 0.4), y: c.by * 0.7 + b.y * 0.3 }
+      else if (perto && !lesao) { const ang = i * 2.1; a = { x: F.x + Math.cos(ang) * (3.5 + (i % 3)), y: F.y + Math.sin(ang) * (3.5 + (i % 3)) } }
+      else if (perto && lesao) { const ang = i * 2.1; a = { x: F.x + Math.cos(ang) * (6 + (i % 3) * 1.5), y: F.y + Math.sin(ang) * (6 + (i % 3) * 1.5) } }
+      else a = pos[i]
+      const p = { ...pos[i] }
+      mover(p, vel[i], { x: clamp(a.x, 1, 104), y: clamp(a.y, 1.5, 66.5) }, t < tF ? vMax(c) * 0.7 : 3.5, acel(c), DT)
+      pos[i] = p
+    })
+    for (let i = 0; i < todos.length; i++) for (let j = i + 1; j < todos.length; j++) {
+      if (fixos.has(todos[i].id) && fixos.has(todos[j].id)) continue
+      const dx = pos[j].x - pos[i].x, dy = pos[j].y - pos[i].y, d = Math.hypot(dx, dy), min = RAIO * 2 + 0.1
+      if (d >= min) continue
+      const ux = d > 0.001 ? dx / d : 1, uy = d > 0.001 ? dy / d : 0, f = Math.min(min - d, 0.2)
+      if (fixos.has(todos[i].id)) { pos[j].x += ux * f; pos[j].y += uy * f }
+      else if (fixos.has(todos[j].id)) { pos[i].x -= ux * f; pos[i].y -= uy * f }
+      else { pos[i].x -= ux * f / 2; pos[i].y -= uy * f / 2; pos[j].x += ux * f / 2; pos[j].y += uy * f / 2 }
+    }
+    quadros.push(pos.map((p) => [Math.round(p.x * 100) / 100, Math.round(p.y * 100) / 100]))
+  }
+  duracao = Math.round(duracao * 10) / 10
+  return {
+    minuto: ev.minuto, atacante: atac, origem: 'jogada', desfecho: 'fora', texto: ev.texto,
+    rematadorId: prot.id, ...(lesao ? {} : { passadorId: vit.id }),
+    tRemate: duracao + 1, tFim: tCartao, duracao, dt: DT,
+    caricas: todos.map(({ id, lado, num, pos }) => ({ id, lado, num, pos })),
+    quadros, bola, acoes, cortes: [], espelhar: (atac === 'casa') !== (parteDoJogo(ev.minuto) % 2 === 0),
+    incidente: { tipo: ev.tipo, jogadorId: prot.id, t: tCartao },
+  }
 }
