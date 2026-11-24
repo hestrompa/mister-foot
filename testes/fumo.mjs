@@ -91,6 +91,7 @@ try {
     await r.waitFor({ timeout: 5000 })
     await r.getByText('Direitos de TV').waitFor({ timeout: 5000 })
     await r.getByText('Lugares anuais').waitFor({ timeout: 5000 })
+    await page.getByRole('region', { name: 'Previsão para o fim da época' }).waitFor({ timeout: 5000 })
   })
 
   await passo('obras no estádio e empréstimo ao banco', async () => {

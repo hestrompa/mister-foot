@@ -24,3 +24,4 @@
 .inicio-epoca .ie-mais { color: var(--verde); }
 .inicio-epoca .ie-menos { color: var(--f-fraca); }
 .inicio-epoca .ie-res td { font-weight: 700; border-top: 2px solid rgba(127, 127, 127, 0.4); }
+.inicio-epoca .ie-tabela th { text-align: left; font-size: 0.78rem; opacity: 0.7; padding: 4px 6px; font-weight: 600; } .inicio-epoca .ie-tabela th.num { text-align: right; } .inicio-epoca .ie-total.ie-menos { color: var(--f-fraca); }
