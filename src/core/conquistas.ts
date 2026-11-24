@@ -4,6 +4,7 @@ import type { Jogo } from './types'
 import { estadoRecordes } from './recordes'
 import type { JogoComTaca } from './taca'
 import type { JogoComEuropa } from './europa'
+import type { JogoComTreinadorMes } from './treinador-mes'
 
 export interface DefConquista {
   id: string
@@ -24,6 +25,7 @@ export const CONQUISTAS: DefConquista[] = [
   { id: 'serie5', nome: 'Embalados', texto: 'Ganhar 5 jogos seguidos.', progresso: (j) => [mister(j).melhorSerie, 5] },
   { id: 'serie10', nome: 'Máquina', texto: 'Ganhar 10 jogos seguidos.', progresso: (j) => [mister(j).melhorSerie, 10] },
   { id: 'goleada', nome: 'Chapa cinco', texto: 'Ganhar um jogo por 5 ou mais golos de diferença.', progresso: (j) => [Math.min(5, mister(j).maiorVitoria?.valor ?? 0), 5] },
+  { id: 'mes', nome: 'Treinador do mês', texto: 'Ser o treinador do mês na tua divisão.', progresso: (j) => [(j as JogoComTreinadorMes).treinadorMes?.meus ?? 0, 1] },
   { id: 'subida', nome: 'Elevador', texto: 'Subir de divisão.', progresso: (j) => [mister(j).subidas, 1] },
   { id: 'subidas3', nome: 'Escada rolante', texto: 'Subir de divisão 3 vezes.', progresso: (j) => [mister(j).subidas, 3] },
   { id: 'primeira', nome: 'Entre os grandes', texto: 'Treinar um clube da 1.ª Divisão.', progresso: (j) => [meu(j).divisao === 1 ? 1 : 0, 1] },

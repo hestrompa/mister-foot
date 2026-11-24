@@ -6,6 +6,7 @@ import { AbrirCopia, descarregarCopia } from './ui/CopiaSeguranca'
 import { AvisoConquistas } from './ui/Conquistas'
 import { verificarConquistas } from './core/conquistas'
 import { avancarInvestidores } from './core/investidores'
+import { avancarTreinadorMes, JORNADAS_MES } from './core/treinador-mes'
 import { AvisoInvestidor } from './ui/InicioEpoca'
 import { euros, lugares } from './core/formato'
 import type { Jogo, Mundo } from './core/types'
@@ -209,6 +210,11 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
       noticiaExtra(jogo, i.clubeId === jogo.clubeId ? 'meu' : 'liga', `${c.nome}: ${i.nome} investe ${euros(i.valor)}`, `Os bons resultados na ${NOMES_DIVISAO[c.divisao - 1] ?? 'divisão'} convenceram os investidores. O dinheiro já está na conta do clube.`)
     }
     avancarImprensa(jogo)
+    for (const pr of avancarTreinadorMes(jogo)) {
+      const meu = pr.clubeId === jogo.clubeId
+      if (!meu && pr.divisao !== mundo.clubes[jogo.clubeId].divisao) continue
+      noticiaExtra(jogo, meu ? 'meu' : 'liga', meu ? `Mister ${jogo.treinador} é o treinador do mês!` : `Treinador do mês: ${mundo.clubes[pr.clubeId].nome}`, `${pr.pontos} pontos em ${JORNADAS_MES} jornadas na ${NOMES_DIVISAO[pr.divisao - 1] ?? 'divisão'}.${meu ? ' A direção gostou.' : ''}`)
+    }
     verificarConquistas(jogo)
     if (!epocaTerminada(jogo.epoca) && despedido(jogo)) { atualizar(jogo); return }
     if (!epocaTerminada(jogo.epoca)) {
