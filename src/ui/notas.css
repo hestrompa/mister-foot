@@ -37,3 +37,7 @@
 .notas-jogo-lista li.fora-campo { opacity: 0.55; }
 .melhor-em-campo { margin: 6px 0 0; }
 .notas-colunas { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+/* Coluna estreita (jogo ao vivo): o que fez vai para uma segunda linha, o nome fica inteiro. */
+.lv-notas .notas-jogo-lista li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 6px; row-gap: 0; }
+.lv-notas .notas-jogo-lista .nota-jogo { grid-column: 3; grid-row: 1; }
+.lv-notas .notas-jogo-lista .nj-feitos { grid-column: 2 / 4; grid-row: 2; font-size: 0.72em; white-space: normal; }

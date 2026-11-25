@@ -13,6 +13,7 @@
   --f-media: #f5c451;
   --f-baixa: #f59e51;
   --f-fraca: #e5675c;
+  --gx: clamp(12px, 2.5vw, 40px);
   color-scheme: dark;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: var(--texto);
@@ -25,7 +26,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 input { font: inherit; }
 h1, h2, h3 { margin: 0; }
 
-.ecra { max-width: 1100px; margin: 0 auto; padding: 16px; padding-bottom: 96px; }
+.ecra { max-width: 1760px; margin: 0 auto; padding: 16px var(--gx); }
 
 .inicio { max-width: 460px; display: flex; flex-direction: column; gap: 20px; padding-top: 48px; }
 .logo { text-align: center; }
@@ -68,7 +69,7 @@ h1, h2, h3 { margin: 0; }
 .clube-det { color: var(--texto-2); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .emblema { flex: none; }
 
-.barra-acao { position: fixed; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; align-items: center; gap: 16px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: var(--fundo-2); border-top: 1px solid var(--linha); }
+.barra-acao { position: sticky; z-index: 4; bottom: 0; margin: 12px calc(-1 * var(--gx)) 0; display: flex; justify-content: center; align-items: center; gap: 16px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: var(--fundo-2); border-top: 1px solid var(--linha); }
 .barra-acao span { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .tabela-wrap { overflow-x: auto; border: 1px solid var(--linha); border-radius: 12px; }
@@ -281,3 +282,161 @@ h1, h2, h3 { margin: 0; }
 .copia-seguranca .erro { flex-basis: 100%; }
 .novidades h2 { font-size: 18px; margin: 0 0 6px; }
 .novidades ul { margin: 0 0 8px; padding-left: 18px; color: var(--texto-2); font-size: 14px; display: flex; flex-direction: column; gap: 4px; }
+
+/* ---- Layout fluido: usa a largura do ecrã em vez de uma coluna estreita ao centro ---- */
+.pj-colunas { display: flex; flex-direction: column; gap: 12px; }
+.pj-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.pj-col > .nota { margin: 0; }
+@media (min-width: 1100px) {
+  .principal-nav button { padding: 10px clamp(8px, 0.9vw, 14px); }
+  .inicio { max-width: 1040px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; column-gap: 24px; padding-top: 6vh; }
+  .inicio > .logo, .inicio > .rodape { grid-column: 1 / -1; }
+  .inicio > .botao.principal.grande { grid-column: 1 / -1; justify-self: center; min-width: 320px; }
+  .inicio > .novo-jogo { grid-column: 1; grid-row: span 2; }
+}
+@media (min-width: 1500px) {
+  .onze-grelha { gap: 16px; }
+  .cartoes-info { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+}
+/* Separador Jogo: avisos ao lado do pré-jogo em ecrãs largos; o pré-jogo divide-se pelo espaço que tem. */
+.sep-jogo-avisos:empty { display: none; }
+.sep-jogo-avisos > * + * { margin-top: 12px; }
+.sep-jogo-avisos { margin-bottom: 12px; }
+.pre-jogo { container-type: inline-size; }
+@container (min-width: 980px) {
+  .pj-colunas { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: start; }
+}
+
+/* ---- Estrutura de aplicação: cabeçalho e menu fixos, só o conteúdo faz scroll ---- */
+html { background: var(--fundo); }
+.ecra.shell { height: 100vh; height: 100dvh; max-width: none; padding: 0; display: flex; flex-direction: column; overflow: hidden; }
+.shell > .clube-topo { flex: none; margin: 10px var(--gx) 4px; }
+.shell > .clube-topo h2 { font-size: 20px; }
+.shell > .principal-nav { flex: none; margin: 0; padding: 0 var(--gx); }
+.shell > .conteudo { flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 12px var(--gx) 0; display: flex; flex-direction: column; }
+.shell > .conteudo > * { flex: none; }
+.shell > .conteudo > .rodape { margin-top: auto; padding: 24px 0 12px; }
+.shell > .conteudo > .rodape:first-child { margin-top: 0; }
+.pj-vistas { display: none; }
+
+/* Separador Jogo em ecrãs com espaço: painéis lado a lado, cada um com scroll próprio, e a barra de ação no fundo. */
+@media (min-width: 1000px) and (min-height: 600px) {
+  .shell[data-sep="jogo"] > .conteudo { overflow: hidden; }
+  .shell[data-sep="jogo"] > .conteudo > .rodape { display: none; }
+  .shell[data-sep="jogo"] .dica-cartao { margin-bottom: 10px; }
+  .shell > .conteudo > .sep-jogo, .sep-jogo {
+    flex: 1 1 0; min-height: 0; display: grid; gap: 12px;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) clamp(280px, 22vw, 420px);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas: "jogo jogo avisos" "cola colb avisos" "barra barra barra";
+  }
+  .sep-jogo:has(.sep-jogo-avisos:empty) { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); grid-template-areas: "jogo jogo" "cola colb" "barra barra"; }
+  .sep-jogo > .sep-jogo-main, .sep-jogo .pre-jogo, .sep-jogo .pj-colunas { display: contents; }
+  .sep-jogo .proximo-jogo { grid-area: jogo; padding: 10px 16px; }
+  .sep-jogo .proximo-jogo .pj-equipas { margin-top: 4px; }
+  .sep-jogo .pj-col-a { grid-area: cola; min-height: 0; }
+  .sep-jogo .pj-col-a > .onze-grelha { flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; align-items: start; }
+  .sep-jogo .pj-col-b { grid-area: colb; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; }
+  .sep-jogo .sep-jogo-avisos { grid-area: avisos; min-height: 0; overflow-y: auto; overscroll-behavior: contain; margin: 0; }
+  .sep-jogo .pre-jogo > .barra-acao { grid-area: barra; position: static; margin: 0 calc(-1 * var(--gx)); }
+  .sep-jogo .linha-jog { min-height: 34px; padding: 5px 10px; }
+  .sep-jogo .lista-jog { gap: 3px; }
+  .sep-jogo .onze-grelha .sub-tit { margin-top: 0; position: sticky; top: 0; background: var(--fundo); z-index: 1; padding: 2px 0 4px; }
+}
+
+/* Sem espaço para tudo lado a lado: a equipa e o adversário em abas. */
+@media not ((min-width: 1000px) and (min-height: 600px)) {
+  .shell[data-sep="jogo"] > .conteudo { gap: 12px; }
+  .sep-jogo, .sep-jogo > .sep-jogo-main, .sep-jogo .pre-jogo { display: contents; }
+  .sep-jogo-avisos { margin: 0; }
+  .shell[data-sep="jogo"] .dica-cartao { margin-bottom: 0; }
+  .pj-vistas { display: flex; position: sticky; top: -12px; z-index: 3; background: var(--fundo); }
+  .pre-jogo[data-vista="equipa"] :is(.pj-col-b, .pj-col-c), .pre-jogo[data-vista="adversario"] :is(.pj-col-a, .pj-col-c), .pre-jogo[data-vista="avisos"] :is(.pj-col-a, .pj-col-b) { display: none; }
+  .pre-jogo:has(.pj-col-c:empty)[data-vista="avisos"] .pj-col-a { display: flex; }
+  .pj-colunas { display: flex !important; }
+}
+@media (min-width: 1000px) and (max-width: 1279px) and (min-height: 600px) {
+  .sep-jogo .onze-grelha { grid-template-columns: 1fr; }
+  .sep-jogo { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 260px; }
+}
+
+/* ---- Densidade: cabeçalho, menu e barra mais baixos para sobrar espaço ao conteúdo ---- */
+.shell > .clube-topo .emblema { width: 36px; height: 36px; }
+.shell .barra-acao { padding-top: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+.shell .barra-acao .botao.grande { padding: 10px 18px; }
+@media (max-height: 820px) {
+  .shell > .clube-topo { margin-top: 6px; margin-bottom: 2px; }
+  .shell > .clube-topo h2 { font-size: 18px; }
+  .shell > .principal-nav button { padding-top: 7px; padding-bottom: 7px; }
+}
+@media (max-width: 640px) {
+  .shell > .clube-topo { gap: 8px; flex-wrap: nowrap; }
+  .shell > .clube-topo .emblema { width: 30px; height: 30px; }
+  .shell > .clube-topo .topo-info h2 { font-size: 16px; white-space: nowrap; }
+  .shell > .clube-topo .topo-det { font-size: 11px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .shell > .clube-topo .topo-dinheiro { font-size: 15px; white-space: nowrap; }
+}
+/* Pré-jogo compacto: cartão do jogo numa linha, tática em linha. */
+.proximo-jogo .pj-eq .emblema { width: 40px; height: 40px; }
+@media (min-width: 1000px) and (min-height: 600px) {
+  .sep-jogo .proximo-jogo .pj-eq { flex-direction: row; justify-content: center; gap: 10px; flex-wrap: wrap; }
+  .sep-jogo .proximo-jogo .pj-eq .emblema { width: 32px; height: 32px; }
+  .sep-jogo .tatica { padding: 10px 12px; gap: 8px 10px; }
+  .sep-jogo .tatica .campo { min-width: 110px; flex: 1 1 120px; gap: 4px; }
+  .sep-jogo .tatica .campo:nth-child(2) { flex: 3 1 240px; }
+  .sep-jogo .tatica .grupo-botoes { flex-wrap: nowrap; }
+  .sep-jogo .tatica > .botao { padding: 8px 12px; font-size: 13px; }
+  .sep-jogo .sep-jogo-avisos .dica-cartao { margin-bottom: 0; }
+}
+/* Telemóvel / ecrãs pequenos no separador Jogo: primeiro o jogo, depois os avisos e as abas. */
+@media not ((min-width: 1000px) and (min-height: 600px)) {
+  .sep-jogo .proximo-jogo { order: 1; }
+  .sep-jogo .pj-vistas { order: 2; }
+  .sep-jogo .pj-colunas { order: 4; }
+  .shell[data-sep="jogo"] > .conteudo > .rodape { order: 5; margin-top: 0; }
+  .sep-jogo .pre-jogo > .barra-acao { order: 6; margin-top: auto; }
+  .sep-jogo .proximo-jogo { padding: 10px 12px; }
+  .sep-jogo .proximo-jogo .pj-equipas { margin-top: 4px; }
+}
+@media not ((min-width: 1000px) and (min-height: 600px)) {
+  .sep-jogo .pre-jogo > *, .sep-jogo .pj-colunas { flex: none; }
+  .sep-jogo .pj-vistas { margin-bottom: 0; }
+  .sep-jogo .pj-vistas button { flex: 1; padding: 10px 6px; }
+}
+
+/* ---- Outros separadores: usar a largura em vez de empilhar ---- */
+.cal-metades { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 1000px) { .cal-metades { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Tabelas mais compactas no computador: plantel, classificação e divisões cabem num ecrã 1080p. */
+@media (min-width: 1000px) {
+  .shell .tabela td { padding-top: 4px; padding-bottom: 4px; }
+  .shell .tabela th { padding-top: 6px; padding-bottom: 6px; }
+}
+/* Listas compridas não empurram a página: scroll só dentro da tabela, com o cabeçalho fixo. */
+@media (min-width: 1000px) and (min-height: 600px) {
+  .shell .conteudo .tabela-wrap { max-height: calc(100dvh - 190px); overflow: auto; }
+}
+/* Clube: indicadores numa linha e cartões de obras/banco lado a lado. */
+.shell .ed-abrir { align-self: flex-start; padding: 6px 12px; font-size: 13px; margin-bottom: 10px; }
+@media (min-width: 1000px) {
+  .shell[data-sep="clube"] .cartoes-info { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+  .shell[data-sep="clube"] .obras-banco { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+}
+/* Balneário: cartões à esquerda, lista de jogadores à direita. */
+@media (min-width: 1200px) {
+  .shell .balneario { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 10px 14px; align-items: start; grid-auto-flow: row dense; }
+  .shell .balneario > * { grid-column: 1; }
+  .shell .balneario > .msg-ok, .balneario > .erro { grid-column: 1 / -1; }
+  .shell .balneario > section[aria-label="Jogadores"] { grid-column: 2; grid-row: 1 / span 12; }
+  .shell .balneario .bn-topo { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .shell .balneario > section[aria-label="Jogadores"] .tabela-wrap { max-height: calc(100dvh - 270px); }
+}
+/* Páginas de blocos (História, Carreira, Staff): duas colunas de cartões em ecrãs largos. */
+@media (min-width: 1400px) {
+  .shell .historia, .shell .carreira:not(.despedido) { display: block; columns: 2; column-gap: 14px; }
+  .shell .historia > *, .shell .carreira:not(.despedido) > * { break-inside: avoid; margin-bottom: 12px; }
+  .shell .historia > .sub-tit, .shell .carreira > .sub-tit { break-after: avoid; }
+  .shell .staff { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: 10px 14px; }
+  .shell .staff > * { grid-column: 1 / -1; }
+  .shell .staff > .st-treino { grid-column: auto; }
+}

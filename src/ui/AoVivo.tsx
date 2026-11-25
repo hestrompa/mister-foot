@@ -12,6 +12,7 @@ import { POSTURAS } from './PreJogo'
 import { SaltarJogo, sementeJornada, TabelaLiga } from './comum'
 import { criarAmbiente, criarIncidente, criarRepeticao, DURACAO_AMBIENTE, emCampoDe, fimEmCampo, type CenaRepeticao } from '../core/repeticao'
 import { Repeticao2D } from './Repeticao2D'
+import { LayoutVivo } from './LayoutVivo'
 
 type Fase = 'jogo' | 'intervalo' | 'lesao' | 'pausa' | 'resumo' | 'repeticao'
 
@@ -258,108 +259,109 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
   const casa = mundo.clubes[mp.casaId], fora = mundo.clubes[mp.foraId]
   const recente = (p: Partida) => flash.current[p.id] != null && tickRef.current - flash.current[p.id] < 5 * vel
 
-  return (
-    <div className="ao-vivo">
-      <div className="av-principal">
-        <div className={`cartao meu-jogo ${recente(mp) ? 'flash' : ''}`}>
-          <div className="mj-min">{terminou(meu) ? 'Final' : fase === 'intervalo' ? 'Intervalo' : `${meu.minuto}'`}</div>
-          <div className="mj-placar">
-            <div className="mj-eq"><Emblema clube={casa} tamanho={40} /><span>{casa.nome}</span></div>
-            <div className="mj-golos">{mp.golos[0]}<span>-</span>{mp.golos[1]}</div>
-            <div className="mj-eq"><Emblema clube={fora} tamanho={40} /><span>{fora.nome}</span></div>
-          </div>
-          <div className="mj-estat">
-            {mp.jogada && <Estat t="Posse" a={`${mp.estat.posse[0]}%`} b={`${mp.estat.posse[1]}%`} pa={mp.estat.posse[0]} pb={mp.estat.posse[1]} />}
-            {mp.jogada
-              ? <Estat t="Remates" a={`${mp.estat.remates[0]} (${mp.estat.rematesBaliza[0]})`} b={`${mp.estat.remates[1]} (${mp.estat.rematesBaliza[1]})`} pa={mp.estat.remates[0]} pb={mp.estat.remates[1]} />
-              : <Estat t="Remates" a={String(rem[0])} b={String(rem[1])} pa={rem[0]} pb={rem[1]} />}
-          </div>
-        </div>
-
-        <div className="controlos">
-          {[1, 2, 4].map((v) => (
-            <button key={v} className={`botao ${vel === v ? 'ativo' : ''}`} onClick={() => setVel(v)}>{v}x</button>
-          ))}
-          <button className="botao" disabled={fase !== 'jogo'} onClick={() => setFase('pausa')}>Pausa</button>
-          <button className={`botao ${painel ? 'ativo' : ''}`} disabled={terminou(meu)} onClick={() => setPainel((v) => !v)}>Equipa</button>
-          <button className="botao modo-rep" onClick={() => {
-            const m: ModoRep = modoRep === 'tudo' ? 'golos' : modoRep === 'golos' ? 'nada' : 'tudo'
-            setModoRep(m)
-            modoRepRef.current = m
-            gravarModoRep(m)
-          }}>{MODOS_REP[modoRep]}</button>
-        </div>
-        <SaltarJogo saltar={saltar} />
-
-        {!(fase === 'repeticao' && rep) && amb && !terminou(meu) && (
-          <Repeticao2D cena={amb} mundo={mundo} casa={casa} fora={fora} autoFim={false} fim={() => {}}
-            velocidade={DURACAO_AMBIENTE / (MS_MINUTO / vel / 1000)} />
-        )}
-        {fase === 'repeticao' && rep && (
-          <Repeticao2D key={`${rep.minuto}-${rep.rematadorId}`} cena={rep} mundo={mundo}
-            casa={mundo.clubes[(repJogo ?? mp).casaId]} fora={mundo.clubes[(repJogo ?? mp).foraId]} velocidade={vel > 1 ? 1.5 : 1}
-            outroJogo={repJogo != null && repJogo.id !== mp.id ? `${mundo.clubes[repJogo.casaId].sigla} ${repJogo.golos[0]}-${repJogo.golos[1]} ${mundo.clubes[repJogo.foraId].sigla}` : undefined}
-            emDireto={escondido.current != null && repJogo?.id === mp.id} revelar={revelar}
-            fim={() => { revelar(); setRep(null); setFase(depoisRep.current ?? 'jogo'); depoisRep.current = null }} />
-        )}
-
-        {fase === 'jogo' && painel && !terminou(meu) && (
-          <PainelSubs jogo={jogo} estado={meu} lado={meuLado} fase={fase} lesionado={null}
-            retomar={() => setPainel(false)} atualizar={() => setTick((t) => t + 1)} />
-        )}
-        {(fase === 'intervalo' || fase === 'lesao' || fase === 'pausa') && (
-          <PainelSubs jogo={jogo} estado={meu} lado={meuLado} fase={fase} lesionado={lesionado}
-            retomar={() => { setLesionado(null); setFase('jogo') }} atualizar={() => setTick((t) => t + 1)} />
-        )}
-
-        <div className="cartao relato">
-          <h3 className="sub-tit">Relato</h3>
-          {feed.length === 0 && <p className="dica">O árbitro apita para o início.</p>}
-          <ul>
-            {feed.map((ev, i) => (
-              <li key={feed.length - i} className={`ev ev-${ev.tipo} ${ev.lado === meuLado ? 'nosso' : ''}`}>
-                <span className="ev-min">{ev.minuto}'</span> {ev.texto}
-              </li>
-            ))}
-          </ul>
-        </div>
+  const placar = (
+    <div className={`cartao meu-jogo ${recente(mp) ? 'flash' : ''}`}>
+      <div className="mj-min">{terminou(meu) ? 'Final' : fase === 'intervalo' ? 'Intervalo' : `${meu.minuto}'`}</div>
+      <div className="mj-placar">
+        <div className="mj-eq"><Emblema clube={casa} tamanho={40} /><span>{casa.nome}</span></div>
+        <div className="mj-golos">{mp.golos[0]}<span>-</span>{mp.golos[1]}</div>
+        <div className="mj-eq"><Emblema clube={fora} tamanho={40} /><span>{fora.nome}</span></div>
       </div>
-
-      <div className="av-lateral">
-        <div className="cartao placares">
-          <h3 className="sub-tit">{mundo.divisoes[div - 1].nome} · Jornada {epoca.jornada}</h3>
-          <ul>
-            {estados.map((e) => {
-              const p = e.partida
-              const golosOutro = outrasCenas.current[p.id]
-              const podeVer = e !== meu && golosOutro?.length && fase !== 'repeticao' && fase !== 'resumo'
-              return (
-                <li key={p.id} className={`placar ${e === meu ? 'meu' : ''} ${recente(p) ? 'flash' : ''}`}>
-                  <span className="pl-casa"><span className="nm-longo">{mundo.clubes[p.casaId].nome}</span><span className="nm-sigla">{mundo.clubes[p.casaId].sigla}</span></span>
-                  {podeVer
-                    ? <button className="pl-golos pl-ver" title="Ver o último golo" onClick={() => {
-                        depoisRep.current = fase === 'jogo' ? null : fase
-                        setRep(golosOutro[golosOutro.length - 1])
-                        setRepJogo(p)
-                        setFase('repeticao')
-                      }}>{p.golos[0]}-{p.golos[1]}</button>
-                    : <span className="pl-golos">{p.golos[0]}-{p.golos[1]}</span>}
-                  <span className="pl-fora"><span className="nm-longo">{mundo.clubes[p.foraId].nome}</span><span className="nm-sigla">{mundo.clubes[p.foraId].sigla}</span></span>
-                  <span className="pl-min">{terminou(e) ? 'F' : `${e.minuto}'`}</span>
-                </li>
-              )
-            })}
-          </ul>
-        </div>
-        {meu.minuto > 0 && (
-          <div className="cartao notas-ao-vivo">
-            <NotasEquipa mundo={mundo} partida={mp} lado={meuLado} estado={meu} titulo="Notas ao vivo" />
-          </div>
-        )}
-        <h3 className="sub-tit">Classificação ao vivo</h3>
-        <TabelaLiga mundo={mundo} linhas={ao} divisao={div} meuId={clubeId} compacta />
+      <div className="mj-estat">
+        {mp.jogada && <Estat t="Posse" a={`${mp.estat.posse[0]}%`} b={`${mp.estat.posse[1]}%`} pa={mp.estat.posse[0]} pb={mp.estat.posse[1]} />}
+        {mp.jogada
+          ? <Estat t="Remates" a={`${mp.estat.remates[0]} (${mp.estat.rematesBaliza[0]})`} b={`${mp.estat.remates[1]} (${mp.estat.rematesBaliza[1]})`} pa={mp.estat.remates[0]} pb={mp.estat.remates[1]} />
+          : <Estat t="Remates" a={String(rem[0])} b={String(rem[1])} pa={rem[0]} pb={rem[1]} />}
       </div>
     </div>
+  )
+
+  const controlos = (
+    <>
+      <div className="controlos">
+        {[1, 2, 4].map((v) => (
+          <button key={v} className={`botao ${vel === v ? 'ativo' : ''}`} onClick={() => setVel(v)}>{v}x</button>
+        ))}
+        <button className="botao" disabled={fase !== 'jogo'} onClick={() => setFase('pausa')}>Pausa</button>
+        <button className={`botao ${painel ? 'ativo' : ''}`} disabled={terminou(meu)} onClick={() => setPainel((v) => !v)}>Equipa</button>
+        <button className="botao modo-rep" onClick={() => {
+          const m: ModoRep = modoRep === 'tudo' ? 'golos' : modoRep === 'golos' ? 'nada' : 'tudo'
+          setModoRep(m)
+          modoRepRef.current = m
+          gravarModoRep(m)
+        }}>{MODOS_REP[modoRep]}</button>
+      </div>
+      <SaltarJogo saltar={saltar} />
+    </>
+  )
+
+  const palco = (
+    <>
+      {!(fase === 'repeticao' && rep) && amb && !terminou(meu) && (
+        <Repeticao2D cena={amb} mundo={mundo} casa={casa} fora={fora} autoFim={false} fim={() => {}}
+          velocidade={DURACAO_AMBIENTE / (MS_MINUTO / vel / 1000)} />
+      )}
+      {fase === 'repeticao' && rep && (
+        <Repeticao2D key={`${rep.minuto}-${rep.rematadorId}`} cena={rep} mundo={mundo}
+          casa={mundo.clubes[(repJogo ?? mp).casaId]} fora={mundo.clubes[(repJogo ?? mp).foraId]} velocidade={vel > 1 ? 1.5 : 1}
+          outroJogo={repJogo != null && repJogo.id !== mp.id ? `${mundo.clubes[repJogo.casaId].sigla} ${repJogo.golos[0]}-${repJogo.golos[1]} ${mundo.clubes[repJogo.foraId].sigla}` : undefined}
+          emDireto={escondido.current != null && repJogo?.id === mp.id} revelar={revelar}
+          fim={() => { revelar(); setRep(null); setFase(depoisRep.current ?? 'jogo'); depoisRep.current = null }} />
+      )}
+    </>
+  )
+
+  const painelSubs = fase === 'jogo' && painel && !terminou(meu)
+    ? <PainelSubs jogo={jogo} estado={meu} lado={meuLado} fase={fase} lesionado={null}
+        retomar={() => setPainel(false)} atualizar={() => setTick((t) => t + 1)} />
+    : (fase === 'intervalo' || fase === 'lesao' || fase === 'pausa')
+      ? <PainelSubs jogo={jogo} estado={meu} lado={meuLado} fase={fase} lesionado={lesionado}
+          retomar={() => { setLesionado(null); setFase('jogo') }} atualizar={() => setTick((t) => t + 1)} />
+      : undefined
+
+  const relato = (
+    <>
+      {feed.length === 0 && <p className="dica">O árbitro apita para o início.</p>}
+      <ul>
+        {feed.map((ev, i) => (
+          <li key={feed.length - i} className={`ev ev-${ev.tipo} ${ev.lado === meuLado ? 'nosso' : ''}`}>
+            <span className="ev-min">{ev.minuto}'</span> {ev.texto}
+          </li>
+        ))}
+      </ul>
+    </>
+  )
+
+  const jogos = (
+    <ul>
+      {estados.map((e) => {
+        const p = e.partida
+        const golosOutro = outrasCenas.current[p.id]
+        const podeVer = e !== meu && golosOutro?.length && fase !== 'repeticao' && fase !== 'resumo'
+        return (
+          <li key={p.id} className={`placar ${e === meu ? 'meu' : ''} ${recente(p) ? 'flash' : ''}`}>
+            <span className="pl-casa"><span className="nm-longo">{mundo.clubes[p.casaId].nome}</span><span className="nm-sigla">{mundo.clubes[p.casaId].sigla}</span></span>
+            {podeVer
+              ? <button className="pl-golos pl-ver" title="Ver o último golo" onClick={() => {
+                  depoisRep.current = fase === 'jogo' ? null : fase
+                  setRep(golosOutro[golosOutro.length - 1])
+                  setRepJogo(p)
+                  setFase('repeticao')
+                }}>{p.golos[0]}-{p.golos[1]}</button>
+              : <span className="pl-golos">{p.golos[0]}-{p.golos[1]}</span>}
+            <span className="pl-fora"><span className="nm-longo">{mundo.clubes[p.foraId].nome}</span><span className="nm-sigla">{mundo.clubes[p.foraId].sigla}</span></span>
+            <span className="pl-min">{terminou(e) ? 'F' : `${e.minuto}'`}</span>
+          </li>
+        )
+      })}
+    </ul>
+  )
+
+  return (
+    <LayoutVivo placar={placar} controlos={controlos} palco={palco} painel={painelSubs} relato={relato}
+      notas={<NotasEquipa mundo={mundo} partida={mp} lado={meuLado} estado={meu} />}
+      tituloJogos={`${mundo.divisoes[div - 1].nome} · Jornada ${epoca.jornada}`} jogos={jogos}
+      tabela={<TabelaLiga mundo={mundo} linhas={ao} divisao={div} meuId={clubeId} compacta />} />
   )
 }
 

@@ -106,18 +106,29 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
     const xMinLance = Math.min(...cena.bola.map((p) => p.x))
     let x0 = -MARGEM
     const esp = cena.espelhar === true
+    // No jogo ao vivo o campo tem um espaço fixo (.lv-palco): encaixa em largura e altura.
+    const encaixa = cx.closest('.lv-palco') != null
     const medir = () => {
       dpr = Math.min(2, window.devicePixelRatio || 1)
       w = cx.clientWidth
+      const hMax = encaixa ? cx.clientHeight : Infinity
       // Janela visível em coordenadas do ecrã (depois de rodar o campo, se for o caso).
-      const corte = w < 640 && !cena.ambiente ? Math.max(-MARGEM, Math.min(52, xMinLance - 10)) : -MARGEM
+      const corteMax = Math.max(-MARGEM, Math.min(52, xMinLance - 10))
+      let corte = w < 640 && !cena.ambiente ? corteMax : -MARGEM
+      if (encaixa && !cena.ambiente && hMax > 0) {
+        // Espaço mais alto do que o campo inteiro: mostra só a parte do lance, com caricas maiores.
+        const largDesejada = (w * ALT_M) / hMax
+        corte = Math.max(-MARGEM, Math.min(corteMax, COMPRIMENTO + MARGEM - largDesejada))
+      }
       x0 = esp ? -MARGEM : corte
       const x1 = esp ? COMPRIMENTO - corte : COMPRIMENTO + MARGEM
       const largM = x1 - x0
       h = Math.round((w * ALT_M) / largM)
+      if (h > hMax && hMax > 0) { h = Math.floor(hMax); w = Math.floor((h * largM) / ALT_M) }
       cv.width = Math.round(w * dpr)
       cv.height = Math.round(h * dpr)
       cv.style.height = `${h}px`
+      if (encaixa) cv.style.width = `${w}px`
       esc = (w / largM) * dpr
     }
     medir()

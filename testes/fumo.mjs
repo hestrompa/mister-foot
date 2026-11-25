@@ -252,6 +252,8 @@ try {
     await foto('6-ao-vivo.png')
     const n = await page.locator('.placares li').count()
     esperar(n === 9, `esperava 9 jogos, encontrei ${n}`)
+    const { sh, ih } = await page.evaluate(() => ({ sh: document.documentElement.scrollHeight, ih: window.innerHeight }))
+    esperar(sh <= ih + 1, `o jogo ao vivo faz scroll vertical: ${sh} > ${ih}`)
   })
 
   await passo('repetição 2D em caricas de um lance do meu jogo', async () => {
@@ -275,7 +277,7 @@ try {
     await painel.locator('.lista-jog').nth(1).locator('button').first().click()
     await painel.getByText(/Sai .*, entra/).waitFor({ timeout: 3000 })
     await foto('6a-equipa-ao-vivo.png')
-    const notasVivo = await page.locator('.notas-ao-vivo .nota-jogo').count()
+    const notasVivo = await page.locator('[data-testid=notas-ao-vivo] .nota-jogo').count()
     esperar(notasVivo >= 10, `notas ao vivo da minha equipa (vi ${notasVivo})`)
     await painel.getByRole('button', { name: 'Fechar', exact: true }).click()
     await page.locator('.relato').getByText(/muda para 4-3-3/).waitFor({ timeout: 5000 })
@@ -371,8 +373,9 @@ try {
     await page.getByRole('button', { name: '4x' }).click()
     await page.waitForTimeout(3000)
     await foto('9-ao-vivo-telemovel.png')
-    const { sw, iw } = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }))
+    const { sw, iw, sh, ih } = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth, sh: document.documentElement.scrollHeight, ih: window.innerHeight }))
     esperar(sw <= iw + 1, `scrollWidth ${sw} > innerWidth ${iw}`)
+    esperar(sh <= ih + 1, `o jogo ao vivo faz scroll vertical no telemóvel: ${sh} > ${ih}`)
     await saltarJogo()
     await page.getByText('Outros resultados').waitFor({ timeout: 10000 })
     await foto('10-resumo-telemovel.png')

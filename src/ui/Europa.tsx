@@ -17,6 +17,7 @@ import {
 import type { OutroJogo } from './PreJogo'
 import { Emblema } from './Emblema'
 import { PainelSubs } from './AoVivo'
+import { LayoutVivo } from './LayoutVivo'
 import { SaltarJogo, sementeJornada } from './comum'
 import './taca.css'
 import './europa.css'
@@ -322,8 +323,8 @@ export function AoVivoEuropa({ jogo, guardar, continuar }: { jogo: JogoComEuropa
   const feed = [...mp.eventos].filter((ev) => ev !== mon.escondido()).reverse()
   const ag = meu.ida ? agregado(mp, meu.ida) : null
   return (
-    <div className="ao-vivo">
-      <div className="av-principal">
+    <LayoutVivo
+      placar={(
         <div className="cartao meu-jogo">
           <div className="pj-cab">{info.nome} · {ronda.nome}</div>
           <div className="mj-min">{terminou(meu) ? 'Final' : fase === 'intervalo' ? 'Intervalo' : `${meu.e.minuto}'${mp.prolongamento ? ' · prolongamento' : ''}`}</div>
@@ -335,28 +336,27 @@ export function AoVivoEuropa({ jogo, guardar, continuar }: { jogo: JogoComEuropa
           {ag && <p className="dica">No conjunto das duas mãos: {ag[0]}-{ag[1]}</p>}
           {terminou(meu) && (meu.final ? mp.golos[0] === mp.golos[1] : ag && ag[0] === ag[1]) && <p className="dica">Empate depois do prolongamento: decide-se nos penáltis.</p>}
         </div>
+      )}
+      controlos={<>
         <div className="controlos">
           {[1, 2, 4].map((v) => <button key={v} className={`botao ${vel === v ? 'ativo' : ''}`} onClick={() => setVel(v)}>{v}x</button>)}
           <button className="botao" disabled={fase !== 'jogo'} onClick={() => setFase('pausa')}>Pausa</button>
           {mon.botaoModo}
         </div>
         <SaltarJogo saltar={saltar} />
-        {mon.campo({ repeticao: fase === 'repeticao', acabou: terminou(meu), vel })}
-        {(fase === 'intervalo' || fase === 'lesao' || fase === 'pausa') && (
+      </>}
+      palco={mon.campo({ repeticao: fase === 'repeticao', acabou: terminou(meu), vel })}
+      painel={(fase === 'intervalo' || fase === 'lesao' || fase === 'pausa') ? (
           <PainelSubs jogo={jogoVista} estado={meu.e} lado={meuLado} fase={fase} lesionado={lesionado}
             retomar={() => { setLesionado(null); setFase('jogo') }} atualizar={() => setTick((x) => x + 1)} />
-        )}
-        <div className="cartao relato">
-          <h3 className="sub-tit">Relato</h3>
+        ) : undefined}
+      relato={<>
           {feed.length === 0 && <p className="dica">O árbitro apita para o início.</p>}
           <ul>{feed.map((ev, i) => <li key={feed.length - i} className={`ev ev-${ev.tipo} ${ev.lado === meuLado ? 'nosso' : ''}`}><span className="ev-min">{ev.minuto}'</span> {ev.texto}</li>)}</ul>
-        </div>
-        {meu.e.minuto > 0 && <div className="cartao notas-ao-vivo"><NotasEquipa mundo={jogoVista.mundo} partida={mp} lado={meuLado} estado={meu.e} titulo="Notas ao vivo" /></div>}
-      </div>
-      <div className="av-lateral">
-        <div className="cartao placares">
-          <h3 className="sub-tit">Noite europeia · outros jogos</h3>
-          <ul>
+      </>}
+      notas={<NotasEquipa mundo={jogoVista.mundo} partida={mp} lado={meuLado} estado={meu.e} />}
+      tituloJogos="Noite europeia · outros jogos"
+      jogos={<ul>
             {ini.slice(1).map((x) => {
               const p = x.e.partida
               return (
@@ -368,10 +368,8 @@ export function AoVivoEuropa({ jogo, guardar, continuar }: { jogo: JogoComEuropa
                 </li>
               )
             })}
-          </ul>
-        </div>
-      </div>
-    </div>
+          </ul>}
+    />
   )
 }
 

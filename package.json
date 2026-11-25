@@ -9,7 +9,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
-    "fumo": "node testes/fumo.mjs"
+    "fumo": "node testes/fumo.mjs",
+    "layout": "node testes/layout.mjs"
   },
   "dependencies": {
     "react": "^19.3.1",

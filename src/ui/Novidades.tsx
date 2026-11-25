@@ -7,6 +7,9 @@ export const NOVIDADES: { data: string; itens: string[] }[] = [
     itens: [
       'Nota de 0 a 10 para cada jogador em cada jogo, como nos jornais: golos, assistências, remates, passes para remate, desarmes, defesas, erros, cartões, golos sofridos e o resultado, com pesos por posição. Vê-se ao vivo (para decidir substituições), no resumo com o melhor em campo, na ficha do jogo, e a média da época no plantel, no pré-jogo, no mercado e na carreira de cada jogador.',
       'A nota conta: uma grande exibição sobe a moral e uma má tira; a média da época mexe no valor de mercado (até 15%).',
+      'Ecrãs de gestão sem scroll da página: cabeçalho, menu e botão de jogar sempre à vista. No computador o separador Jogo mostra o onze, a tática e o adversário e os avisos lado a lado; no telemóvel ficam em abas (Avisos, Onze, Tática e adversário). Balneário e Staff em colunas, Calendário em duas metades, tabelas mais compactas.',
+      'Jogo ao vivo em ecrã inteiro e sem scroll: no computador relato, campo e tabela lado a lado; no tablet e no telemóvel o campo encaixa no espaço livre e o relato, os jogos e a tabela ficam em abas. Com o telemóvel deitado, o campo ocupa a altura toda.',
+      'Os outros ecrãs usam a largura toda: menu de separadores sempre visível no topo, pré-jogo em duas colunas e ecrã inicial em duas colunas em ecrãs largos.',
     ],
   },
   {
