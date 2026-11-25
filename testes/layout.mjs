@@ -36,12 +36,28 @@ const medir = () => page.evaluate(() => {
   const d = document.documentElement
   return { sh: d.scrollHeight, ih: innerHeight, sw: d.scrollWidth, iw: innerWidth }
 })
-// Separador principal em cada tamanho
+// Cada separador em cada tamanho: a página nunca faz scroll; regista quanto o conteúdo transborda.
+const SEPS = ['Jogo', 'Plantel', 'Balneário', 'Staff', 'Mercado', 'Taça', 'Europa', 'Classificação', 'Calendário', 'Clube', 'Carreira', 'Divisões', 'Imprensa', 'História']
+const transborda = []
 for (const [nome, w, h] of TAMANHOS) {
-  await page.setViewportSize({ width: w, height: h }); await page.waitForTimeout(200)
-  await page.screenshot({ path: join(OUT, `jogo-${nome}.png`) })
-  const m = await medir(); if (m.sw > m.iw + 1) falhas.push(`${nome} separador Jogo: scroll horizontal ${m.sw}`)
+  await page.setViewportSize({ width: w, height: h }); await page.waitForTimeout(150)
+  for (const sep of SEPS) {
+    await page.locator('.principal-nav button').filter({ hasText: new RegExp(`^${sep}( \\(.*\\))?$`) }).first().click()
+    await page.waitForTimeout(120)
+    const m = await medir()
+    const c = await page.evaluate(() => { const e = document.querySelector('.conteudo'); return e ? e.scrollHeight - e.clientHeight : -1 })
+    const tapa = await page.evaluate(() => {
+      // a barra de ação não pode tapar conteúdo quando o painel está no fim
+      const b = document.querySelector('.barra-acao'); if (!b) return false
+      const r = b.getBoundingClientRect(); return r.bottom > innerHeight + 1
+    })
+    if (sep === 'Jogo' || sep === 'Plantel' || sep === 'Classificação') await page.screenshot({ path: join(OUT, `sep-${sep.normalize('NFD').replace(/[^a-zA-Z]/g, '').toLowerCase()}-${nome}.png`) })
+    if (m.sh > m.ih + 1 || m.sw > m.iw + 1 || tapa) falhas.push(`${nome} ${sep}: página ${m.sw}x${m.sh} em ${m.iw}x${m.ih}${tapa ? ' barra fora do ecrã' : ''}`)
+    transborda.push(`${nome.padEnd(16)} ${sep.padEnd(14)} conteúdo a mais: ${c}px`)
+  }
+  await page.locator('.principal-nav button').filter({ hasText: /^Jogo/ }).first().click()
 }
+if (process.env.DETALHE) console.log(transborda.join('\n'))
 await page.setViewportSize({ width: 1280, height: 800 })
 await page.getByRole('button', { name: 'Jogar jornada' }).click()
 await page.getByTestId('campo-vivo').or(page.getByTestId('repeticao')).first().waitFor({ timeout: 8000 })

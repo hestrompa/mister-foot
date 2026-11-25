@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Jogo, Posicao } from '../core/types'
 import type { Partida } from '../core/partida'
 import { FORMACOES, type Escalacao, type Formacao, type Postura } from '../core/partida'
@@ -69,11 +69,24 @@ export function repararEscalacao(jogo: Jogo, esc: Escalacao, indisp: ReadonlySet
 /** Jogo fora da liga (taça): outra partida, outro título e outras baixas. */
 export interface OutroJogo { partida: Partida; titulo: string; indisp: Set<number>; indispAdv?: Set<number>; botao?: string }
 
-export function PreJogo({ jogo, mudar, jogar, outro }: { jogo: Jogo; mudar: (e: Escalacao) => void; jogar: () => void; outro?: OutroJogo }) {
+export function PreJogo({ jogo, mudar, jogar, outro, avisos }: { jogo: Jogo; mudar: (e: Escalacao) => void; jogar: () => void; outro?: OutroJogo; avisos?: ReactNode }) {
   const { mundo, epoca, clubeId } = jogo
   const esc = jogo.escalacao
   const meu = mundo.clubes[clubeId]
   const [sel, setSel] = useState<number | null>(null)
+  const [vista, setVista] = useState<'avisos' | 'equipa' | 'adversario'>('equipa')
+  // Telemóvel: com avisos por tratar (pré-época, conferência, direção) abre primeiro a aba dos avisos.
+  const avisosRef = useRef<HTMLDivElement>(null)
+  const [nAvisos, setNAvisos] = useState(0)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const n = avisosRef.current?.childElementCount ?? 0
+    if (n !== nAvisos) setNAvisos(n)
+  })
+  const abriuAvisos = useRef(false)
+  useEffect(() => {
+    if (nAvisos > 0 && !abriuAvisos.current) { abriuAvisos.current = true; setVista('avisos') }
+  }, [nAvisos])
   const indisp = outro?.indisp ?? indisponiveisDe(mundo, epoca, clubeId)
   const p = outro?.partida ?? minhaPartida(jogo, epoca.jornada)
   const tab = tabela(mundo, epoca, meu.divisao)
@@ -111,7 +124,7 @@ export function PreJogo({ jogo, mudar, jogar, outro }: { jogo: Jogo; mudar: (e: 
   if (!p || !adv) return <p className="nota">Não há jogo marcado nesta jornada.</p>
 
   return (
-    <div className="pre-jogo">
+    <div className="pre-jogo" data-vista={vista}>
       <div className={`cartao proximo-jogo ${outro ? 'aviso-taca' : ''}`}>
         <div className="pj-cab">{outro ? outro.titulo : `Jornada ${epoca.jornada} de ${epoca.totalJornadas} · ${p.casaId === clubeId ? 'em casa' : 'fora'}`}</div>
         <div className="pj-equipas">
@@ -124,27 +137,14 @@ export function PreJogo({ jogo, mudar, jogar, outro }: { jogo: Jogo; mudar: (e: 
         </div>
       </div>
 
+      <nav className="separadores pj-vistas" aria-label="Pré-jogo">
+        {nAvisos > 0 && <button className={vista === 'avisos' ? 'ativo' : ''} onClick={() => setVista('avisos')}>Avisos ({nAvisos})</button>}
+        <button className={vista === 'equipa' ? 'ativo' : ''} onClick={() => setVista('equipa')}>Onze</button>
+        <button className={vista === 'adversario' ? 'ativo' : ''} onClick={() => setVista('adversario')}>Tática e adversário</button>
+      </nav>
       <div className="pj-colunas">
+      <div className="sep-jogo-avisos pj-col-c" ref={avisosRef}>{avisos}</div>
       <div className="pj-col pj-col-a">
-      <div className="cartao tatica">
-        <label className="campo">Formação
-          <select value={esc.formacao} onChange={(e) => {
-            const f = e.target.value as Formacao
-            mudar(manterPlano(escalarAuto(mundo, clubeId, indisp, f), esc))
-          }}>
-            {(Object.keys(FORMACOES) as Formacao[]).map((f) => <option key={f} value={f}>{f}</option>)}
-          </select>
-        </label>
-        <div className="campo">Postura
-          <div className="grupo-botoes">
-            {POSTURAS.map((x) => (
-              <button key={x.v} className={`botao ${esc.postura === x.v ? 'ativo' : ''}`} onClick={() => mudar({ ...esc, postura: x.v })}>{x.t}</button>
-            ))}
-          </div>
-        </div>
-        <button className="botao" onClick={() => { setSel(null); mudar(manterPlano(escalarAuto(mundo, clubeId, indisp, esc.formacao), esc)) }}>Escalação automática</button>
-      </div>
-
       <p className="nota">{sel == null ? 'Toca num titular e depois num jogador do banco para os trocar.' : `A trocar ${mundo.jogadores[sel].curto}: escolhe quem entra.`}</p>
 
       <div className="onze-grelha">
@@ -191,6 +191,25 @@ export function PreJogo({ jogo, mudar, jogar, outro }: { jogo: Jogo; mudar: (e: 
 
       </div>
       <div className="pj-col pj-col-b">
+      <div className="cartao tatica">
+        <label className="campo">Formação
+          <select value={esc.formacao} onChange={(e) => {
+            const f = e.target.value as Formacao
+            mudar(manterPlano(escalarAuto(mundo, clubeId, indisp, f), esc))
+          }}>
+            {(Object.keys(FORMACOES) as Formacao[]).map((f) => <option key={f} value={f}>{f}</option>)}
+          </select>
+        </label>
+        <div className="campo">Postura
+          <div className="grupo-botoes">
+            {POSTURAS.map((x) => (
+              <button key={x.v} className={`botao ${esc.postura === x.v ? 'ativo' : ''}`} onClick={() => mudar({ ...esc, postura: x.v })}>{x.t}</button>
+            ))}
+          </div>
+        </div>
+        <button className="botao" onClick={() => { setSel(null); mudar(manterPlano(escalarAuto(mundo, clubeId, indisp, esc.formacao), esc)) }}>Escalação automática</button>
+      </div>
+
       <Antevisao jogo={jogo} partida={outro?.partida} indispAdv={outro?.indispAdv} aplicar={(pl) => mudar({ ...esc, plano: pl })} />
 
       <PlanoJogoCartao jogo={jogo} mudar={mudar} escAdv={escalacaoAdversario(jogo, outro?.partida, outro?.indispAdv) ?? undefined} />

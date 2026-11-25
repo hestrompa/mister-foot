@@ -213,6 +213,17 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
   })
 
   const mudarEscalacao = (e: Escalacao) => atualizar({ ...jogo, escalacao: e })
+  const avisosJogo = (
+    <>
+      <Dicas sep={sep} />
+      <AvisoDirecao jogo={jogo} abrir={() => setSep('carreira')} />
+      <AvisoConquistas jogo={jogo} atualizar={atualizar} />
+      <AvisoInvestidor jogo={jogo} />
+      <AvisoTesouraria jogo={jogo} abrir={() => setSep('clube')} />
+      <PreEpoca jogo={jogo} atualizar={atualizar} />
+      {!pendTaca && !pendEu && <><AvisoRival jogo={jogo} /><ConferenciaCartao jogo={jogo} atualizar={atualizar} /></>}
+    </>
+  )
 
   const aposJornada = () => {
     setAoVivo(null)
@@ -269,7 +280,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
   )
 
   if (fim) {
-    return <div className="ecra jogo">{cabecalho}<FimEpoca jogo={jogo} d={fim} continuar={() => setFim(null)} /></div>
+    return <div className="ecra jogo shell">{cabecalho}<main className="conteudo"><FimEpoca jogo={jogo} d={fim} continuar={() => setFim(null)} /></main></div>
   }
   if (tacaVivo) {
     return (
@@ -307,7 +318,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
   }
   const mudouClube = () => { setSep('jogo'); setVerClube(null); setDiv(mundo.clubes[jogo.clubeId].divisao) }
   if (despedido(jogo) && !aoVivo) {
-    return <div className="ecra jogo">{cabecalho}<Despedido jogo={jogo} atualizar={atualizar} mudouClube={mudouClube} /><Rodape /></div>
+    return <div className="ecra jogo shell">{cabecalho}<main className="conteudo"><Despedido jogo={jogo} atualizar={atualizar} mudouClube={mudouClube} /><Rodape /></main></div>
   }
   if (aoVivo) {
     return (
@@ -318,7 +329,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
   }
 
   return (
-    <div className="ecra jogo">
+    <div className="ecra jogo shell" data-sep={sep}>
       {cabecalho}
       <nav className="separadores principal-nav">
         {([['jogo', 'Jogo'], ['plantel', 'Plantel'], ['balneario', conflitosPendentes(jogo) ? `Balneário (${conflitosPendentes(jogo)})` : 'Balneário'], ['staff', 'Staff'], ['mercado', `Mercado${propostasPendentes(jogo) ? ` (${propostasPendentes(jogo)})` : ''}`], ['taca', pendTaca ? 'Taça (!)' : 'Taça'], ['europa', pendEu ? 'Europa (!)' : 'Europa'], ['classificacao', 'Classificação'], ['calendario', 'Calendário'], ['clube', 'Clube'], ['carreira', `Carreira${ofertasPendentes(jogo) ? ` (${ofertasPendentes(jogo)})` : ''}`], ['divisoes', 'Divisões'], ['noticias', `Imprensa${noticiasPorLer(jogo) ? ` (${noticiasPorLer(jogo)})` : ''}`], ['historia', 'História']] as [Separador, string][]).map(([k, t]) => (
@@ -327,24 +338,18 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
         <button className="sair" onClick={sair}>Menu</button>
       </nav>
 
-      <Dicas sep={sep} />
+      <main className="conteudo">
+
+      {sep !== 'jogo' && <Dicas sep={sep} />}
 
       {sep === 'jogo' && (
         <div className="sep-jogo">
-          <div className="sep-jogo-avisos">
-            <AvisoDirecao jogo={jogo} abrir={() => setSep('carreira')} />
-            <AvisoConquistas jogo={jogo} atualizar={atualizar} />
-            <AvisoInvestidor jogo={jogo} />
-            <AvisoTesouraria jogo={jogo} abrir={() => setSep('clube')} />
-            <PreEpoca jogo={jogo} atualizar={atualizar} />
-            {!pendTaca && !pendEu && <><AvisoRival jogo={jogo} /><ConferenciaCartao jogo={jogo} atualizar={atualizar} /></>}
-          </div>
           <div className="sep-jogo-main">
             {(pendTaca
-          ? <PreJogo key="taca" jogo={jogo} mudar={mudarEscalacao} outro={avisoTaca(jogo as JogoComTaca, pendTaca.ronda, pendTaca.partida)} jogar={() => setTacaVivo(`${jogo.epoca.ano}-${pendTaca.partida.id}`)} />
+          ? <PreJogo key="taca" jogo={jogo} mudar={mudarEscalacao} avisos={avisosJogo} outro={avisoTaca(jogo as JogoComTaca, pendTaca.ronda, pendTaca.partida)} jogar={() => setTacaVivo(`${jogo.epoca.ano}-${pendTaca.partida.id}`)} />
           : pendEu
-            ? <PreJogo key="europa" jogo={{ ...jogo, mundo: mundoEuropa(jogo as JogoComEuropa) }} mudar={mudarEscalacao} outro={avisoEuropa(jogo as JogoComEuropa, pendEu.comp, pendEu.ronda, pendEu.partida, pendEu.dia)} jogar={() => setEuVivo(`${jogo.epoca.ano}-${pendEu.partida.id}`)} />
-            : <PreJogo jogo={jogo} mudar={mudarEscalacao} jogar={() => setAoVivo(`${jogo.epoca.ano}-${jogo.epoca.jornada}`)} />)}
+            ? <PreJogo key="europa" jogo={{ ...jogo, mundo: mundoEuropa(jogo as JogoComEuropa) }} mudar={mudarEscalacao} avisos={avisosJogo} outro={avisoEuropa(jogo as JogoComEuropa, pendEu.comp, pendEu.ronda, pendEu.partida, pendEu.dia)} jogar={() => setEuVivo(`${jogo.epoca.ano}-${pendEu.partida.id}`)} />
+            : <PreJogo jogo={jogo} mudar={mudarEscalacao} avisos={avisosJogo} jogar={() => setAoVivo(`${jogo.epoca.ano}-${jogo.epoca.jornada}`)} />)}
           </div>
         </div>
       )}
@@ -438,6 +443,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
         </>
       )}
       <Rodape />
+      </main>
     </div>
   )
 }

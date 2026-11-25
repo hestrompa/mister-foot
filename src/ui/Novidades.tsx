@@ -5,6 +5,7 @@ export const NOVIDADES: { data: string; itens: string[] }[] = [
   {
     data: '25/11',
     itens: [
+      'Ecrãs de gestão sem scroll da página: cabeçalho, menu e botão de jogar sempre à vista. No computador o separador Jogo mostra o onze, a tática e o adversário e os avisos lado a lado; no telemóvel ficam em abas (Avisos, Onze, Tática e adversário). Balneário e Staff em colunas, Calendário em duas metades, tabelas mais compactas.',
       'Jogo ao vivo em ecrã inteiro e sem scroll: no computador relato, campo e tabela lado a lado; no tablet e no telemóvel o campo encaixa no espaço livre e o relato, os jogos e a tabela ficam em abas. Com o telemóvel deitado, o campo ocupa a altura toda.',
       'Os outros ecrãs usam a largura toda: menu de separadores sempre visível no topo, pré-jogo em duas colunas e ecrã inicial em duas colunas em ecrãs largos.',
     ],

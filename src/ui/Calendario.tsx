@@ -29,7 +29,9 @@ export function Calendario({ jogo }: { jogo: Jogo }) {
       </tr>,
     )
   }
+  const metade: number[] = []
   for (let j = 1; j <= epoca.totalJornadas; j++) {
+    if (j === Math.ceil(epoca.totalJornadas / 2) + 1) metade.push(linhas.length)
     const p = minhaPartida(jogo, j)
     if (!p) continue
     const casa = p.casaId === clubeId
@@ -76,11 +78,16 @@ export function Calendario({ jogo }: { jogo: Jogo }) {
   return (
     <>
       <p className="nota">Toca num jogo já jogado para ver a ficha: táticas, onzes, substituições, golos e cartões.</p>
-      <div className="tabela-wrap">
-        <table className="tabela calendario">
-          <thead><tr><th className="num">J</th><th></th><th>Adversário</th><th className="num">Resultado</th></tr></thead>
-          <tbody>{linhas}</tbody>
-        </table>
+      {/* Duas metades da época lado a lado em ecrãs largos (uma por baixo da outra nos estreitos). */}
+      <div className="cal-metades">
+        {[linhas.slice(0, metade[0] ?? linhas.length), linhas.slice(metade[0] ?? linhas.length)].filter((l) => l.length).map((l, i) => (
+          <div key={i} className="tabela-wrap">
+            <table className="tabela calendario">
+              <thead><tr><th className="num">J</th><th></th><th>Adversário</th><th className="num">Resultado</th></tr></thead>
+              <tbody>{l}</tbody>
+            </table>
+          </div>
+        ))}
       </div>
       <JogosAnteriores jogo={jogo} abrir={(id) => setVer(fichaPorId(jogo, id) ?? null)} />
     </>
