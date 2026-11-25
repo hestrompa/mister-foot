@@ -329,17 +329,25 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
 
       <Dicas sep={sep} />
 
-      {sep === 'jogo' && <AvisoDirecao jogo={jogo} abrir={() => setSep('carreira')} />}
-      {sep === 'jogo' && <AvisoConquistas jogo={jogo} atualizar={atualizar} />}
-      {sep === 'jogo' && <AvisoInvestidor jogo={jogo} />}
-      {sep === 'jogo' && <AvisoTesouraria jogo={jogo} abrir={() => setSep('clube')} />}
-      {sep === 'jogo' && <PreEpoca jogo={jogo} atualizar={atualizar} />}
-      {sep === 'jogo' && !pendTaca && !pendEu && <><AvisoRival jogo={jogo} /><ConferenciaCartao jogo={jogo} atualizar={atualizar} /></>}
-      {sep === 'jogo' && (pendTaca
-        ? <PreJogo key="taca" jogo={jogo} mudar={mudarEscalacao} outro={avisoTaca(jogo as JogoComTaca, pendTaca.ronda, pendTaca.partida)} jogar={() => setTacaVivo(`${jogo.epoca.ano}-${pendTaca.partida.id}`)} />
-        : pendEu
-          ? <PreJogo key="europa" jogo={{ ...jogo, mundo: mundoEuropa(jogo as JogoComEuropa) }} mudar={mudarEscalacao} outro={avisoEuropa(jogo as JogoComEuropa, pendEu.comp, pendEu.ronda, pendEu.partida, pendEu.dia)} jogar={() => setEuVivo(`${jogo.epoca.ano}-${pendEu.partida.id}`)} />
-          : <PreJogo jogo={jogo} mudar={mudarEscalacao} jogar={() => setAoVivo(`${jogo.epoca.ano}-${jogo.epoca.jornada}`)} />)}
+      {sep === 'jogo' && (
+        <div className="sep-jogo">
+          <div className="sep-jogo-avisos">
+            <AvisoDirecao jogo={jogo} abrir={() => setSep('carreira')} />
+            <AvisoConquistas jogo={jogo} atualizar={atualizar} />
+            <AvisoInvestidor jogo={jogo} />
+            <AvisoTesouraria jogo={jogo} abrir={() => setSep('clube')} />
+            <PreEpoca jogo={jogo} atualizar={atualizar} />
+            {!pendTaca && !pendEu && <><AvisoRival jogo={jogo} /><ConferenciaCartao jogo={jogo} atualizar={atualizar} /></>}
+          </div>
+          <div className="sep-jogo-main">
+            {(pendTaca
+          ? <PreJogo key="taca" jogo={jogo} mudar={mudarEscalacao} outro={avisoTaca(jogo as JogoComTaca, pendTaca.ronda, pendTaca.partida)} jogar={() => setTacaVivo(`${jogo.epoca.ano}-${pendTaca.partida.id}`)} />
+          : pendEu
+            ? <PreJogo key="europa" jogo={{ ...jogo, mundo: mundoEuropa(jogo as JogoComEuropa) }} mudar={mudarEscalacao} outro={avisoEuropa(jogo as JogoComEuropa, pendEu.comp, pendEu.ronda, pendEu.partida, pendEu.dia)} jogar={() => setEuVivo(`${jogo.epoca.ano}-${pendEu.partida.id}`)} />
+            : <PreJogo jogo={jogo} mudar={mudarEscalacao} jogar={() => setAoVivo(`${jogo.epoca.ano}-${jogo.epoca.jornada}`)} />)}
+          </div>
+        </div>
+      )}
 
       {sep === 'taca' && <TacaSeparador jogo={jogo as JogoComTaca} />}
 

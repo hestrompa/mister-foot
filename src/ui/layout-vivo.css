@@ -1,0 +1,121 @@
+/* Jogo ao vivo em ecrã inteiro: a página nunca faz scroll, só as listas por dentro. */
+.ecra.ecra-vivo:has(> .lv) { max-width: none; padding: 0; }
+.lv {
+  --lv-gap: clamp(6px, 1vmin, 12px);
+  height: 100vh; height: 100dvh;
+  display: grid; gap: var(--lv-gap);
+  padding: var(--lv-gap) max(var(--lv-gap), env(safe-area-inset-right)) max(var(--lv-gap), env(safe-area-inset-bottom)) max(var(--lv-gap), env(safe-area-inset-left));
+  overflow: hidden;
+  /* Vertical (telemóvel, tablet ao alto): tudo numa coluna. */
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto auto minmax(150px, 32dvh);
+  grid-template-areas: "placar" "palco" "ctl" "abas" "p";
+}
+.lv > * { min-width: 0; min-height: 0; }
+.lv-placar { grid-area: placar; }
+.lv-ctl { grid-area: ctl; display: flex; flex-direction: column; gap: 4px; }
+.lv-palco { grid-area: palco; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.lv-abas { grid-area: abas; display: flex; gap: 4px; border-bottom: 1px solid var(--linha); }
+.lv-abas button { flex: 1; background: none; border: none; padding: 7px 8px; color: var(--texto-2); font-weight: 600; border-bottom: 3px solid transparent; }
+.lv-abas button.ativo { color: var(--texto); border-bottom-color: var(--verde); }
+.lv-lado { display: contents; }
+.lv-p { grid-area: p; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+.lv-p > .sub-tit { margin: 0 0 6px; flex: none; }
+.lv-p > ul, .lv-p > .tabela-wrap, .lv-p > .dica { min-height: 0; }
+.lv-p > ul { flex: 1; overflow-y: auto; max-height: none; overscroll-behavior: contain; }
+.lv-tabela > .tabela-wrap { flex: 1; overflow: auto; overscroll-behavior: contain; }
+.lv-relato.cartao, .lv-jogos.cartao { padding: 10px 12px; }
+.lv-abas, .lv-p { display: none; }
+.lv-abas { display: flex; }
+.lv[data-aba="relato"] .lv-relato, .lv[data-aba="jogos"] .lv-jogos, .lv[data-aba="tabela"] .lv-tabela { display: flex; }
+.lv-p .sub-tit { display: none; }
+
+/* Painel de substituições / intervalo: por cima do campo, com scroll próprio. */
+.lv-painel { grid-row: 2 / -1; grid-column: 1 / -1; z-index: 2; overflow-y: auto; overscroll-behavior: contain; border-radius: 12px; }
+.lv-painel > .painel-subs { min-height: 100%; }
+
+/* Placar compacto. */
+.lv .meu-jogo { padding: 8px 12px; }
+.lv .meu-jogo .pj-cab { font-size: 11px; }
+.lv .mj-placar { margin: 2px 0; }
+.lv .mj-golos { font-size: clamp(28px, 5vmin, 48px); }
+.lv .mj-eq { font-size: 13px; }
+.lv .mj-eq .emblema, .lv .mj-eq svg { width: clamp(26px, 4.5vmin, 40px); height: auto; }
+.lv .mj-estat { margin-top: 2px; gap: 4px; }
+.lv .meu-jogo .dica { margin: 2px 0 0; font-size: 12px; }
+.lv .controlos { gap: 4px; }
+.lv .controlos .botao { padding: 6px 8px; }
+.lv .controlos .modo-rep { flex-basis: auto; flex-grow: 2; font-size: 13px; }
+.lv .saltar-jogo { margin: 0; }
+
+/* Campo 2D: o cartão enche o palco e o canvas encaixa (largura e altura). */
+.lv-palco > .cartao { width: 100%; height: 100%; max-width: none; margin: 0; display: flex; flex-direction: column; }
+.lv-palco .repeticao { gap: 6px; padding: 8px; }
+.lv-palco .rep-tela { flex: 1 1 0; min-height: 0; display: flex; align-items: center; justify-content: center; background: transparent; border-radius: 0; }
+.lv-palco .rep-tela canvas { width: auto; border-radius: 8px; }
+
+/* Ecrã médio deitado (tablet, portátil pequeno): campo à esquerda, abas à direita. */
+@media (orientation: landscape) and (min-width: 760px) and (min-height: 521px) {
+  .lv {
+    grid-template-columns: minmax(0, 1fr) clamp(260px, 32vw, 380px);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-areas: "placar abas" "ctl p" "palco p";
+  }
+  .lv-painel { grid-row: 2 / -1; grid-column: 1; }
+}
+
+/* Ecrã largo (computador): relato | jogo | jogos e tabela, tudo à vista. */
+@media (orientation: landscape) and (min-width: 1200px) and (min-height: 600px) {
+  .lv {
+    grid-template-columns: clamp(240px, 20vw, 380px) minmax(0, 1fr) clamp(280px, 24vw, 440px);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-areas: "relato placar lado" "relato ctl lado" "relato palco lado";
+  }
+  .lv-abas { display: none; }
+  .lv .lv-p, .lv[data-aba] .lv-p { display: flex; }
+  .lv-p .sub-tit { display: block; }
+  .lv-relato { grid-area: relato; }
+  .lv-lado { grid-area: lado; display: flex; flex-direction: column; gap: var(--lv-gap); min-height: 0; }
+  .lv-jogos { flex: 0 1 auto; max-height: 55%; }
+  .lv.sem-tabela .lv-jogos { max-height: none; }
+  .lv-tabela { flex: 1 1 0; }
+  .lv-painel { grid-row: 2 / -1; grid-column: 2; }
+}
+
+/* Telemóvel deitado: o campo usa a altura toda à esquerda. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .lv {
+    grid-template-columns: minmax(0, 1.5fr) minmax(220px, 1fr);
+    grid-template-rows: auto auto auto minmax(0, 1fr);
+    grid-template-areas: "palco placar" "palco ctl" "palco abas" "palco p";
+  }
+  .lv .meu-jogo { padding: 4px 8px; }
+  .lv .mj-min { font-size: 13px; }
+  .lv .mj-golos { font-size: 26px; }
+  .lv .mj-eq { font-size: 11px; }
+  .lv .mj-eq span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+  .lv .mj-estat { display: none; }
+  .lv .controlos .botao { padding: 4px 6px; font-size: 13px; }
+  .lv-abas button { padding: 4px 6px; }
+  .lv-painel { grid-row: 1 / -1; grid-column: 1 / -1; }
+}
+
+/* Telemóvel ao alto: nomes longos no placar não empurram o layout. */
+@media (max-width: 640px) {
+  .lv .mj-eq span { font-size: 12px; }
+  .lv .controlos .modo-rep { flex-basis: 100%; }
+}
+
+/* Ao alto: durante uma repetição o lance fica com o espaço das abas. Ecrãs baixos: menos estatística. */
+@media (orientation: portrait), (max-width: 759px) and (min-height: 521px) {
+  .lv:has(.lv-palco .repeticao) { grid-template-rows: auto minmax(0, 1fr) auto 0 0; }
+  .lv:has(.lv-palco .repeticao) .lv-abas, .lv:has(.lv-palco .repeticao) .lv-p { visibility: hidden; }
+}
+@media (orientation: portrait) and (max-height: 720px) {
+  .lv { grid-template-rows: auto minmax(0, 1fr) auto auto minmax(110px, 26dvh); }
+  .lv .mj-estat { display: none; }
+  .lv .mj-eq { flex-direction: row; justify-content: center; }
+  .lv .mj-eq span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+/* O botão de fechar / segunda parte fica sempre à vista no fundo do painel. */
+.lv-painel .painel-subs > .botao.principal.grande { position: sticky; bottom: 0; box-shadow: 0 -8px 16px var(--cartao); }

@@ -12,6 +12,7 @@ import {
 } from '../core/taca'
 import { Emblema } from './Emblema'
 import { PainelSubs } from './AoVivo'
+import { LayoutVivo } from './LayoutVivo'
 import { SaltarJogo, sementeJornada } from './comum'
 import './taca.css'
 
@@ -222,8 +223,8 @@ export function AoVivoTaca({ jogo, guardar, continuar }: { jogo: JogoComTaca; gu
   const casa = mundo.clubes[mp.casaId], fora = mundo.clubes[mp.foraId]
   const feed = [...mp.eventos].filter((ev) => ev !== mon.escondido()).reverse()
   return (
-    <div className="ao-vivo">
-      <div className="av-principal">
+    <LayoutVivo
+      placar={(
         <div className="cartao meu-jogo">
           <div className="pj-cab">{ronda.nome === NOME_SUPERTACA ? NOME_SUPERTACA : `${NOME_TACA} · ${ronda.nome}`}</div>
           <div className="mj-min">{terminou(meu) ? 'Final' : fase === 'intervalo' ? 'Intervalo' : `${meu.minuto}'${mp.prolongamento ? ' · prolongamento' : ''}`}</div>
@@ -234,27 +235,26 @@ export function AoVivoTaca({ jogo, guardar, continuar }: { jogo: JogoComTaca; gu
           </div>
           {terminou(meu) && mp.golos[0] === mp.golos[1] && <p className="dica">Empate depois do prolongamento: decide-se nos penáltis.</p>}
         </div>
+      )}
+      controlos={<>
         <div className="controlos">
           {[1, 2, 4].map((v) => <button key={v} className={`botao ${vel === v ? 'ativo' : ''}`} onClick={() => setVel(v)}>{v}x</button>)}
           <button className="botao" disabled={fase !== 'jogo'} onClick={() => setFase('pausa')}>Pausa</button>
           {mon.botaoModo}
         </div>
         <SaltarJogo saltar={saltar} />
-        {mon.campo({ repeticao: fase === 'repeticao', acabou: terminou(meu), vel })}
-        {(fase === 'intervalo' || fase === 'lesao' || fase === 'pausa') && (
+      </>}
+      palco={mon.campo({ repeticao: fase === 'repeticao', acabou: terminou(meu), vel })}
+      painel={(fase === 'intervalo' || fase === 'lesao' || fase === 'pausa') ? (
           <PainelSubs jogo={jogo} estado={meu} lado={meuLado} fase={fase} lesionado={lesionado}
             retomar={() => { setLesionado(null); setFase('jogo') }} atualizar={() => setTick((x) => x + 1)} />
-        )}
-        <div className="cartao relato">
-          <h3 className="sub-tit">Relato</h3>
+        ) : undefined}
+      relato={<>
           {feed.length === 0 && <p className="dica">O árbitro apita para o início.</p>}
           <ul>{feed.map((ev, i) => <li key={feed.length - i} className={`ev ev-${ev.tipo} ${ev.lado === meuLado ? 'nosso' : ''}`}><span className="ev-min">{ev.minuto}'</span> {ev.texto}</li>)}</ul>
-        </div>
-      </div>
-      <div className="av-lateral">
-        <div className="cartao placares">
-          <h3 className="sub-tit">{ronda.nome} · outros jogos</h3>
-          <ul>
+      </>}
+      tituloJogos={`${ronda.nome} · outros jogos`}
+      jogos={<ul>
             {estados.slice(1).map((e) => {
               const p = e.partida
               return (
@@ -267,10 +267,8 @@ export function AoVivoTaca({ jogo, guardar, continuar }: { jogo: JogoComTaca; gu
               )
             })}
             {estados.length === 1 && <li className="dica">É o único jogo desta ronda.</li>}
-          </ul>
-        </div>
-      </div>
-    </div>
+          </ul>}
+    />
   )
 }
 

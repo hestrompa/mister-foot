@@ -124,6 +124,8 @@ export function PreJogo({ jogo, mudar, jogar, outro }: { jogo: Jogo; mudar: (e: 
         </div>
       </div>
 
+      <div className="pj-colunas">
+      <div className="pj-col pj-col-a">
       <div className="cartao tatica">
         <label className="campo">Formação
           <select value={esc.formacao} onChange={(e) => {
@@ -142,10 +144,6 @@ export function PreJogo({ jogo, mudar, jogar, outro }: { jogo: Jogo; mudar: (e: 
         </div>
         <button className="botao" onClick={() => { setSel(null); mudar(manterPlano(escalarAuto(mundo, clubeId, indisp, esc.formacao), esc)) }}>Escalação automática</button>
       </div>
-
-      <Antevisao jogo={jogo} partida={outro?.partida} indispAdv={outro?.indispAdv} aplicar={(pl) => mudar({ ...esc, plano: pl })} />
-
-      <PlanoJogoCartao jogo={jogo} mudar={mudar} escAdv={escalacaoAdversario(jogo, outro?.partida, outro?.indispAdv) ?? undefined} />
 
       <p className="nota">{sel == null ? 'Toca num titular e depois num jogador do banco para os trocar.' : `A trocar ${mundo.jogadores[sel].curto}: escolhe quem entra.`}</p>
 
@@ -189,6 +187,15 @@ export function PreJogo({ jogo, mudar, jogar, outro }: { jogo: Jogo; mudar: (e: 
             })}
           </ul>
         </div>
+      </div>
+
+      </div>
+      <div className="pj-col pj-col-b">
+      <Antevisao jogo={jogo} partida={outro?.partida} indispAdv={outro?.indispAdv} aplicar={(pl) => mudar({ ...esc, plano: pl })} />
+
+      <PlanoJogoCartao jogo={jogo} mudar={mudar} escAdv={escalacaoAdversario(jogo, outro?.partida, outro?.indispAdv) ?? undefined} />
+
+      </div>
       </div>
 
       <div className="barra-acao">

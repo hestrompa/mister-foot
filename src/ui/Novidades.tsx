@@ -3,6 +3,13 @@ import { useState } from 'react'
 
 export const NOVIDADES: { data: string; itens: string[] }[] = [
   {
+    data: '25/11',
+    itens: [
+      'Jogo ao vivo em ecrã inteiro e sem scroll: no computador relato, campo e tabela lado a lado; no tablet e no telemóvel o campo encaixa no espaço livre e o relato, os jogos e a tabela ficam em abas. Com o telemóvel deitado, o campo ocupa a altura toda.',
+      'Os outros ecrãs usam a largura toda: menu de separadores sempre visível no topo, pré-jogo em duas colunas e ecrã inicial em duas colunas em ecrãs largos.',
+    ],
+  },
+  {
     data: '24/11',
     itens: [
       'Quem pega numa equipa a meio da época tem 10 jornadas de graça antes de poder ser despedido. Dicas novas para Staff, Carreira, Imprensa e Calendário.',
