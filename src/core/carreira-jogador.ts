@@ -11,9 +11,10 @@ import type { EstadoEpoca, Partida } from './partida'
 import type { Jogador, Mundo } from './types'
 import type { Rng } from './rng'
 import { anosExtraCarreira } from './personalidade'
+import type { EpocaComNotas } from './notas'
 
-/** Uma época no histórico: [ano, clubeId, divisão, jogos, golos, força no fim, assistências]. */
-export type LinhaHist = [number, number, number, number, number, number, number?]
+/** Uma época no histórico: [ano, clubeId, divisão, jogos, golos, força no fim, assistências, nota média em décimas]. */
+export type LinhaHist = [number, number, number, number, number, number, number?, number?]
 
 export type JogadorComHist = Jogador & { hist?: LinhaHist[] }
 
@@ -95,12 +96,20 @@ export function fecharEpocaJogadores(mundo: Mundo, epoca: EstadoEpoca, rng: Rng)
     const golos = epoca.marcadores[id] ?? 0
     const assist = e.assist?.[id] ?? 0
     const linha: LinhaHist = [epoca.ano, c.id, c.divisao, jogos, golos, j.forca]
-    if (assist) linha.push(assist)
+    const nt = (epoca as EpocaComNotas).notas?.[id]
+    if (assist || nt?.[1]) linha.push(assist)
+    if (nt?.[1]) linha.push(Math.round(nt[0] / nt[1]))
     ;(j.hist ??= []).push(linha)
     // Uma carreira longa não precisa de mais de 25 linhas (as mais antigas juntam-se na primeira).
     if (j.hist.length > 25) {
       const [a, b] = j.hist
-      j.hist.splice(0, 2, [a[0], b[1], b[2], a[3] + b[3], a[4] + b[4], Math.max(a[5], b[5]), (a[6] ?? 0) + (b[6] ?? 0)])
+      const l: LinhaHist = [a[0], b[1], b[2], a[3] + b[3], a[4] + b[4], Math.max(a[5], b[5]), (a[6] ?? 0) + (b[6] ?? 0)]
+      // Nota média das duas épocas juntas, pesada pelos jogos.
+      if (a[7] || b[7]) {
+        const ja = a[7] ? a[3] : 0, jb = b[7] ? b[3] : 0
+        l.push(Math.round(((a[7] ?? 0) * ja + (b[7] ?? 0) * jb) / Math.max(1, ja + jb)))
+      }
+      j.hist.splice(0, 2, l)
     }
     if (j.idade <= 21 && e.jogos) {
       if (jogos >= 18 && rng.chance(0.5)) j.potencial = Math.min(99, j.potencial + 1 + (jogos >= 28 ? 1 : 0))

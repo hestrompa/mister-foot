@@ -7,6 +7,7 @@ import { indisponiveisDe, tabela } from '../core/epoca'
 import { Emblema } from './Emblema'
 import { Forca } from './Plantel'
 import { EstadoFisico } from './Balneario'
+import { NotaEpoca } from './Nota'
 import { FormaPills, minhaPartida } from './comum'
 import { Antevisao, escalacaoAdversario } from './Antevisao'
 import { PlanoJogoCartao } from './PlanoJogo'
@@ -163,7 +164,7 @@ export function PreJogo({ jogo, mudar, jogar, outro }: { jogo: Jogo; mudar: (e: 
                     <span className="nome-jogador">{j.curto}</span>
                     {fora && <span className="fora-pos" title={`Joga habitualmente como ${j.posicao}`}>{j.posicao}</span>}
                     {estado(id)}
-                    <span className="direita"><Forca valor={j.forca} /></span>
+                    <span className="direita"><NotaEpoca epoca={epoca} id={id} /> <Forca valor={j.forca} /></span>
                   </button>
                 </li>
               )
@@ -182,7 +183,7 @@ export function PreJogo({ jogo, mudar, jogar, outro }: { jogo: Jogo; mudar: (e: 
                     <span className={`pos pos-${j.posicao}`}>{j.posicao}</span>
                     <span className="nome-jogador">{j.curto}</span>
                     {estado(id)}
-                    <span className="direita"><Forca valor={j.forca} /></span>
+                    <span className="direita"><NotaEpoca epoca={epoca} id={id} /> <Forca valor={j.forca} /></span>
                   </button>
                 </li>
               )

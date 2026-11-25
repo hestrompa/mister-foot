@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { Jogo } from '../core/types'
 import { FORMACOES, type EventoJogo, type Formacao, type Lado, type LinhaTabela, type Partida, type Postura } from '../core/partida'
 import { escalarIA } from '../core/tatica'
-import { avancarMinuto, definirAutoSub, lancesDoMinuto, mudarFormacao, posseDoMinuto, iniciarJogo, mudarPostura, mudarMarcacao, substituir, type EstadoJogo } from '../core/motor'
+import { avancarMinuto, definirAutoSub, lancesDoMinuto, mudarFormacao, notasDoJogo, posseDoMinuto, iniciarJogo, mudarPostura, mudarMarcacao, substituir, type EstadoJogo } from '../core/motor'
+import { MelhorEmCampo, Nota, NotasEquipa } from './Nota'
 import { EscolhaMarcacao } from './PlanoJogo'
 import { concluirJornada, indisponiveisDe, partidasDaJornada, tabela } from '../core/epoca'
 import { Emblema } from './Emblema'
@@ -40,6 +41,8 @@ interface Resumo {
   cenas: CenaRepeticao[]
   /** Repetições dos golos dos outros jogos, por partida. */
   outrasCenas: Record<string, CenaRepeticao[]>
+  /** O meu jogo (para as notas com os feitos de cada um). */
+  estado: EstadoJogo
 }
 
 function clonarLinha(l: LinhaTabela): LinhaTabela {
@@ -207,6 +210,8 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
     const cal = epoca.calendario[div - 1][jornada - 1]
     for (const e of estados) {
       e.partida.jogada = true
+      // As notas finais só depois de revelar o último golo escondido.
+      e.partida.notas = notasDoJogo(e)
       const i = cal.findIndex((p) => p.id === e.partida.id)
       if (i >= 0) cal[i] = e.partida
     }
@@ -215,7 +220,7 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
     concluirJornada(mundo, epoca, sementeJornada(jogo, 999))
     const depois = tabela(mundo, epoca, div)
     guardar()
-    setResumo({ minha: meu.partida, outras: estados.slice(1).map((e) => e.partida), antes, depois, jornada, cenas: cenas.current.slice(), outrasCenas: { ...outrasCenas.current } })
+    setResumo({ minha: meu.partida, outras: estados.slice(1).map((e) => e.partida), antes, depois, jornada, cenas: cenas.current.slice(), outrasCenas: { ...outrasCenas.current }, estado: meu })
     setFase('resumo')
   }
 
@@ -346,6 +351,11 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
             })}
           </ul>
         </div>
+        {meu.minuto > 0 && (
+          <div className="cartao notas-ao-vivo">
+            <NotasEquipa mundo={mundo} partida={mp} lado={meuLado} estado={meu} titulo="Notas ao vivo" />
+          </div>
+        )}
         <h3 className="sub-tit">Classificação ao vivo</h3>
         <TabelaLiga mundo={mundo} linhas={ao} divisao={div} meuId={clubeId} compacta />
       </div>
@@ -374,6 +384,7 @@ export function PainelSubs({ jogo, estado, lado, fase, lesionado, retomar, atual
   const fora = new Set(estado.fora)
   const restam = 5 - estado.subs[lado]
   const banco = esc.suplentes.filter((id) => !fora.has(id) && !esc.titulares.includes(id))
+  const notas = notasDoJogo(estado)
 
   const entrar = (id: number) => {
     if (sai == null) return
@@ -415,7 +426,8 @@ export function PainelSubs({ jogo, estado, lado, fase, lesionado, retomar, atual
                   <span className={`pos pos-${j.posicao}`}>{j.posicao}</span><span className="nome-jogador">{j.curto}</span>
                   {lesao && <span className="baixa baixa-lesao">Lesionado</span>}
                   {off && <span className="baixa baixa-castigo">Expulso</span>}
-                  <span className="direita forca-num">{j.forca}</span>
+                  <span className="direita"><Nota n={notas[id]} titulo="Nota provisória neste jogo" /></span>
+                  <span className="forca-num">{j.forca}</span>
                 </button>
               </li>
             )
@@ -478,6 +490,7 @@ function ResumoJornada({ jogo, r, continuar }: { jogo: Jogo; r: Resumo; continua
             autoFim={false} rotuloFim="Fechar" fim={() => setVer(null)} />
         )}
         {p.porque && <p className="porque">{p.porque}</p>}
+        <MelhorEmCampo mundo={mundo} partida={p} />
         {jogo.epoca.ultimoBalanco?.[clubeId] && (() => {
           const b = jogo.epoca.ultimoBalanco![clubeId]
           return (
@@ -493,6 +506,10 @@ function ResumoJornada({ jogo, r, continuar }: { jogo: Jogo; r: Resumo; continua
           {posDepois < posAntes && <span className="sobe-seta"> ▲ {posAntes - posDepois}</span>}
           {posDepois > posAntes && <span className="desce-seta"> ▼ {posDepois - posAntes}</span>}
         </p>
+      </div>
+      <div className="cartao notas-colunas">
+        <NotasEquipa mundo={mundo} partida={p} lado="casa" estado={r.estado} titulo={`Notas · ${mundo.clubes[p.casaId].nome}`} />
+        <NotasEquipa mundo={mundo} partida={p} lado="fora" estado={r.estado} titulo={`Notas · ${mundo.clubes[p.foraId].nome}`} />
       </div>
       <div className="resumo-grelha">
         <div className="cartao placares">

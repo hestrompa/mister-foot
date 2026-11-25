@@ -99,6 +99,8 @@ export interface Partida {
   serie?: [0 | 1, number, boolean][]
   /** Escalações iniciais (casa, fora), para a ficha do jogo. */
   onzes?: [Escalacao, Escalacao]
+  /** Nota de cada jogador com nota (0 a 10, uma casa decimal). Ver notas.ts. */
+  notas?: Record<number, number>
 }
 
 export interface LinhaTabela {

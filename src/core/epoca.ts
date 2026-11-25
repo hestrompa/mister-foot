@@ -11,6 +11,7 @@ import { contarJogos, fecharEpocaJogadores } from './carreira-jogador'
 import { duracaoLesao, evoluirFimEpoca, nivelDe, treinarJornada } from './staff'
 import { aplicarJogo, semanaDeTreino } from './balneario'
 import { definirFadiga, fadigaDe } from './lesoes'
+import { fatorValorNota, jogosComNota, mediaEpoca, registarNotas } from './notas'
 
 /** Quantos clubes sobem e descem entre divisões vizinhas. */
 const TROCAS = 3
@@ -226,6 +227,12 @@ export function concluirJornada(mundo: Mundo, epoca: EstadoEpoca, semente: numbe
 
   // 3. Aplicar os eventos desta jornada.
   contarJogos(epoca, daJornada)
+  registarNotas(epoca, daJornada, (id) => !!mundo.jogadores[id])
+  // O valor de mercado segue a força, a idade e a forma da época (nota média).
+  for (const p of daJornada) for (const k of Object.keys(p.notas ?? {})) {
+    const jg = mundo.jogadores[Number(k)]
+    if (jg) jg.valor = valorComForma(jg.forca, jg.idade, epoca, jg.id)
+  }
   for (const p of daJornada) {
     const amarelosNoJogo = new Set<number>()
     for (const ev of p.eventos) {
@@ -274,6 +281,20 @@ export function concluirJornada(mundo: Mundo, epoca: EstadoEpoca, semente: numbe
   treinarJornada(mundo, jogaram, lesionados, mistura(semente, epoca.ano, j, 0x7e1), epoca.ano)
 
   epoca.jornada += 1
+}
+
+/** Valor de mercado com a forma da época (ver notas.fatorValorNota). */
+export function valorComForma(forca: number, idade: number, epoca: EstadoEpoca, id: number): number {
+  const f = fatorValorNota(mediaEpoca(epoca, id), jogosComNota(epoca, id))
+  const v = valorDe(forca, idade)
+  return f === 1 ? v : arredondaValor(v * f)
+}
+
+function arredondaValor(v: number): number {
+  if (v >= 1_000_000) return Math.round(v / 50_000) * 50_000
+  if (v >= 100_000) return Math.round(v / 5_000) * 5_000
+  if (v >= 10_000) return Math.round(v / 500) * 500
+  return Math.round(v / 50) * 50
 }
 
 /** Tabela ordenada: pontos, diferença de golos, golos marcados, nome. */
@@ -390,7 +411,7 @@ export function fecharEpoca(mundo: Mundo, epoca: EstadoEpoca): ResumoEpoca {
     const j = mundo.jogadores[id]
     j.idade += 1
     evoluirFimEpoca(mundo, j, rng)
-    j.valor = valorDe(j.forca, j.idade)
+    j.valor = valorComForma(j.forca, j.idade, epoca, id)
     j.contrato = Math.max(0, j.contrato - 1)
   }
 

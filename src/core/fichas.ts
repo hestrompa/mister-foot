@@ -6,7 +6,7 @@ import { posicaoDoLugar } from './motor'
 import type { JogoComTaca } from './taca'
 import { COMPETICOES, mundoEuropa, type JogoComEuropa } from './europa'
 
-export interface JogadorFicha { id: number; nome: string; pos: Posicao; forca: number }
+export interface JogadorFicha { id: number; nome: string; pos: Posicao; forca: number; /** Nota no jogo (fichas novas). */ nota?: number }
 
 export interface EquipaFicha {
   id: number
@@ -64,7 +64,8 @@ function equipa(mundo: Mundo, p: Partida, lado: 0 | 1): EquipaFicha {
   const esc = p.onzes?.[lado]
   const jog = (jid: number, pos?: Posicao): JogadorFicha => {
     const j = mundo.jogadores[jid]
-    return { id: jid, nome: j?.curto ?? '?', pos: pos ?? j?.posicao ?? 'MED', forca: j?.forca ?? 0 }
+    const nota = p.notas?.[jid]
+    return { id: jid, nome: j?.curto ?? '?', pos: pos ?? j?.posicao ?? 'MED', forca: j?.forca ?? 0, ...(nota != null ? { nota } : {}) }
   }
   return {
     id,

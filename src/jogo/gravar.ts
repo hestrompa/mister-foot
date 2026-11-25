@@ -25,8 +25,8 @@ function compactar(epoca: EstadoEpoca): EstadoEpoca {
   const calendario = epoca.calendario.map((div) =>
     div.map((jornada) =>
       jornada.map((p): Partida =>
-        p.jornada < limite && (p.onzes || p.eventos.some((e) => e.tipo !== 'golo'))
-          ? { ...p, eventos: p.eventos.filter((e) => e.tipo === 'golo'), onzes: undefined }
+        p.jornada < limite && (p.onzes || p.notas || p.eventos.some((e) => e.tipo !== 'golo'))
+          ? { ...p, eventos: p.eventos.filter((e) => e.tipo === 'golo'), onzes: undefined, notas: undefined }
           : p,
       ),
     ),

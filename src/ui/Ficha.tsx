@@ -1,5 +1,6 @@
 // Ficha de um jogo: resultado, táticas, onzes, substituições, golos, cartões e estatísticas.
 import type { Jogo } from '../core/types'
+import { Nota } from './Nota'
 import { fichasDe, posturaFinal, type EquipaFicha, type EventoFicha, type FichaJogo, type JogadorFicha } from '../core/fichas'
 import { lugares } from '../core/formato'
 import { Emblema } from './Emblema'
@@ -45,7 +46,7 @@ function Onze({ e, f, lado }: { e: EquipaFicha; f: FichaJogo; lado: 0 | 1 }) {
       {e.titulares.length > 0 && (
         <ol className="fi-lista">
           {e.titulares.map((j) => (
-            <li key={j.id}><span className={`pos pos-${j.pos}`}>{j.pos}</span> <span className="fi-nome">{j.nome}</span> <span className="fi-f">{j.forca}</span> <span className="fi-marcas">{marcas(j)}</span></li>
+            <li key={j.id}><span className={`pos pos-${j.pos}`}>{j.pos}</span> <span className="fi-nome">{j.nome}</span> <span className="fi-f">{j.forca}</span> <span className="fi-marcas">{marcas(j)}</span>{j.nota != null && <> <Nota n={j.nota} /></>}</li>
           ))}
         </ol>
       )}
@@ -54,7 +55,7 @@ function Onze({ e, f, lado }: { e: EquipaFicha; f: FichaJogo; lado: 0 | 1 }) {
           <p className="fi-sup-tit">Suplentes</p>
           <ul className="fi-lista fi-sup">
             {e.suplentes.map((j) => (
-              <li key={j.id} className={entrou(j) ? 'entrou' : ''}><span className={`pos pos-${j.pos}`}>{j.pos}</span> <span className="fi-nome">{j.nome}</span> <span className="fi-f">{j.forca}</span> <span className="fi-marcas">{marcas(j)}</span></li>
+              <li key={j.id} className={entrou(j) ? 'entrou' : ''}><span className={`pos pos-${j.pos}`}>{j.pos}</span> <span className="fi-nome">{j.nome}</span> <span className="fi-f">{j.forca}</span> <span className="fi-marcas">{marcas(j)}</span>{j.nota != null && <> <Nota n={j.nota} /></>}</li>
             ))}
           </ul>
         </>

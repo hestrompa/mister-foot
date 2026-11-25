@@ -5,8 +5,10 @@ import { ATRIBUTOS, NOME_ATRIBUTO, atributo, atributosDe, pontosFortes, type Atr
 import { AtributosJogador, PontoForte } from './Atributos'
 import { Carater, CarreiraJogador } from './CarreiraJogador'
 import type { EstadoEpoca } from '../core/partida'
+import { mediaEpoca } from '../core/notas'
+import { NotaEpoca, UltimasNotas } from './Nota'
 
-type Coluna = 'posicao' | 'nome' | 'idade' | 'forca' | 'atr' | 'valor' | 'salario' | 'contrato'
+type Coluna = 'posicao' | 'nome' | 'idade' | 'forca' | 'nota' | 'atr' | 'valor' | 'salario' | 'contrato'
 const ORDEM_POS: Record<Posicao, number> = { GR: 0, DEF: 1, MED: 2, AV: 3 }
 
 const BANDEIRAS: Record<string, string> = { PT: 'Portugal', BR: 'Brasil', ES: 'Espanha', AO: 'Angola', CV: 'Cabo Verde', GW: 'Guiné-Bissau', MZ: 'Moçambique' }
@@ -41,12 +43,13 @@ export function Plantel({ mundo, clubeId, epoca }: { mundo: Mundo; clubeId: numb
         case 'posicao': return ORDEM_POS[a.posicao] - ORDEM_POS[b.posicao] || b.forca - a.forca
         case 'nome': return a.nome.localeCompare(b.nome, 'pt')
         case 'atr': return valorVer(a) - valorVer(b)
+        case 'nota': return (mediaEpoca(epoca, a.id) ?? 0) - (mediaEpoca(epoca, b.id) ?? 0)
         default: return (a[col] as number) - (b[col] as number)
       }
     }
     const s = l.sort(cmp)
     return desc ? s.reverse() : s
-  }, [mundo, clubeId, col, desc, ver])
+  }, [mundo, clubeId, col, desc, ver, epoca])
 
   const cab = (c: Coluna, t: string, cls = '') => (
     <th className={cls}>
@@ -68,7 +71,7 @@ export function Plantel({ mundo, clubeId, epoca }: { mundo: Mundo; clubeId: numb
           {ATRIBUTOS.map((a) => <option key={a} value={a}>{NOME_ATRIBUTO[a]}</option>)}
         </select>
       </label>
-      <span className="nota">Carrega num jogador para ver os atributos, a personalidade e a carreira.</span>
+      <span className="nota">Carrega num jogador para ver os atributos, a personalidade e a carreira. Nota = média da época (0 a 10).</span>
     </div>
     <div className="tabela-wrap">
       <table className="tabela plantel">
@@ -78,6 +81,7 @@ export function Plantel({ mundo, clubeId, epoca }: { mundo: Mundo; clubeId: numb
             {cab('nome', 'Nome')}
             {cab('idade', 'Idade', 'num')}
             {cab('forca', 'Força')}
+            {cab('nota', 'Nota', 'num')}
             {cab('atr', ver === 'forte' ? 'Forte' : NOME_ATRIBUTO[ver].slice(0, 3) + '.')}
             {cab('valor', 'Valor', 'num esconde-m')}
             {cab('salario', 'Salário', 'num esconde-m')}
@@ -97,13 +101,14 @@ export function Plantel({ mundo, clubeId, epoca }: { mundo: Mundo; clubeId: numb
               </td>
               <td className="num">{j.idade}</td>
               <td><Forca valor={j.forca} /></td>
+              <td className="num"><NotaEpoca epoca={epoca} id={j.id} /></td>
               <td>{ver === 'forte' ? <PontoForte j={j} /> : <Forca valor={atributo(j, ver)} />}</td>
               <td className="num esconde-m">{euros(j.valor)}</td>
               <td className="num esconde-m">{euros(j.salario)}</td>
               <td className="num esconde-m">{j.contrato} {j.contrato === 1 ? 'ano' : 'anos'}</td>
             </tr>
             {aberto === j.id && (
-              <tr className="atr-linha"><td colSpan={8}><AtributosJogador j={j} /><CarreiraJogador j={j} mundo={mundo} epoca={epoca} /></td></tr>
+              <tr className="atr-linha"><td colSpan={9}>{mediaEpoca(epoca, j.id) != null && <p className="nota">Últimas notas: <UltimasNotas epoca={epoca} id={j.id} /></p>}<AtributosJogador j={j} /><CarreiraJogador j={j} mundo={mundo} epoca={epoca} /></td></tr>
             )}
             </Fragment>
           ))}

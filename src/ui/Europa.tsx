@@ -2,7 +2,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Jogo, Mundo } from '../core/types'
 import type { Lado, Partida } from '../core/partida'
-import { definirAutoSub, iniciarJogo, type EstadoJogo } from '../core/motor'
+import { definirAutoSub, iniciarJogo, notasDoJogo, type EstadoJogo } from '../core/motor'
+import { MelhorEmCampo, NotasEquipa } from './Nota'
 import { depoisDoMinuto, novaRondaViva, passoRonda, rondaAcabou, saltarRonda, terminouVivo, type PausaVivo } from '../core/ao-vivo'
 import { useMonitor2D } from './Monitor2D'
 import { euros } from '../core/formato'
@@ -285,7 +286,7 @@ export function AoVivoEuropa({ jogo, guardar, continuar }: { jogo: JogoComEuropa
       return [e.escalacoes.casa.titulares.filter((id) => !fora.has(id)), e.escalacoes.fora.titulares.filter((id) => !fora.has(id))]
     }
     const antes = jogo.mundo.clubes[clubeId].dinheiro
-    jogarDiaEuropa(jogo, ini.map((x) => ({ partida: { ...x.e.partida, jogada: true }, emCampo: emCampo(x.e) })))
+    jogarDiaEuropa(jogo, ini.map((x) => ({ partida: { ...x.e.partida, jogada: true, notas: notasDoJogo(x.e) }, emCampo: emCampo(x.e) })))
     guardar()
     const minha = meu.comp.rondas[dia].jogos.find((p) => p.id === meu.e.partida.id) ?? meu.e.partida
     setResumo({ minha, premio: jogo.mundo.clubes[clubeId].dinheiro - antes })
@@ -350,6 +351,7 @@ export function AoVivoEuropa({ jogo, guardar, continuar }: { jogo: JogoComEuropa
           {feed.length === 0 && <p className="dica">O árbitro apita para o início.</p>}
           <ul>{feed.map((ev, i) => <li key={feed.length - i} className={`ev ev-${ev.tipo} ${ev.lado === meuLado ? 'nosso' : ''}`}><span className="ev-min">{ev.minuto}'</span> {ev.texto}</li>)}</ul>
         </div>
+        {meu.e.minuto > 0 && <div className="cartao notas-ao-vivo"><NotasEquipa mundo={jogoVista.mundo} partida={mp} lado={meuLado} estado={meu.e} titulo="Notas ao vivo" /></div>}
       </div>
       <div className="av-lateral">
         <div className="cartao placares">
@@ -414,8 +416,15 @@ function ResumoEuropa({ jogo, m, comp, dia, p, premio, continuar }: { jogo: Jogo
           {p.publico ? <>Público {p.publico.toLocaleString('pt-PT')} · bilheteira {euros(p.receita ?? 0)} · </> : null}
           {premio > 0 ? <b className="positivo">entrou {euros(premio)} em caixa</b> : 'sem prémio'}
         </p>
+        <MelhorEmCampo mundo={m} partida={p} />
         {r.fase === 'grupo' && g >= 0 && <div className="eu-grupos um"><Grupo jogo={jogo} m={m} comp={comp} g={g} /></div>}
       </div>
+      {p.notas && (
+        <div className="cartao notas-colunas">
+          <NotasEquipa mundo={m} partida={p} lado="casa" titulo={`Notas · ${m.clubes[p.casaId]?.nome ?? ''}`} />
+          <NotasEquipa mundo={m} partida={p} lado="fora" titulo={`Notas · ${m.clubes[p.foraId]?.nome ?? ''}`} />
+        </div>
+      )}
       {outros.length > 0 && (
         <div className="cartao placares">
           <h3 className="sub-tit">Outros resultados · {info.nome}</h3>

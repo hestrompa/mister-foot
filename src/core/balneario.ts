@@ -2,6 +2,7 @@
 // A moral vive no próprio jogador (campo opcional, gravado com o mundo) para o motor a poder ler.
 // O estado do balneário do utilizador (capitão, promessas, mensagens) vive em jogo.balneario.
 import { personalidadeDe } from './personalidade'
+import { moralDaNota } from './notas'
 import type { Jogador, Jogo, Mundo } from './types'
 
 /** Moral de quem ainda não tem registo. */
@@ -275,6 +276,8 @@ export function aplicarJogo(mundo: Mundo, p: import('./partida').Partida, indisp
         const titular = onze.has(id)
         if (titular) d += e === 'titular' ? 1 : e === 'rotacao' ? 2 : 3
         else d += e === 'titular' ? -1 : 1.5
+        // A exibição também conta: uma grande nota dá confiança, uma má tira.
+        d += moralDaNota(p.notas?.[id]) * (liga ? 1 : 0.6)
         definirFadigaJ(j, m)
       } else if (!indisponiveis.has(id)) {
         d += (e === 'titular' ? -4 : e === 'rotacao' ? -1.5 : e === 'reserva' ? -0.3 : 0) * (liga ? 1 : 0.4)

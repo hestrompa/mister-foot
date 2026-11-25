@@ -2,7 +2,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Jogo, Mundo } from '../core/types'
 import type { Lado, Partida } from '../core/partida'
-import { definirAutoSub, iniciarJogo, type EstadoJogo } from '../core/motor'
+import { definirAutoSub, iniciarJogo, notasDoJogo, type EstadoJogo } from '../core/motor'
+import { MelhorEmCampo, NotasEquipa } from './Nota'
 import { depoisDoMinuto, novaRondaViva, passoRonda, rondaAcabou, saltarRonda, terminouVivo, type PausaVivo } from '../core/ao-vivo'
 import { useMonitor2D } from './Monitor2D'
 import { euros } from '../core/formato'
@@ -189,7 +190,7 @@ export function AoVivoTaca({ jogo, guardar, continuar }: { jogo: JogoComTaca; gu
       return [e.escalacoes.casa.titulares.filter((id) => !fora.has(id)), e.escalacoes.fora.titulares.filter((id) => !fora.has(id))]
     }
     const antes = mundo.clubes[clubeId].dinheiro
-    const feita = jogarRondaTaca(jogo, estados.map((e) => ({ partida: { ...e.partida, jogada: true }, emCampo: emCampo(e) })))
+    const feita = jogarRondaTaca(jogo, estados.map((e) => ({ partida: { ...e.partida, jogada: true, notas: notasDoJogo(e) }, emCampo: emCampo(e) })))
     guardar()
     const minha = (feita ? meuJogoNaRonda(jogo, feita) : undefined) ?? meu.partida
     setResumo({ ronda: feita ?? ronda, minha, premio: mundo.clubes[clubeId].dinheiro - antes })
@@ -250,6 +251,7 @@ export function AoVivoTaca({ jogo, guardar, continuar }: { jogo: JogoComTaca; gu
           {feed.length === 0 && <p className="dica">O árbitro apita para o início.</p>}
           <ul>{feed.map((ev, i) => <li key={feed.length - i} className={`ev ev-${ev.tipo} ${ev.lado === meuLado ? 'nosso' : ''}`}><span className="ev-min">{ev.minuto}'</span> {ev.texto}</li>)}</ul>
         </div>
+        {meu.minuto > 0 && <div className="cartao notas-ao-vivo"><NotasEquipa mundo={mundo} partida={mp} lado={meuLado} estado={meu} titulo="Notas ao vivo" /></div>}
       </div>
       <div className="av-lateral">
         <div className="cartao placares">
@@ -315,10 +317,17 @@ function ResumoRonda({ jogo, r, continuar }: { jogo: JogoComTaca; r: ResumoTaca;
           {p.publico ? <>Público {p.publico.toLocaleString('pt-PT')} · bilheteira {euros(p.receita ?? 0)} para {mundo.clubes[p.casaId].sigla} · </> : null}
           {premioEsperado > 0 ? <b className="positivo">prémio {euros(premioEsperado)}</b> : 'sem prémio'}
         </p>
+        <MelhorEmCampo mundo={mundo} partida={p} />
         {meuProx && prox && (
           <p className="pos-mudanca">Sorteio da {prox.nome}: {mundo.clubes[meuProx.casaId === clubeId ? meuProx.foraId : meuProx.casaId].nome}, {prox.nome === 'Final' ? 'em campo neutro' : meuProx.casaId === clubeId ? 'em casa' : 'fora'}, depois da {prox.aposJornada}.ª jornada.</p>
         )}
       </div>
+      {p.notas && (
+        <div className="cartao notas-colunas">
+          <NotasEquipa mundo={mundo} partida={p} lado="casa" titulo={`Notas · ${mundo.clubes[p.casaId].nome}`} />
+          <NotasEquipa mundo={mundo} partida={p} lado="fora" titulo={`Notas · ${mundo.clubes[p.foraId].nome}`} />
+        </div>
+      )}
       {outros.length > 0 && (
         <div className="cartao placares">
           <h3 className="sub-tit">Outros resultados</h3>

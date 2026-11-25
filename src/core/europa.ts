@@ -4,6 +4,7 @@
 // os jogos usam uma cópia do mundo com eles lá dentro (`mundoEuropa`). Joga-se a meio da semana, em datas
 // que não chocam com a Taça Nacional, e não há salários nesses jogos.
 import { aplicarJogo } from './balneario'
+import { registarNotas } from './notas'
 import type { Clube, Jogador, Jogo, Mundo, Posicao } from './types'
 import type { Escalacao, EstatJogo, Partida } from './partida'
 import { createRng, type Rng } from './rng'
@@ -551,6 +552,7 @@ export function jogarDiaEuropa(jogo: JogoComEuropa, jogadas: { partida: Partida;
       }
       // Noites europeias também cansam e mexem com a moral (sem semana de descanso pelo meio).
       aplicarJogo(m, p, ausentesEu, false)
+      registarNotas(epoca, [p], (id) => !!mundo.jogadores[id])
       // Bilheteira para os clubes nacionais em casa (noite europeia: estádio mais cheio, mas a organização fica com parte). A final é neutra.
       const casa = m.clubes[p.casaId]
       if (!final && nacional(p.casaId)) {

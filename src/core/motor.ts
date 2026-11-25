@@ -10,6 +10,7 @@ import { fatorFisico, riscoLesao, sortearLesao } from './lesoes'
 import { fatorFaltaPers, personalidadeDe } from './personalidade'
 import { atributo, fatores, notaNaPosicao, type FatoresMotor } from './atributos'
 import { EFEITO_INSTRUCAO, fatorMarcado, type Instrucao, type Marcacao, type PlanoJogo } from './plano'
+import { calcularNotas, contarCartao, contarDesarme, contarPerda, contarRemate, novaConta, type ContaJogo, type Contas } from './notas'
 
 /** Estado interno de um jogo a decorrer. Serializável (sem funções). */
 export interface EstadoJogo {
@@ -44,6 +45,10 @@ interface Extra {
   /** Remate sem perigo do último minuto e canto sem remate (só para o 2D encenar; não decide nada). */
   remateMinuto?: { lado: Lado; lance: Lance }
   cantoMinuto?: Lado
+  /** Contas de cada jogador para a nota (ver notas.ts). Gravações antigas não têm: começam vazias. */
+  contas?: Contas
+  /** Gerador próprio da nota (desarmes, perdas, erros): não mexe no gerador do jogo. */
+  rngNota?: number
 }
 
 export const MAX_SUBS = 5
@@ -140,6 +145,8 @@ export function iniciarJogo(_mundo: Mundo, partida: Partida, casa: Escalacao, fo
     iniciais: [...casa.titulares, ...fora.titulares],
     posseAcum: 0,
     fimMinuto: 90,
+    contas: {},
+    rngNota: ((semente ^ 0x5bd1e995) >>> 0) || 1,
   }
   return {
     partida: { ...partida, golos: [0, 0], eventos: [], estat: estatVazia(), jogada: false, porque: undefined, onzes: [copia(casa), copia(fora)] },
@@ -289,6 +296,19 @@ export function forcaSetores(mundo: Mundo, esc: Escalacao, emCasa: boolean): Set
   return somarSetores(campo, emCasa, esc.postura, esc.plano)
 }
 
+/** Gerador mínimo (mulberry32, como o rng.ts) para a nota: barato de criar a cada minuto. */
+function rngLeve(seed: number): Rng & { state(): number } {
+  let s = seed >>> 0
+  const next = () => {
+    s = (s + 0x6d2b79f5) >>> 0
+    let t = s
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+  return { next, chance: (p: number) => next() < p, pick: <T>(l: readonly T[]) => l[Math.floor(next() * l.length)], state: () => s } as Rng
+}
+
 function pesado<T>(rng: Rng, itens: T[], peso: (t: T) => number): T | undefined {
   let total = 0
   for (const it of itens) total += Math.max(0, peso(it))
@@ -305,6 +325,8 @@ const PESO_REMATE: Record<Posicao, number> = { GR: 0, DEF: 0.5, MED: 1.6, AV: 4 
 const PESO_PASSE: Record<Posicao, number> = { GR: 0.05, DEF: 0.8, MED: 3, AV: 1.5 }
 const PESO_FALTA: Record<Posicao, number> = { GR: 0.2, DEF: 3, MED: 2, AV: 1 }
 const PESO_CABECA: Record<Posicao, number> = { GR: 0, DEF: 2, MED: 1, AV: 2.6 }
+const PESO_DESARME: Record<Posicao, number> = { GR: 0, DEF: 3, MED: 2, AV: 0.6 }
+const PESO_PERDA: Record<Posicao, number> = { GR: 0.1, DEF: 0.6, MED: 1.2, AV: 1.5 }
 
 function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v))
@@ -361,6 +383,19 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
 
   const campo = { casa: emCampo(mundo, estado, 'casa'), fora: emCampo(mundo, estado, 'fora') }
   const set = { casa: setores(mundo, estado, 'casa', campo.casa), fora: setores(mundo, estado, 'fora', campo.fora) }
+  // Nota: minutos e posição de quem está em campo; o gerador da nota é separado do do jogo.
+  const cs = (x.contas ??= {})
+  const rn = rngLeve(x.rngNota ?? (((estado.rng ^ 0x5bd1e995) >>> 0) || 1))
+  for (const lado of LADOS) {
+    const l = idx(lado)
+    for (const c of campo[lado]) {
+      const k = (cs[c.j.id] ??= novaConta(l, c.pos))
+      k.m++
+      k.pos = c.pos
+    }
+  }
+  const conta = (c: EmCampo | undefined): ContaJogo | undefined => (c ? cs[c.j.id] : undefined)
+  let houveRemate = false
 
   // Posse: decide o meio-campo.
   const mc = Math.pow(set.casa.meio + 1, 1.5)
@@ -465,12 +500,20 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
         ...(remC.marcador ? { marcadorId: remC.marcador.id } : {}),
       }
       p.estat.remates[ia]++
+      houveRemate = true
       if (desfecho === 'golo' || desfecho === 'defesa') p.estat.rematesBaliza[ia]++
       if (desfecho === 'golo') {
         p.golos[ia]++
+        // Nota: golos com cada um em campo, e se houve erro do defesa ou do guarda-redes.
+        for (const c of campo[atac]) cs[c.j.id].gf++
+        for (const c of campo[def]) cs[c.j.id].gc++
+        const erroDef = !!defC && origem !== 'penalti' && rn.chance(0.12 * clamp((remC.ef + 1) / (defC.ef + 1), 0.7, 1.5))
+        const erroGR = !!grC && origem !== 'penalti' && rn.chance(origem === 'longe' || esquema === 'direto' ? 0.18 : 0.04)
+        contarRemate(cs, lance, true, erroDef, erroGR)
         evs.push({ minuto: min, tipo: 'golo', lado: atac, jogadorId: remC.j.id, outroId: pasC?.j.id, lance, texto: `${textoGolo(lance, remC.j.curto, pasC?.j.curto)} (${sigla(atac)})` })
       } else {
         const clara = desfecho === 'poste' || origem === 'penalti' || (desfecho === 'defesa' && rng.chance(0.3)) || (desfecho === 'fora' && rng.chance(0.06))
+        contarRemate(cs, lance, clara, false, false)
         if (clara) evs.push({ minuto: min, tipo: 'oportunidade', lado: atac, jogadorId: remC.j.id, outroId: pasC?.j.id, lance, texto: textoOportunidade(lance, remC.j.curto, grC?.j.curto) })
         else x.remateMinuto = { lado: atac, lance }
         if (desfecho !== 'poste' && rng.chance(0.3)) { p.estat.cantos[ia]++; x.cantoMinuto = atac }
@@ -479,6 +522,13 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
   } else if (rng.chance(0.02)) {
     p.estat.cantos[ia]++
     x.cantoMinuto = atac
+  }
+  // Nota: o que o motor não conta (passes, desarmes, perdas de bola) sai do gerador da nota.
+  // Ganha mais desarmes quem defende melhor; perde mais bolas quem passa pior.
+  if (!houveRemate) {
+    const r = rn.next()
+    if (r < 0.5) contarDesarme(conta(pesado(rn, campo[def], (c) => PESO_DESARME[c.pos] * c.f.def * (c.ef + 40) * (c.inst === 'marcar' ? 1.3 : 1))))
+    else if (r < 0.85) contarPerda(conta(pesado(rn, campo[atac], (c) => PESO_PERDA[c.pos] * (2.2 - c.f.pas) / (c.ef + 40))))
   }
 
   // Cartões e lesões.
@@ -498,8 +548,10 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
         p.estat.vermelhos[il]++
         x.expulsos.push(id)
         estado.fora.push(id)
+        contarCartao(cs[id], 'segundo')
         evs.push({ minuto: min, tipo: 'vermelho', lado, jogadorId: id, texto: `Segundo amarelo para ${c.j.curto}. Expulso! (${sigla(lado)})` })
       } else {
+        contarCartao(cs[id], 'amarelo')
         evs.push({ minuto: min, tipo: 'amarelo', lado, jogadorId: id, texto: `Amarelo para ${c.j.curto} (${sigla(lado)}).` })
       }
     } else if (rng.chance(0.0004)) {
@@ -507,6 +559,7 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
       p.estat.vermelhos[il]++
       x.expulsos.push(c.j.id)
       estado.fora.push(c.j.id)
+      contarCartao(cs[c.j.id], 'direto')
       evs.push({ minuto: min, tipo: 'vermelho', lado, jogadorId: c.j.id, texto: `Vermelho direto para ${c.j.curto}! (${sigla(lado)})` })
     }
     const vivos = cl.filter((c) => !estado.fora.includes(c.j.id))
@@ -544,12 +597,14 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
     p.estat.posse = [pc, 100 - pc]
     p.jogada = true
     p.porque = explicar(mundo, p)
+    p.notas = calcularNotas(cs, p.golos, p.estat.posse)
     evs.push({ minuto: min, tipo: 'fim', lado: 'casa', texto: `Fim do jogo: ${sigla('casa')} ${p.golos[0]}-${p.golos[1]} ${sigla('fora')}.` })
   } else {
     const pc = Math.round((100 * x.posseAcum) / min)
     p.estat.posse = [pc, 100 - pc]
   }
   estado.rng = rng.state()
+  x.rngNota = rn.state()
   p.eventos.push(...evs)
   return evs
 }
@@ -694,4 +749,15 @@ export function posseDoMinuto(estado: EstadoJogo): Lado | undefined {
 export function lancesDoMinuto(estado: EstadoJogo): { remate?: { lado: Lado; lance: Lance }; canto?: Lado } {
   const x = ex(estado)
   return { ...(x.remateMinuto ? { remate: x.remateMinuto } : {}), ...(x.cantoMinuto ? { canto: x.cantoMinuto } : {}) }
+}
+
+/** Notas de agora (provisórias a meio do jogo, finais no fim). */
+export function notasDoJogo(estado: EstadoJogo): Record<number, number> {
+  const p = estado.partida
+  return calcularNotas(ex(estado).contas ?? {}, p.golos, p.estat.posse)
+}
+
+/** Contas de um jogador no jogo (remates, desarmes, defesas...), para a UI. */
+export function contaDoJogador(estado: EstadoJogo, id: number): ContaJogo | undefined {
+  return ex(estado).contas?.[id]
 }

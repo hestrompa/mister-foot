@@ -3,6 +3,13 @@ import { useState } from 'react'
 
 export const NOVIDADES: { data: string; itens: string[] }[] = [
   {
+    data: '25/11',
+    itens: [
+      'Nota de 0 a 10 para cada jogador em cada jogo, como nos jornais: golos, assistências, remates, passes para remate, desarmes, defesas, erros, cartões, golos sofridos e o resultado, com pesos por posição. Vê-se ao vivo (para decidir substituições), no resumo com o melhor em campo, na ficha do jogo, e a média da época no plantel, no pré-jogo, no mercado e na carreira de cada jogador.',
+      'A nota conta: uma grande exibição sobe a moral e uma má tira; a média da época mexe no valor de mercado (até 15%).',
+    ],
+  },
+  {
     data: '24/11',
     itens: [
       'Quem pega numa equipa a meio da época tem 10 jornadas de graça antes de poder ser despedido. Dicas novas para Staff, Carreira, Imprensa e Calendário.',

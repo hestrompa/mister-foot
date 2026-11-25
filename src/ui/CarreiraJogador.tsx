@@ -4,6 +4,8 @@ import type { EstadoEpoca } from '../core/partida'
 import { DICA_PERSONALIDADE, NOME_PERSONALIDADE, personalidadeDe } from '../core/personalidade'
 import { assistNaEpoca, histDe, idadeReforma, jogosNaEpoca, totaisCarreira } from '../core/carreira-jogador'
 import { corForca } from './Plantel'
+import { mediaEpoca } from '../core/notas'
+import { Nota } from './Nota'
 import './carreira-jogador.css'
 
 const ep = (ano: number) => `${ano}/${String(ano + 1).slice(2)}`
@@ -37,7 +39,7 @@ export function CarreiraJogador({ j, mundo, epoca }: { j: Jogador; mundo: Mundo;
       {(h.length > 0 || (atual && atual.jogos > 0)) && (
         <div className="tabela-wrap">
           <table className="tabela carreira-tab">
-            <thead><tr><th>Época</th><th>Clube</th><th className="num">Div.</th><th className="num">J</th><th className="num">G</th><th className="num">A</th><th className="num">Força</th></tr></thead>
+            <thead><tr><th>Época</th><th>Clube</th><th className="num">Div.</th><th className="num">J</th><th className="num">G</th><th className="num">A</th><th className="num">Nota</th><th className="num">Força</th></tr></thead>
             <tbody>
               {atual && (
                 <tr className="meu">
@@ -45,6 +47,7 @@ export function CarreiraJogador({ j, mundo, epoca }: { j: Jogador; mundo: Mundo;
                   <td title={nomeClube(j.clubeId)}>{sigla(j.clubeId)}</td>
                   <td className="num">{mundo.clubes[j.clubeId]?.divisao ?? ''}</td>
                   <td className="num">{atual.jogos}</td><td className="num">{atual.golos}</td><td className="num">{atual.assist}</td>
+                  <td className="num"><Nota n={mediaEpoca(epoca, j.id)} /></td>
                   <td className="num" style={{ color: corForca(j.forca) }}>{j.forca}</td>
                 </tr>
               )}
@@ -54,6 +57,7 @@ export function CarreiraJogador({ j, mundo, epoca }: { j: Jogador; mundo: Mundo;
                   <td title={nomeClube(l[1])}>{sigla(l[1])}</td>
                   <td className="num">{l[2]}</td>
                   <td className="num">{l[3]}</td><td className="num">{l[4]}</td><td className="num">{l[6] ?? 0}</td>
+                  <td className="num"><Nota n={l[7] ? l[7] / 10 : undefined} /></td>
                   <td className="num" style={{ color: corForca(l[5]) }}>{l[5]}</td>
                 </tr>
               ))}

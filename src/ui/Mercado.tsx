@@ -1,4 +1,6 @@
 import { Carater } from './CarreiraJogador'
+import { NotaEpoca, UltimasNotas } from './Nota'
+import { jogosComNota, mediaEpoca } from '../core/notas'
 import { NIVEL_MAX_ACADEMIA, NOME_NIVEL_ACADEMIA, bonusAcademia, custoAcademia, efeitoAcademia, manutencaoAcademia, melhorarAcademia, nivelAcademia } from '../core/academia'
 import { useMemo, useState } from 'react'
 import type { Jogador, Posicao } from '../core/types'
@@ -136,7 +138,7 @@ function Comprar({ jogo, soLista, feito }: { jogo: JogoComMercado; soLista: bool
       {linhas.length === 0 ? <p className="nota">Nenhum jogador com estes filtros.</p> : (
         <div className="tabela-wrap">
           <table className="tabela mercado-tab">
-            <thead><tr><th>Pos</th><th>Nome</th><th className="num">Idade</th><th>Força</th><th>{atr ? NOME_ATRIBUTO[atr] : 'Forte'}</th><th className="esconde-m">Clube</th><th className="num">Preço</th></tr></thead>
+            <thead><tr><th>Pos</th><th>Nome</th><th className="num">Idade</th><th>Força</th><th className="num" title="Nota média da época">Nota</th><th>{atr ? NOME_ATRIBUTO[atr] : 'Forte'}</th><th className="esconde-m">Clube</th><th className="num">Preço</th></tr></thead>
             <tbody>
               {linhas.map(({ j, preco }) => (
                 <tr key={j.id} className={`clicavel ${sel === j.id ? 'meu' : ''}`} onClick={() => setSel(j.id)}>
@@ -144,6 +146,7 @@ function Comprar({ jogo, soLista, feito }: { jogo: JogoComMercado; soLista: bool
                   <td><span className="nome-jogador">{j.curto}</span>{j.craque && <span className="craque">craque</span>}</td>
                   <td className="num">{j.idade}</td>
                   <td><Forca valor={j.forca} /></td>
+                  <td className="num"><NotaEpoca epoca={jogo.epoca} id={j.id} /></td>
                   <td>{atr ? <Forca valor={atributo(j, atr)} /> : <PontoForte j={j} />}</td>
                   <td className="esconde-m"><ClubeCurto jogo={jogo} id={j.clubeId} /></td>
                   <td className="num">{euros(preco)}</td>
@@ -222,8 +225,10 @@ function Negociar({ jogo, id, fechar, feito }: { jogo: JogoComMercado; id: numbe
         <span className={`pos pos-${j.posicao}`}>{j.posicao}</span>
         <span className="neg-nome">{j.nome}</span>
         <Forca valor={j.forca} />
+        <NotaEpoca epoca={jogo.epoca} id={j.id} />
         <button className="botao fantasma fechar" onClick={fechar} aria-label="Fechar">Fechar</button>
       </div>
+      <FormaEpoca jogo={jogo} id={j.id} />
       <p className="nota">{j.idade} anos · <ClubeCurto jogo={jogo} id={j.clubeId} /> · valor {euros(j.valor)} · ganha {euros(j.salario)}/mês</p>
       <AtributosJogador j={j} />
       {recusa ? <p className="erro">{recusa}</p> : (
@@ -299,7 +304,7 @@ function Vender({ jogo, feito }: { jogo: JogoComMercado; feito: (r: Resultado) =
       )}
       <div className="tabela-wrap">
         <table className="tabela mercado-tab">
-          <thead><tr><th>Pos</th><th>Nome</th><th className="num">Idade</th><th>Força</th><th className="num">Valor</th><th>Estado</th></tr></thead>
+          <thead><tr><th>Pos</th><th>Nome</th><th className="num">Idade</th><th>Força</th><th className="num" title="Nota média da época">Nota</th><th className="num">Valor</th><th>Estado</th></tr></thead>
           <tbody>
             {plantel.map((j) => {
               const a = anuncios.get(j.id)
@@ -309,6 +314,7 @@ function Vender({ jogo, feito }: { jogo: JogoComMercado; feito: (r: Resultado) =
                   <td><span className="nome-jogador">{j.curto}</span>{j.craque && <span className="craque">craque</span>}</td>
                   <td className="num">{j.idade}</td>
                   <td><Forca valor={j.forca} /></td>
+                  <td className="num"><NotaEpoca epoca={jogo.epoca} id={j.id} /></td>
                   <td className="num">{euros(j.valor)}</td>
                   <td>{a ? <span className={`estado-venda ${a.leilao ? 'leilao' : ''}`}>{a.leilao ? 'Leilão' : 'À venda'} · {euros(a.preco)}</span> : ''}</td>
                 </tr>
@@ -331,8 +337,10 @@ function Anunciar({ jogo, id, fechar, feito }: { jogo: JogoComMercado; id: numbe
         <span className={`pos pos-${j.posicao}`}>{j.posicao}</span>
         <span className="neg-nome">{j.nome}</span>
         <Forca valor={j.forca} />
+        <NotaEpoca epoca={jogo.epoca} id={j.id} />
         <button className="botao fantasma fechar" onClick={fechar} aria-label="Fechar">Fechar</button>
       </div>
+      <FormaEpoca jogo={jogo} id={j.id} />
       <p className="nota">{j.idade} anos · valor {euros(j.valor)} · ganha {euros(j.salario)}/mês · contrato {j.contrato} {j.contrato === 1 ? 'ano' : 'anos'}</p>
       <AtributosJogador j={j} />
       <div className="neg-ajustes">
@@ -570,4 +578,12 @@ function Academia({ jogo, feito }: { jogo: JogoComMercado; feito: (r: Resultado)
       ) : <p className="nota">Nível máximo.</p>}
     </div>
   )
+}
+
+/** Forma da época na negociação: média, jogos com nota e últimas notas. */
+function FormaEpoca({ jogo, id }: { jogo: JogoComMercado; id: number }) {
+  const n = mediaEpoca(jogo.epoca, id)
+  if (n == null) return <p className="nota">Ainda sem notas esta época.</p>
+  const k = jogosComNota(jogo.epoca, id)
+  return <p className="nota">Nota média da época {n.toFixed(1).replace('.', ',')} em {k} {k === 1 ? 'jogo' : 'jogos'} · últimas: <UltimasNotas epoca={jogo.epoca} id={id} /></p>
 }

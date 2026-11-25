@@ -1,6 +1,7 @@
 // Taça Nacional: eliminatórias a uma mão com os 72 clubes, jogadas a meio da semana entre jornadas da liga.
 // Empate no fim dos 90 minutos dá prolongamento (30 minutos) e, se persistir, penáltis. O clube da divisão mais baixa joga em casa; a final é em campo neutro.
 import { aplicarJogo } from './balneario'
+import { registarNotas } from './notas'
 import type { Jogo, Mundo } from './types'
 import type { Escalacao, EstatJogo, EventoJogo, Partida } from './partida'
 import { createRng, type Rng } from './rng'
@@ -437,6 +438,7 @@ export function jogarRondaTaca(jogo: JogoComTaca, jogadas: { partida: Partida; e
   }
   // Moral e cansaço também contam na taça (sem semana de descanso pelo meio).
   for (const p of ronda.jogos) aplicarJogo(mundo, p, ausentesTaca, false)
+  registarNotas(epoca, ronda.jogos, (id) => !!mundo.jogadores[id])
 
   // 4. Dinheiro: bilheteira para a casa (a final é em campo neutro) e prémios a quem passa.
   const pagar = (id: number, v: number) => {
