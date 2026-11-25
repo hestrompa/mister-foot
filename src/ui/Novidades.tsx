@@ -5,6 +5,7 @@ export const NOVIDADES: { data: string; itens: string[] }[] = [
   {
     data: '25/11',
     itens: [
+      'Cartões à vista durante o jogo: quem tem amarelo leva um cartãozinho junto da carica no campo 2D, e as notas ao vivo e o painel Equipa mostram o amarelo, o segundo amarelo e o vermelho ao lado do nome. Tudo vem da mesma conta do árbitro e segue o jogador em substituições, mudanças de formação, prolongamento, taça e Europa.',
       'Nota de 0 a 10 para cada jogador em cada jogo, como nos jornais: golos, assistências, remates, passes para remate, desarmes, defesas, erros, cartões, golos sofridos e o resultado, com pesos por posição. Vê-se ao vivo (para decidir substituições), no resumo com o melhor em campo, na ficha do jogo, e a média da época no plantel, no pré-jogo, no mercado e na carreira de cada jogador.',
       'A nota conta: uma grande exibição sobe a moral e uma má tira; a média da época mexe no valor de mercado (até 15%).',
       'Ecrãs de gestão sem scroll da página: cabeçalho, menu e botão de jogar sempre à vista. No computador o separador Jogo mostra o onze, a tática e o adversário e os avisos lado a lado; no telemóvel ficam em abas (Avisos, Onze, Tática e adversário). Balneário e Staff em colunas, Calendário em duas metades, tabelas mais compactas.',

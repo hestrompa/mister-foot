@@ -47,3 +47,34 @@ describe('notas dos jogadores', () => {
     expect(frac(todas, (v) => v >= 9)).toBeLessThan(0.02)
   })
 })
+
+import { avancarMinuto, cartoesDoJogo, cartoesDosEventos, escalarAuto, iniciarJogo } from './motor'
+import { criarAmbiente, emCampoDe } from './repeticao'
+
+describe('cartões no jogo', () => {
+  it('uma só fonte: o estado e os eventos dizem o mesmo a cada minuto, e o 2D marca quem tem amarelo', () => {
+    const m = gerarMundo(3)
+    const cl = m.divisoes[0].clubes
+    let vistos = 0
+    for (let k = 0; k < 40; k++) {
+      const a = cl[k % cl.length], b = cl[(k + 3) % cl.length]
+      const p = { id: `c${k}`, competicao: 'liga' as const, divisao: 1, jornada: 1, casaId: a, foraId: b, golos: [0, 0] as [number, number], eventos: [], jogada: false,
+        estat: { posse: [50, 50] as [number, number], remates: [0, 0] as [number, number], rematesBaliza: [0, 0] as [number, number], cantos: [0, 0] as [number, number], amarelos: [0, 0] as [number, number], vermelhos: [0, 0] as [number, number] } }
+      const e = iniciarJogo(m, p, escalarAuto(m, a, new Set()), escalarAuto(m, b, new Set()), 77 + k)
+      while (!e.partida.jogada) {
+        avancarMinuto(m, e)
+        const c = cartoesDoJogo(e)
+        expect(c).toEqual(cartoesDosEventos(e.partida.eventos))
+        const am = Object.values(c).filter((v) => v === 'amarelo').length
+        const ver = Object.values(c).filter((v) => v !== 'amarelo').length
+        expect(am + ver).toBe(Object.keys(c).length)
+        // O campo 2D (minuto ambiente) marca exatamente quem está em campo com amarelo.
+        const cena = criarAmbiente({ emCampo: emCampoDe(m, e), posse: 'casa', minuto: e.minuto, posturas: { casa: 'equilibrada', fora: 'equilibrada' }, semente: k })
+        for (const car of cena.caricas) expect(!!car.am).toBe(c[car.id] === 'amarelo')
+        for (const car of cena.caricas) expect(c[car.id] === 'segundo' || c[car.id] === 'vermelho').toBe(false)
+        vistos += cena.caricas.filter((x) => x.am).length
+      }
+    }
+    expect(vistos).toBeGreaterThan(0)
+  })
+})

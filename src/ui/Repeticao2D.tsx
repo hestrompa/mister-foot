@@ -452,6 +452,16 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
         const gr = c.pos === 'GR'
         const [f, bd] = gr ? [corGR(c.lado), '#1b1b1b'] : cores[c.lado]
         carica(x, y, f, bd, c.num, !cena.ambiente && c.id === cena.rematadorId && t < cena.tFim + 0.2, rot.get(c.id) ?? 0, vels[i])
+        // Quem já tem amarelo leva um cartãozinho ao lado da carica (na cena do próprio cartão, só depois de o árbitro o mostrar).
+        // No 2.º amarelo o jogador mostra o primeiro até ver o vermelho.
+        const doInc = inc != null && inc.jogadorId === c.id
+        if (c.am && !(doInc && inc.tipo === 'amarelo' && t < inc.t) && !(doInc && inc.tipo === 'vermelho' && t >= inc.t)) {
+          const r = Math.max(6 * dpr, RAIO * esc)
+          const cw = Math.max(5 * dpr, r * 0.7), ch = cw * 1.4
+          const cx0 = X(x) + r * 0.55, cy0 = Y(y) - r * 1.15
+          ctx.fillStyle = '#ffd400'; ctx.fillRect(cx0, cy0, cw, ch)
+          ctx.strokeStyle = '#10141a'; ctx.lineWidth = Math.max(1, r * 0.1); ctx.strokeRect(cx0, cy0, cw, ch)
+        }
       })
       rasto.push({ x: b.x, y: b.y })
       if (rasto.length > 14) rasto.shift()
@@ -650,7 +660,7 @@ export function Repeticao2D({ cena, mundo, casa, fora, fim, rotuloFim = 'Continu
       <div className="rep-cab">
         <span className="rep-min">{cena.minuto}'</span>
         {direto && <span className="rep-direto">{marco === 2 ? 'Repetição' : 'Em direto'}</span>}
-        <span className="rep-tipo">{tipo} · {lado.sigla}</span>
+        <span className="rep-tipo">{tipo} · {(cena.incidente ? (cena.atacante === 'casa' ? fora : casa) : lado).sigla}</span>
         {outroJogo && <span className="rep-outro">Noutro jogo: {outroJogo}</span>}
         <span className="rep-texto">{texto}</span>
       </div>

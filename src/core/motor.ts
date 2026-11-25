@@ -751,6 +751,35 @@ export function lancesDoMinuto(estado: EstadoJogo): { remate?: { lado: Lado; lan
   return { ...(x.remateMinuto ? { remate: x.remateMinuto } : {}), ...(x.cantoMinuto ? { canto: x.cantoMinuto } : {}) }
 }
 
+/** Cartão de um jogador no jogo: amarelo, expulso por 2.º amarelo, ou vermelho direto. */
+export type CartaoJogo = 'amarelo' | 'segundo' | 'vermelho'
+
+/**
+ * Cartões de cada jogador neste jogo, por id (a única fonte: os amarelos e as expulsões que o motor
+ * usa para decidir). Segue o jogador em substituições, mudanças de formação e prolongamento.
+ */
+export function cartoesDoJogo(estado: { [extra: string]: unknown }): Record<number, CartaoJogo> {
+  const x = estado as unknown as Partial<Extra>
+  const out: Record<number, CartaoJogo> = {}
+  for (const k of Object.keys(x.amarelosJogo ?? {})) {
+    const id = Number(k)
+    if ((x.amarelosJogo![id] ?? 0) >= 1) out[id] = 'amarelo'
+  }
+  for (const id of x.expulsos ?? []) out[id] = (x.amarelosJogo?.[id] ?? 0) >= 2 ? 'segundo' : 'vermelho'
+  return out
+}
+
+/** Os mesmos cartões, lidos dos eventos de uma partida já jogada (resumo, ficha). */
+export function cartoesDosEventos(eventos: readonly EventoJogo[]): Record<number, CartaoJogo> {
+  const out: Record<number, CartaoJogo> = {}
+  for (const ev of eventos) {
+    if (ev.jogadorId == null) continue
+    if (ev.tipo === 'amarelo') out[ev.jogadorId] = 'amarelo'
+    else if (ev.tipo === 'vermelho') out[ev.jogadorId] = out[ev.jogadorId] === 'amarelo' ? 'segundo' : 'vermelho'
+  }
+  return out
+}
+
 /** Notas de agora (provisórias a meio do jogo, finais no fim). */
 export function notasDoJogo(estado: EstadoJogo): Record<number, number> {
   const p = estado.partida

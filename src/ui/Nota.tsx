@@ -1,7 +1,7 @@
 // Nota de jogo (0,0 a 10,0): o número com a cor, a média da época e as últimas notas.
 import type { Mundo } from '../core/types'
 import type { EstadoEpoca, Lado, Partida } from '../core/partida'
-import { contaDoJogador, notasDoJogo, type EstadoJogo } from '../core/motor'
+import { cartoesDoJogo, cartoesDosEventos, contaDoJogador, notasDoJogo, type CartaoJogo, type EstadoJogo } from '../core/motor'
 import { classeNota, jogosComNota, mediaEpoca, melhorEmCampo, textoNota, ultimasNotas, type ContaJogo } from '../core/notas'
 import './notas.css'
 
@@ -42,9 +42,19 @@ function feitosDe(c: ContaJogo | undefined): string {
   n(c.pc, 'passe p/ remate', 'passes p/ remate')
   n(c.des, 'desarme', 'desarmes')
   n(c.err, 'erro', 'erros')
-  if (c.vm) f.push('expulso')
-  else if (c.am) f.push('amarelo')
   return f.join(' · ')
+}
+
+const TITULO_CARTAO: Record<CartaoJogo, string> = { amarelo: 'Amarelo', segundo: 'Expulso (segundo amarelo)', vermelho: 'Expulso (vermelho direto)' }
+
+/** Cartão deste jogo: amarelo, amarelo+vermelho (2.º amarelo) ou vermelho. */
+export function Cartao({ c }: { c: CartaoJogo | undefined }) {
+  if (!c) return null
+  return (
+    <span className={`cartao-jogo cj-${c}`} title={TITULO_CARTAO[c]} aria-label={TITULO_CARTAO[c]}>
+      {c === 'segundo' ? <><i className="cj-a" /><i className="cj-v" /></> : <i className={c === 'amarelo' ? 'cj-a' : 'cj-v'} />}
+    </span>
+  )
 }
 
 /**
@@ -55,6 +65,7 @@ export function NotasEquipa({ mundo, partida, lado, estado, titulo }: {
   mundo: Mundo; partida: Partida; lado: Lado; estado?: EstadoJogo; titulo?: string
 }) {
   const notas = estado ? notasDoJogo(estado) : partida.notas ?? {}
+  const cartoes = estado ? cartoesDoJogo(estado) : cartoesDosEventos(partida.eventos)
   const l = lado === 'casa' ? 0 : 1
   const esc = estado?.escalacoes[lado] ?? partida.onzes?.[l]
   const emCampo = new Set(estado ? esc?.titulares.filter((id) => !estado.fora.includes(id)) : [])
@@ -79,7 +90,7 @@ export function NotasEquipa({ mundo, partida, lado, estado, titulo }: {
           return (
             <li key={id} className={saiu ? 'fora-campo' : ''}>
               <span className={`pos pos-${c?.pos ?? j?.posicao}`}>{c?.pos ?? j?.posicao}</span>
-              <span className="nj-nome">{j?.curto ?? '?'}{id === melhor && partida.jogada ? ' ★' : ''}</span>
+              <span className="nj-nome">{j?.curto ?? '?'}{id === melhor && partida.jogada ? ' ★' : ''} <Cartao c={cartoes[id]} /></span>
               {c && <span className="nj-feitos">{feitosDe(c)}</span>}
               <Nota n={notas[id]} />
             </li>

@@ -3,7 +3,7 @@
 // sempre com semente, para a mesma jogada dar sempre a mesma repetição.
 // Coordenadas em metros: campo 105 x 68, a equipa que ataca vai sempre para a direita (x = 105).
 import { createRng, type Rng } from './rng'
-import { posicaoDoLugar } from './motor'
+import { cartoesDoJogo, posicaoDoLugar, type CartaoJogo } from './motor'
 import { FORMACOES } from './partida'
 import type { Escalacao, EventoJogo, Lado, Lance } from './partida'
 import type { Mundo, Posicao } from './types'
@@ -26,6 +26,8 @@ export interface CaricaRep {
   /** Número na carica (lugar na escalação, 1 = guarda-redes). */
   num: number
   pos: Posicao
+  /** Já tem amarelo neste jogo (no instante em que a cena foi feita). */
+  am?: boolean
 }
 
 export interface CenaRepeticao {
@@ -99,15 +101,18 @@ export interface EmCampoRep {
   fora: readonly number[]
   /** Atributos de quem está em campo (velocidade, remate, passe...): mexem com o desenho. Sem isto, todos médios. */
   atrib?: Record<number, Atributos>
+  /** Cartões deste jogo por jogador (ver motor.cartoesDoJogo). */
+  cartoes?: Record<number, CartaoJogo>
 }
 
 /** As duas equipas em campo, com os atributos de cada jogador, para as cenas 2D. */
 export function emCampoDe(mundo: Mundo, e: { escalacoes: Record<Lado, Escalacao>; fora: readonly number[] }): Record<Lado, EmCampoRep> {
+  const cartoes = cartoesDoJogo(e as unknown as Record<string, unknown>)
   const lado = (l: Lado): EmCampoRep => {
     const esc = e.escalacoes[l]
     const atrib: Record<number, Atributos> = {}
     for (const id of esc.titulares) { const j = mundo.jogadores[id]; if (j) atrib[id] = atributosDe(j) }
-    return { escalacao: esc, fora: e.fora, atrib }
+    return { escalacao: esc, fora: e.fora, atrib, cartoes }
   }
   return { casa: lado('casa'), fora: lado('fora') }
 }
@@ -157,7 +162,7 @@ function lugares(lado: Lado, e: EmCampoRep): Lugar[] {
     const by = n === 1 ? 34 : 34 - w / 2 + (w * k) / (n - 1)
     // Meio-campo de 5: os das pontas um pouco mais à frente.
     const bx = BX[pos] + (pos === 'MED' && n >= 5 && (k === 0 || k === n - 1) ? 5 : 0)
-    out.push({ id, lado, num: i + 1, pos, bx, by, a: e.atrib?.[id] ?? MEDIO })
+    out.push({ id, lado, num: i + 1, pos, bx, by, a: e.atrib?.[id] ?? MEDIO, ...(e.cartoes?.[id] === 'amarelo' ? { am: true } : {}) })
   })
   return out
 }
@@ -259,7 +264,7 @@ export function criarRepeticao(ev: EventoJogo, emCampo: Record<Lado, EmCampoRep>
     minuto: ev.minuto, atacante: atac, origem: l.origem, desfecho: l.desfecho, texto: ev.texto,
     rematadorId: rem.id, ...(pas ? { passadorId: pas.id } : {}),
     tRemate: g.tRemate, tFim: g.tFim, duracao, dt: DT,
-    caricas: todos.map(({ id, lado, num, pos }) => ({ id, lado, num, pos })),
+    caricas: todos.map(({ id, lado, num, pos, am }) => ({ id, lado, num, pos, ...(am ? { am } : {}) })),
     quadros, bola: g.bola, acoes: g.acoes, cortes: g.corte != null ? [g.corte] : [], ...(g.festa ? { festa: g.festa } : {}),
     espelhar: (atac === 'casa') !== (parteDoJogo(ev.minuto) % 2 === 0),
   }
@@ -1143,7 +1148,7 @@ export function criarAmbiente(m: MinutoAmbiente): CenaRepeticao {
     minuto: m.minuto, atacante: posse, origem: modo === 'canto' ? 'canto' : modo === 'remate' ? (m.remate!.lance.origem === 'longe' ? 'longe' : 'jogada') : 'jogada', desfecho: 'fora', texto: '',
     rematadorId: (modo === 'remate' || modo === 'canto' ? protagonista?.id : comFim?.id) ?? comFim?.id ?? -1,
     tRemate: D + 1, tFim: D + 1,
-    duracao: D, dt: DT, caricas: todos.map(({ id, lado, num, pos }) => ({ id, lado, num, pos })),
+    duracao: D, dt: DT, caricas: todos.map(({ id, lado, num, pos, am }) => ({ id, lado, num, pos, ...(am ? { am } : {}) })),
     quadros, bola, acoes, cortes, espelhar: parteDoJogo(m.minuto) % 2 === 1, ambiente: true,
   }
 }
@@ -1190,6 +1195,8 @@ export function criarIncidente(ev: EventoJogo, emCampo: Record<Lado, EmCampoRep>
   const todos = [...la, ...ld]
   const prot = ld.find((c) => c.id === ev.jogadorId)
   if (!prot) return null
+  // Expulso por 2.º amarelo: até o árbitro mostrar o vermelho, ainda se vê o primeiro amarelo.
+  if (ev.tipo === 'vermelho' && emCampo[doJog].cartoes?.[ev.jogadorId] === 'segundo') prot.am = true
   const lesao = ev.tipo === 'lesao'
   // Sítio: perto da zona do jogador (x medido para o atacante, que vai para a direita).
   const zona = COMPRIMENTO - (prot.pos === 'GR' ? 14 : prot.bx + 6)
@@ -1278,7 +1285,7 @@ export function criarIncidente(ev: EventoJogo, emCampo: Record<Lado, EmCampoRep>
     minuto: ev.minuto, atacante: atac, origem: 'jogada', desfecho: 'fora', texto: ev.texto,
     rematadorId: prot.id, ...(lesao ? {} : { passadorId: vit.id }),
     tRemate: duracao + 1, tFim: tCartao, duracao, dt: DT,
-    caricas: todos.map(({ id, lado, num, pos }) => ({ id, lado, num, pos })),
+    caricas: todos.map(({ id, lado, num, pos, am }) => ({ id, lado, num, pos, ...(am ? { am } : {}) })),
     quadros, bola, acoes, cortes: [], espelhar: (atac === 'casa') !== (parteDoJogo(ev.minuto) % 2 === 0),
     incidente: { tipo: ev.tipo, jogadorId: prot.id, t: tCartao },
   }

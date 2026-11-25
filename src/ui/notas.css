@@ -41,3 +41,9 @@
 .lv-notas .notas-jogo-lista li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 6px; row-gap: 0; }
 .lv-notas .notas-jogo-lista .nota-jogo { grid-column: 3; grid-row: 1; }
 .lv-notas .notas-jogo-lista .nj-feitos { grid-column: 2 / 4; grid-row: 2; font-size: 0.72em; white-space: normal; }
+/* Cartões do jogo (amarelo, 2.º amarelo, vermelho), ao lado do nome. */
+.cartao-jogo { display: inline-flex; gap: 1px; vertical-align: -1px; margin-left: 2px; }
+.cartao-jogo i { display: inline-block; width: 8px; height: 11px; border-radius: 1.5px; box-shadow: 0 0 0 1px rgba(0,0,0,0.35); }
+.cartao-jogo .cj-a { background: #ffd400; }
+.cartao-jogo .cj-v { background: #e02020; }
+.cartao-jogo.cj-segundo .cj-v { margin-left: -4px; transform: rotate(8deg); }

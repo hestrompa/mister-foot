@@ -3,8 +3,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { Jogo } from '../core/types'
 import { FORMACOES, type EventoJogo, type Formacao, type Lado, type LinhaTabela, type Partida, type Postura } from '../core/partida'
 import { escalarIA } from '../core/tatica'
-import { avancarMinuto, definirAutoSub, lancesDoMinuto, mudarFormacao, notasDoJogo, posseDoMinuto, iniciarJogo, mudarPostura, mudarMarcacao, substituir, type EstadoJogo } from '../core/motor'
-import { MelhorEmCampo, Nota, NotasEquipa } from './Nota'
+import { avancarMinuto, cartoesDoJogo, definirAutoSub, lancesDoMinuto, mudarFormacao, notasDoJogo, posseDoMinuto, iniciarJogo, mudarPostura, mudarMarcacao, substituir, type EstadoJogo } from '../core/motor'
+import { Cartao, MelhorEmCampo, Nota, NotasEquipa } from './Nota'
 import { EscolhaMarcacao } from './PlanoJogo'
 import { concluirJornada, indisponiveisDe, partidasDaJornada, tabela } from '../core/epoca'
 import { Emblema } from './Emblema'
@@ -387,6 +387,7 @@ export function PainelSubs({ jogo, estado, lado, fase, lesionado, retomar, atual
   const restam = 5 - estado.subs[lado]
   const banco = esc.suplentes.filter((id) => !fora.has(id) && !esc.titulares.includes(id))
   const notas = notasDoJogo(estado)
+  const cartoes = cartoesDoJogo(estado)
 
   const entrar = (id: number) => {
     if (sai == null) return
@@ -426,6 +427,7 @@ export function PainelSubs({ jogo, estado, lado, fase, lesionado, retomar, atual
               <li key={id}>
                 <button className={`linha-jog ${sai === id ? 'sel' : ''} ${off ? 'indisp' : ''} ${lesao ? 'lesionado' : ''}`} disabled={off || restam <= 0} onClick={() => setSai(sai === id ? null : id)}>
                   <span className={`pos pos-${j.posicao}`}>{j.posicao}</span><span className="nome-jogador">{j.curto}</span>
+                  <Cartao c={cartoes[id]} />
                   {lesao && <span className="baixa baixa-lesao">Lesionado</span>}
                   {off && <span className="baixa baixa-castigo">Expulso</span>}
                   <span className="direita"><Nota n={notas[id]} titulo="Nota provisória neste jogo" /></span>
