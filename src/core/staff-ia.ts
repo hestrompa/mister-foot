@@ -53,8 +53,8 @@ function contratarIA(mundo: Mundo, clubeId: number, k: number) {
     c.staff!.membros = c.staff!.membros.filter((m) => m.funcao !== f)
     return
   }
-  // Treinadores de setor são um luxo: só com mais de uma época de salários em caixa, e um nível abaixo.
-  if (eSetor(f) && (pobre || c.dinheiro < Math.max(1, salariosPorJornada(mundo, clubeId)) * 34)) {
+  // Treinadores de setor são um luxo: só com duas épocas de salários em caixa, e um nível abaixo.
+  if (eSetor(f) && (pobre || c.dinheiro < Math.max(1, salariosPorJornada(mundo, clubeId)) * 68)) {
     c.staff!.membros = c.staff!.membros.filter((m) => m.funcao !== f)
     return
   }

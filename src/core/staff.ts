@@ -342,7 +342,7 @@ export function treinarJornada(mundo: Mundo, clubes: Iterable<number>, ausentes:
         }
         // O treinador de setor puxa o atributo-chave da posição quando o jogador sobe (sem sorteio extra).
         const fs = setorDe(j.posicao)
-        if (fs && nivelDe(c, fs) > 0) mexerPerfil(j, { [ATRIB_SETOR[fs]]: 0.25 * nivelDe(c, fs) })
+        if (fs && nivelDe(c, fs) > 0) mexerPerfil(j, { [ATRIB_SETOR[fs]]: 0.12 * nivelDe(c, fs) })
       }
       // Intensidade: o treino forte cansa, o leve ajuda a recuperar.
       if (inten === 'forte') definirFadiga(j, fadigaDe(j) + 8)
