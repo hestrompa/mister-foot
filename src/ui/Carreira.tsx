@@ -1,8 +1,9 @@
 // Direção e carreira do treinador: separador Carreira, ecrã de despedimento e balanço no fim da época.
+import { nomeDivisao } from '../core/ligas'
 import type { Jogo } from '../core/types'
 import { euros } from '../core/formato'
 import {
-  aceitarOferta, estadoCarreira, nomeDiv, ofertasValidas, recusarOferta, situacao, textoConfianca, textoObjetivo,
+  aceitarOferta, estadoCarreira, ofertasValidas, recusarOferta, situacao, textoConfianca, textoObjetivo,
   LIMIAR_AVISO, LIMIAR_DESPEDIMENTO, type Avaliacao, type JogoComCarreira, type Oferta,
 } from '../core/direcao'
 import { forcaClube } from '../core/mundo'
@@ -41,7 +42,7 @@ function CartaoOferta({ jogo, o, aceitar, recusar }: { jogo: Jogo; o: Oferta; ac
       <Emblema clube={c} tamanho={36} />
       <div className="cr-of-info">
         <b>{c.nome}</b>
-        <span className="info-d">{nomeDiv(c.divisao)} · reputação {c.reputacao} · {euros(c.dinheiro)}</span>
+        <span className="info-d">{nomeDivisao(jogo.mundo, c.divisao)} · reputação {c.reputacao} · {euros(c.dinheiro)}</span>
         <span className="info-d">{o.motivo}</span>
       </div>
       <Forca valor={forcaClube(jogo.mundo, c.id)} />
@@ -132,7 +133,7 @@ export function Carreira({ jogo, atualizar, mudouClube }: { jogo: Jogo; atualiza
                     {jogo.mundo.clubes[e.clubeId] && <Emblema clube={jogo.mundo.clubes[e.clubeId]} tamanho={18} />}
                     <span className="cr-nome">{e.clubeNome}</span>
                   </span>
-                  <span className="info-d cr-div"> {nomeDiv(e.divisao)}</span>
+                  <span className="info-d cr-div"> {nomeDivisao(jogo.mundo, e.divisao)}</span>
                 </td>
                 <td className="esconde-m">{e.objetivo}</td>
                 <td className="num">{e.posicao ? `${e.posicao}.º` : '—'}</td>

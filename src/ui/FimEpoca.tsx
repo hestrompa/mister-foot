@@ -1,6 +1,6 @@
 import type { Jogo } from '../core/types'
 import type { ResumoEpoca } from '../core/partida'
-import { NOMES_DIVISAO } from '../core/mundo'
+import { nomeDivisao } from '../core/ligas'
 import { Emblema } from './Emblema'
 import { vencedorTacaDe } from './Taca'
 import { NOME_TACA } from '../core/taca'
@@ -20,7 +20,7 @@ export interface DadosFimEpoca {
 export function FimEpoca({ jogo, d, continuar }: { jogo: Jogo; d: DadosFimEpoca; continuar: () => void }) {
   const { mundo } = jogo
   const r = d.resumo
-  const nomeDiv = (n: number) => NOMES_DIVISAO[n - 1] ?? `${n}.ª Divisão`
+  const nomeDiv = (n: number) => nomeDivisao(mundo, n)
   const clube = (id: number) => (
     <span key={id} className="clube-linha"><Emblema clube={mundo.clubes[id]} tamanho={20} /> {mundo.clubes[id].nome}</span>
   )

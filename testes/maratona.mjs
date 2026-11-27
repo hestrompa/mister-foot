@@ -1,6 +1,6 @@
 // Maratona: joga várias épocas seguidas no browser, sempre pelo caminho que um jogador faria
 // (jornadas, taça, Supertaça, Europa, conferências, fim de época), e para se algum ecrã ficar preso.
-// Uso: node testes/maratona.mjs [url]   variáveis: EPOCAS (2), SEMENTE (77), DIV (4), MOVEL=1 (390x844), OUT
+// Uso: node testes/maratona.mjs [url]   variáveis: EPOCAS (2), SEMENTE (77), DIV (4), PAIS (Espanha/Inglaterra: DIV 1-2 desse país), SO_PT=1 (sem campeonatos estrangeiros), MOVEL=1 (390x844), OUT
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
@@ -13,6 +13,7 @@ const OUT = process.env.OUT || './maratona'
 const EPOCAS = Number(process.env.EPOCAS || 2)
 const SEMENTE = process.env.SEMENTE || '77'
 const DIV = process.env.DIV || '4'
+const PAIS = process.env.PAIS || ''
 const MOVEL = process.env.MOVEL === '1'
 mkdirSync(OUT, { recursive: true })
 
@@ -38,9 +39,11 @@ try {
   await page.goto(URL_BASE, { waitUntil: 'networkidle' })
   await page.getByPlaceholder('Mister').fill('Maratona')
   await page.getByPlaceholder('aleatória').fill(SEMENTE)
+  if (process.env.SO_PT === '1') await page.getByTestId('estrangeiros').uncheck()
   await page.getByRole('button', { name: 'Gerar mundo' }).click()
   await page.getByText('Escolhe o teu clube').first().waitFor({ timeout: 10000 })
-  if (DIV !== '4') await page.locator('nav[aria-label="Divisões"] button').nth(Number(DIV) - 1).click()
+  if (PAIS) await page.locator('nav[aria-label="Países"] button', { hasText: PAIS }).click()
+  if (PAIS || DIV !== '4') await page.locator('nav[aria-label="Divisões"] button').nth(Number(DIV) - 1).click()
   await page.locator('button.cartao.clube').first().click()
   await page.getByRole('button', { name: 'Assinar contrato' }).click()
 

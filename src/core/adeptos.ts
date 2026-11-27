@@ -1,6 +1,7 @@
 // Humor dos adeptos (0 a 100, 50 neutro) de cada clube. Sobe e desce com os resultados face ao esperado
 // (pela força dos plantéis), pesa mais nos dérbis, castiga bilhetes caros e volta devagar ao neutro.
 // Mexe na bilheteira (procura por jogo e lugares anuais). No meu clube a imprensa também mexe (imprensa.ts).
+import { nivelDe } from './ligas'
 import type { Clube, Mundo } from './types'
 import type { Partida } from './partida'
 import { forcaClube } from './mundo'
@@ -65,7 +66,7 @@ export function deltaJogo(mundo: Mundo, p: Partida, clubeId: number, forca?: Rec
   // Bilhetes muito acima do normal: os adeptos queixam-se a cada jogo em casa.
   const c = mundo.clubes[clubeId]
   if (casa) {
-    const rel = c.bilhete / (BILHETE_REF[c.divisao - 1] ?? 5)
+    const rel = c.bilhete / (BILHETE_REF[nivelDe(c) - 1] ?? 5)
     if (rel > 1.3) d -= Math.min(2, (rel - 1.3) * 2.5)
     else if (rel < 0.75) d += 0.4
   }

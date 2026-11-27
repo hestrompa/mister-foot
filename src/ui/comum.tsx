@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Jogo, Mundo } from '../core/types'
 import type { LinhaTabela, Partida } from '../core/partida'
-import { NUM_DIVISOES } from '../core/mundo'
+import { temAbaixo, temAcima } from '../core/ligas'
 import { Emblema } from './Emblema'
 
 export function FormaPills({ forma }: { forma: LinhaTabela['forma'] }) {
@@ -28,6 +28,7 @@ export function TabelaLiga({ mundo, linhas, divisao, meuId, compacta = false, an
   mundo: Mundo; linhas: LinhaTabela[]; divisao: number; meuId: number; compacta?: boolean; antes?: Record<number, number>
 }) {
   const n = linhas.length
+  const acima = temAcima(mundo, divisao), abaixo = temAbaixo(mundo, divisao)
   return (
     <div className="tabela-wrap">
       <table className={`tabela classificacao ${compacta ? 'compacta' : ''}`}>
@@ -42,7 +43,7 @@ export function TabelaLiga({ mundo, linhas, divisao, meuId, compacta = false, an
         <tbody>
           {linhas.map((l, i) => {
             const c = mundo.clubes[l.clubeId]
-            const zona = i < 3 && divisao > 1 ? 'sobe' : i >= n - 3 && divisao < NUM_DIVISOES ? 'desce' : i === 0 && divisao === 1 ? 'sobe' : ''
+            const zona = i < 3 && acima ? 'sobe' : i >= n - 3 && abaixo ? 'desce' : i === 0 && !acima ? 'sobe' : ''
             const mov = antes ? (antes[l.clubeId] ?? i) - i : 0
             return (
               <tr key={l.clubeId} className={`${zona} ${l.clubeId === meuId ? 'meu' : ''}`}>

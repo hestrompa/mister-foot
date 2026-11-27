@@ -1,5 +1,6 @@
 // Taça Nacional: eliminatórias a uma mão com os 72 clubes, jogadas a meio da semana entre jornadas da liga.
 // Empate no fim dos 90 minutos dá prolongamento (30 minutos) e, se persistir, penáltis. O clube da divisão mais baixa joga em casa; a final é em campo neutro.
+import { PAIS_BASE, paisDivisao } from './ligas'
 import { aplicarJogo } from './balneario'
 import { atualizarAdeptos } from './adeptos'
 import { registarNotas } from './notas'
@@ -110,8 +111,9 @@ export function jornadasDaTaca(nRondas: number, totalJornadas: number): number[]
   return Array.from({ length: nRondas }, (_, i) => Math.round(ini + (i * (fim - ini)) / (nRondas - 1)))
 }
 
+/** A Taça Nacional é de Portugal: os campeonatos estrangeiros não entram. */
 function todosOsClubes(mundo: Mundo): number[] {
-  return mundo.divisoes.flatMap((d) => d.clubes)
+  return mundo.divisoes.filter((d) => paisDivisao(d) === PAIS_BASE).flatMap((d) => d.clubes)
 }
 
 /** Cria a taça da época com o calendário das rondas e o sorteio da primeira. */

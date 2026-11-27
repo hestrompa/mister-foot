@@ -1,3 +1,4 @@
+import { etiquetaDivisao, nivelDe, nomeDivisao } from '../core/ligas'
 import { Carater } from './CarreiraJogador'
 import { NotaEpoca, UltimasNotas } from './Nota'
 import { jogosComNota, mediaEpoca } from '../core/notas'
@@ -69,10 +70,11 @@ export function Mercado({ jogo, atualizar }: { jogo: JogoComMercado; atualizar: 
 
 function ClubeCurto({ jogo, id }: { jogo: JogoComMercado; id: number }) {
   const c = jogo.mundo.clubes[id]
-  return <span className="clube-linha"><Emblema clube={c} tamanho={18} /> <span className="nm-longo">{c.nome}</span><span className="nm-sigla">{c.sigla}</span> <span className="div-tag">{c.divisao}.ª</span></span>
+  return <span className="clube-linha"><Emblema clube={c} tamanho={18} /> <span className="nm-longo">{c.nome}</span><span className="nm-sigla">{c.sigla}</span> <span className="div-tag">{etiquetaDivisao(jogo.mundo, c.divisao)}</span></span>
 }
 
-function Filtros({ pos, setPos, div, setDiv, posso, setPosso, nome, setNome, atr, setAtr }: {
+function Filtros({ divisoes, pos, setPos, div, setDiv, posso, setPosso, nome, setNome, atr, setAtr }: {
+  divisoes: { numero: number; nome: string }[]
   pos: Posicao | 'todas'; setPos: (p: Posicao | 'todas') => void; div: number; setDiv: (d: number) => void
   posso: boolean; setPosso: (b: boolean) => void; nome?: string; setNome?: (s: string) => void
   atr: Atributo | null; setAtr: (a: Atributo | null) => void
@@ -85,7 +87,7 @@ function Filtros({ pos, setPos, div, setDiv, posso, setPosso, nome, setNome, atr
       <div className="filtros-linha">
         <select value={div} onChange={(e) => setDiv(Number(e.target.value))} aria-label="Divisão">
           <option value={0}>Todas as divisões</option>
-          {[1, 2, 3, 4].map((d) => <option key={d} value={d}>{d}.ª Divisão</option>)}
+          {divisoes.map((d) => <option key={d.numero} value={d.numero}>{d.nome}</option>)}
         </select>
         <select value={atr ?? ''} onChange={(e) => setAtr((e.target.value || null) as Atributo | null)} aria-label="Ordenar por atributo">
           <option value="">Ordenar por força</option>
@@ -131,7 +133,7 @@ function Comprar({ jogo, soLista, feito }: { jogo: JogoComMercado; soLista: bool
       <p className="nota">{soLista
         ? 'Jogadores que os clubes querem vender e que aceitam vir para cá. Pelo preço pedido é quase certo; abaixo, arriscas uma recusa (uma tentativa por jornada).'
         : 'Qualquer jogador de outro clube que aceite vir para cá. Quem não está à venda custa bem mais, e o craque ainda mais.'}</p>
-      <Filtros pos={pos} setPos={setPos} div={div} setDiv={setDiv} posso={posso} setPosso={setPosso} nome={soLista ? undefined : nome} setNome={soLista ? undefined : setNome} atr={atr} setAtr={setAtr} />
+      <Filtros divisoes={mundo.divisoes.map((d) => ({ numero: d.numero, nome: nomeDivisao(mundo, d.numero) }))} pos={pos} setPos={setPos} div={div} setDiv={setDiv} posso={posso} setPosso={setPosso} nome={soLista ? undefined : nome} setNome={soLista ? undefined : setNome} atr={atr} setAtr={setAtr} />
       {sel != null && mundo.jogadores[sel]?.clubeId !== jogo.clubeId && (
         <Negociar key={sel} jogo={jogo} id={sel} fechar={() => setSel(null)} feito={(r) => { if (r.ok) setSel(null); feito(r) }} />
       )}
@@ -274,7 +276,7 @@ function Propostas({ jogo, feito }: { jogo: JogoComMercado; feito: (r: Resultado
             <div className="prop-txt">
               <Emblema clube={c} tamanho={28} />
               <span>
-                <b>{c.nome}</b> ({c.divisao}.ª) oferece <b>{euros(p.valor)}</b> por <span className={`pos pos-${j.posicao}`}>{j.posicao}</span> <b>{j.curto}</b> (força {j.forca}, valor {euros(j.valor)})
+                <b>{c.nome}</b> ({etiquetaDivisao(mundo, c.divisao)}) oferece <b>{euros(p.valor)}</b> por <span className={`pos pos-${j.posicao}`}>{j.posicao}</span> <b>{j.curto}</b> (força {j.forca}, valor {euros(j.valor)})
                 {p.espontanea && <span className="dica"> · não estava à venda</span>}
               </span>
             </div>
@@ -525,7 +527,7 @@ function AssinarLivre({ jogo, j, fechar, feito }: { jogo: JogoComMercado; j: Jog
 
 function Juniores({ jogo, feito }: { jogo: JogoComMercado; feito: (r: Resultado) => void }) {
   const lista = juniores(jogo)
-  const div = jogo.mundo.clubes[jogo.clubeId].divisao
+  const div = nivelDe(jogo.mundo.clubes[jogo.clubeId])
   return (
     <>
       <Academia jogo={jogo} feito={feito} />

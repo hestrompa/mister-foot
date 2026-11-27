@@ -2,6 +2,7 @@
 // já dava os juniores de sempre. Só o meu clube investe: cada nível acima do normal dá juniores mais
 // fortes, com mais teto, mais pérolas, mais profissionais, e a partir de +2 um júnior extra por época.
 // Custa uma obra (paga de uma vez) e manutenção por jornada.
+import { nivelDe } from './ligas'
 import type { Clube } from './types'
 
 export type ClubeComAcademia = Clube & { academia?: number }
@@ -29,14 +30,14 @@ const FATOR_DIV = [1, 0.45, 0.2, 0.1]
 /** Custo da obra para subir ao nível `nivel`. */
 export function custoAcademia(c: Clube, nivel: number): number {
   const base = [0, 0, 400_000, 1_000_000, 2_500_000, 6_000_000][nivel] ?? 6_000_000
-  return Math.round((base * (FATOR_DIV[c.divisao - 1] ?? 0.1)) / 10_000) * 10_000
+  return Math.round((base * (FATOR_DIV[nivelDe(c) - 1] ?? 0.1)) / 10_000) * 10_000
 }
 
 /** Manutenção por jornada dos níveis acima do normal (somada aos custos do staff). */
 export function manutencaoAcademia(c: Clube): number {
   const b = bonusAcademia(c)
   if (!b) return 0
-  return Math.round((b * (b + 1) * 6_000 * (FATOR_DIV[c.divisao - 1] ?? 0.1)) / 50) * 50
+  return Math.round((b * (b + 1) * 6_000 * (FATOR_DIV[nivelDe(c) - 1] ?? 0.1)) / 50) * 50
 }
 
 export function melhorarAcademia(c: Clube): { ok: boolean; texto: string } {

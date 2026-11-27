@@ -1,4 +1,5 @@
 // Competições europeias: separador com grupos, eliminatórias, notícias e vencedores, e o dia europeu ao vivo.
+import { etiquetaDivisao } from '../core/ligas'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Jogo, Mundo } from '../core/types'
 import type { Lado, Partida } from '../core/partida'
@@ -33,7 +34,7 @@ function Nome({ jogo, m, id, sigla = false }: { jogo: JogoComEuropa; m: Mundo; i
     <span className="clube-linha">
       <Emblema clube={c} tamanho={18} />
       {sigla ? c.sigla : <><span className="nm-longo">{c.nome}</span><span className="nm-sigla">{c.sigla}</span></>}
-      <span className={`div-tag ${pais ? '' : 'eu-nac'}`}>{pais ?? `${c.divisao}.ª`}</span>
+      <span className={`div-tag ${pais ? '' : 'eu-nac'}`}>{pais ?? etiquetaDivisao(jogo.mundo, c.divisao)}</span>
     </span>
   )
 }

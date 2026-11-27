@@ -1,5 +1,6 @@
 // Dinheiro extra que não vem das receitas: verba da direção no arranque (ligada à confiança) e
 // investidores que aparecem a meio da época quando um clube está a fazer melhor do que se esperava.
+import { nivelDe, nivelDivisao } from './ligas'
 import type { Jogo, Mundo } from './types'
 import type { EstadoEpoca, LinhaTabela } from './partida'
 import { createRng } from './rng'
@@ -45,7 +46,7 @@ export function pagarVerbaDirecao(jogo: Jogo, anteriores: LinhaTabela[][]): void
     const c = jogo.mundo.clubes[Number(id)]
     const cf = conf.get(c.id)
     if (cf === undefined) continue
-    const v = verbaDirecao(c.divisao, cf)
+    const v = verbaDirecao(nivelDe(c), cf)
     inj.confianca = cf
     if (!v) continue
     inj.direcao = v
@@ -89,7 +90,7 @@ export function avancarInvestidores(mundo: Mundo, epoca: EstadoEpoca): Investime
       if (lugarEsperado(mundo, c.id) - (i + 1) < 3) return
       const rng = createRng(((mundo.semente * 7919) ^ (epoca.ano * 104729) ^ (jn * 131071) ^ (c.id * 2654435761)) >>> 0)
       if (rng.next() >= PROB_INVESTIDOR) return
-      const valor = Math.round((fixasEpoca(div.numero) * (1 + rng.next())) / 10_000) * 10_000
+      const valor = Math.round((fixasEpoca(nivelDivisao(div)) * (1 + rng.next())) / 10_000) * 10_000
       const inv = { clubeId: c.id, jornada: jn, valor, nome: NOMES_INVESTIDOR[Math.floor(rng.next() * NOMES_INVESTIDOR.length)] }
       c.dinheiro += valor
       c.investidorAno = epoca.ano

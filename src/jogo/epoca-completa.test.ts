@@ -38,4 +38,27 @@ describe('época completa com gravação', () => {
     console.log('save máximo (caracteres):', maior)
     expect(maior).toBeLessThan(4_000_000)
   }, 20_000)
+
+  it('com Espanha e Inglaterra, o save continua pequeno', () => {
+    const mem: Record<string, string> = {}
+    ;(globalThis as any).localStorage = {
+      getItem: (k: string) => mem[k] ?? null,
+      setItem: (k: string, v: string) => { mem[k] = v },
+      removeItem: (k: string) => { delete mem[k] },
+    }
+    const mundo = gerarMundo(78, { estrangeiros: true })
+    const clubeId = mundo.divisoes[5].clubes[0]
+    const epoca = novaEpoca(mundo, 1)
+    const jogo: Jogo = { mundo, epoca, escalacao: escalarAuto(mundo, clubeId, new Set()), treinador: 'T', clubeId, criado: '' } as Jogo
+    let maior = 0, n = 0
+    while (!epocaTerminada(epoca)) {
+      concluirJornada(mundo, epoca, 2000 + n++)
+      expect(gravar(jogo)).toBe(true)
+      maior = Math.max(maior, mem['mister-foot:jogo'].length)
+    }
+    expect(carregar()?.mundo.divisoes).toHaveLength(8)
+    console.log('save máximo com estrangeiros (caracteres):', maior)
+    expect(maior).toBeLessThan(3_500_000)
+  }, 40_000)
 })
+

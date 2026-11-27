@@ -1,4 +1,5 @@
 // Empréstimos ao banco: dinheiro já, pago em prestações por jornada, com juros.
+import { nivelDe } from './ligas'
 import type { Clube } from './types'
 import { RECEITA_FIXA } from './financas'
 
@@ -22,7 +23,7 @@ export const JORNADAS_EPOCA = 34
 
 /** Quanto o banco empresta ao clube, no total, de acordo com as receitas e o estádio. */
 export function limiteCredito(c: Clube): number {
-  const fixa = RECEITA_FIXA[c.divisao - 1] ?? 0
+  const fixa = RECEITA_FIXA[nivelDe(c) - 1] ?? 0
   const base = fixa * 20 + c.estadio.lugares * 50 + c.reputacao * 2_000
   // Com caixa negativa o banco desconta o buraco.
   const v = base - Math.max(0, -c.dinheiro)
@@ -30,7 +31,7 @@ export function limiteCredito(c: Clube): number {
 }
 
 export function juroTotal(c: Clube, montante: number, prazo: number): number {
-  const taxa = JURO_EPOCA[c.divisao - 1] ?? 0.1
+  const taxa = JURO_EPOCA[nivelDe(c) - 1] ?? 0.1
   return Math.round(montante * taxa * (prazo / JORNADAS_EPOCA))
 }
 

@@ -2,7 +2,8 @@
 import { aplicarFinancas } from './financas'
 import { atualizarAdeptos, feriasAdeptos } from './adeptos'
 import { somarContas, type EpocaComInicio } from './inicio-epoca'
-import type { Mundo } from './types'
+import type { Divisao, Mundo } from './types'
+import { divisoesDoPais, paisesDoMundo } from './ligas'
 import type { EstadoEpoca, EstatJogo, Indisponivel, LinhaTabela, Partida, ResumoEpoca } from './partida'
 import { createRng } from './rng'
 import { simularJogo } from './motor'
@@ -374,9 +375,13 @@ export function fecharEpoca(mundo: Mundo, epoca: EstadoEpoca): ResumoEpoca {
   const subidas: ResumoEpoca['subidas'] = []
   const descidas: ResumoEpoca['descidas'] = []
   const trocas: { cima: number; baixo: number; desce: number[]; sobe: number[] }[] = []
-  for (let k = 0; k + 1 < divisoes.length; k++) {
-    const cima = divisoes[k]
-    const baixo = divisoes[k + 1]
+  // Só entre divisões vizinhas do mesmo país.
+  const pares: [Divisao, Divisao][] = []
+  for (const pais of paisesDoMundo(mundo)) {
+    const ds = divisoesDoPais(mundo, pais)
+    for (let k = 0; k + 1 < ds.length; k++) pares.push([ds[k], ds[k + 1]])
+  }
+  for (const [cima, baixo] of pares) {
     const tCima = tabelas.get(cima.numero) ?? []
     const tBaixo = tabelas.get(baixo.numero) ?? []
     const n = Math.min(TROCAS, Math.floor(tCima.length / 2), Math.floor(tBaixo.length / 2))
@@ -392,7 +397,12 @@ export function fecharEpoca(mundo: Mundo, epoca: EstadoEpoca): ResumoEpoca {
     cima.clubes = cima.clubes.filter((id) => !t.desce.includes(id)).concat(t.sobe)
     baixo.clubes = baixo.clubes.filter((id) => !t.sobe.includes(id)).concat(t.desce)
   }
-  for (const d of mundo.divisoes) for (const id of d.clubes) if (mundo.clubes[id]) mundo.clubes[id].divisao = d.numero
+  for (const d of mundo.divisoes) for (const id of d.clubes) {
+    const c = mundo.clubes[id]
+    if (!c) continue
+    c.divisao = d.numero
+    if (d.nivel !== undefined) c.nivel = d.nivel
+  }
 
   // Adeptos: metade esquece-se no verão; títulos e subidas deixam festa, descidas deixam mágoa.
   const extra: Record<number, number> = {}

@@ -1,5 +1,6 @@
 // Pré-época: antes da 1.ª jornada, o mister escolhe uma digressão (dá dinheiro, cansa o plantel)
 // ou um estágio (custa dinheiro, une o plantel). Uma escolha por época.
+import { nivelDe } from './ligas'
 import type { Jogo } from './types'
 import { RECEITA_FIXA } from './financas'
 import { mudarMoral } from './balneario'
@@ -10,7 +11,7 @@ export interface OpcaoPreEpoca { tipo: TipoPreEpoca; nome: string; texto: string
 
 export function opcoesPreEpoca(jogo: Jogo): OpcaoPreEpoca[] {
   const c = jogo.mundo.clubes[jogo.clubeId]
-  const F = (RECEITA_FIXA[c.divisao - 1] ?? 0) * 34
+  const F = (RECEITA_FIXA[nivelDe(c) - 1] ?? 0) * 34
   const fama = 0.6 + c.reputacao / 100
   const d = Math.round((F * 0.12 * fama) / 1000) * 1000
   const e = Math.round((F * 0.05) / 1000) * 1000

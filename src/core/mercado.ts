@@ -1,5 +1,6 @@
 // Mercado de transferências: lista de jogadores à venda, compras, vendas, propostas da IA, leilões e janelas.
 // Tudo determinístico: cada sorteio usa createRng com uma semente derivada do mundo, da época e da jornada.
+import { nivelDe, nivelDivisao } from './ligas'
 import { idadeReforma, registarReforma } from './carreira-jogador'
 import { fatorRenovacaoPers, personalidadeDe } from './personalidade'
 import { createRng, type Rng } from './rng'
@@ -176,7 +177,7 @@ export function comissaoContrato(salario: number): number {
 export function pedidoSalarial(mundo: Mundo, j: Jogador, clubeId: number): number {
   const origem = mundo.clubes[j.clubeId]
   const destino = mundo.clubes[clubeId]
-  let base = salarioNoClube(mundo, j, clubeId) * (destino.divisao <= (origem?.divisao ?? 4) ? 1.15 : 1)
+  let base = salarioNoClube(mundo, j, clubeId) * (nivelDe(destino) <= nivelDe(origem) ? 1.15 : 1)
   const dif = (origem?.reputacao ?? 0) - destino.reputacao
   if (dif > 0) base *= 1 + dif / 40
   return arredonda(base)
@@ -187,7 +188,7 @@ export function recusaDoJogador(mundo: Mundo, j: Jogador, clubeId: number): stri
   const origem = mundo.clubes[j.clubeId]
   const destino = mundo.clubes[clubeId]
   if (origem && origem.reputacao - destino.reputacao > 35) return `${j.curto} não quer trocar o ${origem.nome} por um clube tão pequeno.`
-  if (origem && destino.divisao - origem.divisao >= 2 && j.idade < 30) return `${j.curto} não quer descer ${destino.divisao - origem.divisao} divisões.`
+  if (origem && nivelDe(destino) - nivelDe(origem) >= 2 && j.idade < 30) return `${j.curto} não quer descer ${nivelDe(destino) - nivelDe(origem)} divisões.`
   return null
 }
 
@@ -236,8 +237,8 @@ export function fatorRiqueza(mundo: Mundo, clubeId: number): number {
 export function salarioNoClube(mundo: Mundo, j: Jogador, clubeId: number): number {
   const origem = mundo.clubes[j.clubeId]
   const destino = mundo.clubes[clubeId]
-  const justo = salarioDe(j.forca, destino.divisao) * fatorRiqueza(mundo, clubeId)
-  if (origem && destino.divisao > origem.divisao) return arredonda(Math.max(justo, j.salario * 0.7))
+  const justo = salarioDe(j.forca, nivelDe(destino)) * fatorRiqueza(mundo, clubeId)
+  if (origem && nivelDe(destino) > nivelDe(origem)) return arredonda(Math.max(justo, j.salario * 0.7))
   return arredonda(Math.max(justo, j.salario))
 }
 
@@ -247,7 +248,7 @@ export function receitaEstimada(mundo: Mundo, clubeId: number): number {
   const div = mundo.divisoes[c.divisao - 1]?.clubes ?? []
   const repMedia = div.length ? div.reduce((t, i) => t + mundo.clubes[i].reputacao, 0) / div.length : c.reputacao
   const publico = publicoEsperado(c, { ...c, reputacao: repMedia }, 8, 18)
-  return (RECEITA_FIXA[c.divisao - 1] ?? 0) + 0.5 * publico * c.bilhete
+  return (RECEITA_FIXA[nivelDe(c) - 1] ?? 0) + 0.5 * publico * c.bilhete
 }
 
 /** Peso dos salários na receita (1 = gasta tudo), com um salário mensal extra opcional. */
@@ -496,8 +497,8 @@ function interessados(jogo: JogoComMercado, j: Jogador, base: number, rng: Rng):
   const out: { clubeId: number; valor: number }[] = []
   const origem = mundo.clubes[j.clubeId]
   for (const d of mundo.divisoes) {
-    // Só clubes da mesma divisão ou próximas.
-    if (Math.abs(d.numero - origem.divisao) > 1) continue
+    // Só clubes da mesma divisão ou próximas (em qualquer país).
+    if (Math.abs(nivelDivisao(d) - nivelDe(origem)) > 1) continue
     for (const cid of d.clubes) {
       if (cid === jogo.clubeId || cid === j.clubeId) continue
       const c = mundo.clubes[cid]
@@ -524,12 +525,12 @@ function clausulasIA(jogo: JogoComMercado, rng: Rng) {
     const valor = clausulaDe(j)
     if (!rng.chance(0.06) || impedeSaida(mundo, j)) continue
     for (const d of mundo.divisoes) {
-      if (Math.abs(d.numero - meu.divisao) > 1) continue
+      if (Math.abs(nivelDivisao(d) - nivelDe(meu)) > 1) continue
       for (const cid of d.clubes) {
         if (cid === jogo.clubeId) continue
         const c = mundo.clubes[cid]
         const salario = salarioNoClube(mundo, j, cid)
-        if (c.plantel.length >= PLANTEL_MAX - 2 || c.dinheiro - (RESERVA[c.divisao - 1] ?? 0) < valor + comissaoEmpresario(valor, salario)) continue
+        if (c.plantel.length >= PLANTEL_MAX - 2 || c.dinheiro - (RESERVA[nivelDe(c) - 1] ?? 0) < valor + comissaoEmpresario(valor, salario)) continue
         if (ganho(mundo, cid, j) < 4 || recusaDoJogador(mundo, j, cid) || !iaPodePagar(mundo, cid, salario)) continue
         transferir(jogo, j.id, cid, valor, salario, rng.int(2, 4), false, 'clausula')
         return
@@ -544,20 +545,20 @@ const RESERVA = [1_500_000, 300_000, 80_000, 30_000]
 function comprasAtivas(jogo: JogoComMercado, rng: Rng, quantas: number) {
   const { mundo } = jogo
   const ricos = Object.values(mundo.clubes)
-    .filter((c) => c.id !== jogo.clubeId && c.plantel.length < PLANTEL_MAX - 2 && c.dinheiro > (RESERVA[c.divisao - 1] ?? 0) * 1.5)
+    .filter((c) => c.id !== jogo.clubeId && c.plantel.length < PLANTEL_MAX - 2 && c.dinheiro > (RESERVA[nivelDe(c) - 1] ?? 0) * 1.5)
     .sort((a, b) => a.id - b.id)
   for (let k = 0; k < quantas && ricos.length; k++) {
     // Mais dinheiro (face à reserva da divisão), mais hipóteses de ir às compras.
-    const pesos = ricos.map((c) => c.dinheiro / (RESERVA[c.divisao - 1] ?? 1))
+    const pesos = ricos.map((c) => c.dinheiro / (RESERVA[nivelDe(c) - 1] ?? 1))
     let r = rng.next() * pesos.reduce((s, p) => s + p, 0)
     let i = 0
     while (i < ricos.length - 1 && (r -= pesos[i]) > 0) i++
     const c = ricos.splice(i, 1)[0]
-    const orcamento = c.dinheiro - (RESERVA[c.divisao - 1] ?? 0)
+    const orcamento = c.dinheiro - (RESERVA[nivelDe(c) - 1] ?? 0)
     let melhor: { j: Jogador; preco: number; g: number } | null = null
     const mudou = new Set(jogo.mercado?.mudaram ?? [])
     for (const d of mundo.divisoes) {
-      if (d.numero < c.divisao || d.numero > c.divisao + 1) continue
+      if (nivelDivisao(d) < nivelDe(c) || nivelDivisao(d) > nivelDe(c) + 1) continue
       for (const cid of d.clubes) {
         if (cid === c.id || cid === jogo.clubeId) continue
         for (const id of mundo.clubes[cid].plantel) {
@@ -703,7 +704,7 @@ export function pedidoRenovacao(mundo: Mundo, j: Jogador): number {
   const c = mundo.clubes[j.clubeId]
   // O que vale hoje na divisão atual (pode ser um corte), no máximo +10% do que ganha.
   // Quem cresceu muito (juniores) sobe até ao valor justo, mas no máximo +50% de uma vez.
-  const justo = salarioDe(j.forca, c?.divisao ?? 4) * (j.craque ? 1.25 : 1) * fatorRiqueza(mundo, j.clubeId)
+  const justo = salarioDe(j.forca, nivelDe(c)) * (j.craque ? 1.25 : 1) * fatorRiqueza(mundo, j.clubeId)
   // Quem está contente facilita; quem está chateado pede mais.
   const m = moralDe(j)
   const humor = m >= 75 ? 0.95 : m < 35 ? 1.15 : 1
@@ -747,7 +748,7 @@ export function renovar(jogo: JogoComMercado, jogadorId: number, anos: number, n
 
 /** Salário que um jogador livre pede (nunca menos do que ganhava). */
 export function pedidoLivre(mundo: Mundo, j: Jogador, clubeId: number): number {
-  return arredonda(Math.max(j.salario * 0.8, salarioDe(j.forca, mundo.clubes[clubeId].divisao) * fatorRiqueza(mundo, clubeId)) * 1.1)
+  return arredonda(Math.max(j.salario * 0.8, salarioDe(j.forca, nivelDe(mundo.clubes[clubeId])) * fatorRiqueza(mundo, clubeId)) * 1.1)
 }
 
 /**
@@ -809,7 +810,7 @@ function fimDeContratos(jogo: JogoComMercado, rng: Rng) {
       // Os mais fortes primeiro, enquanto os salários não passarem 15% da receita estimada (há prémios da taça e da Europa).
       const ordem = c.plantel.map((id) => mundo.jogadores[id]).filter((j) => j.contrato > 0).sort((a, b) => b.forca - a.forca || a.id - b.id)
       for (const j of ordem) {
-        const novo = arredonda(salarioDe(j.forca, c.divisao) * (j.craque ? 1.25 : 1) * f)
+        const novo = arredonda(salarioDe(j.forca, nivelDe(c)) * (j.craque ? 1.25 : 1) * f)
         if (novo <= j.salario || pesoSalarial(mundo, cid, novo - j.salario) > 1.15) continue
         j.salario = novo
       }
@@ -880,10 +881,10 @@ function assinarLivresIA(jogo: JogoComMercado, rng: Rng) {
         if (!forcas.has(cid)) forcas.set(cid, forcaClube(mundo, cid))
         if (recusaDoLivre(mundo, j, cid, jogo.epoca.jornada, forcas.get(cid))) continue
         const sal = pedidoLivre(mundo, j, cid)
-        if (c.dinheiro < premioAssinatura(sal) + (falta ? 0 : RESERVA[c.divisao - 1] ?? 0)) continue
+        if (c.dinheiro < premioAssinatura(sal) + (falta ? 0 : RESERVA[nivelDe(c) - 1] ?? 0)) continue
         if (!iaPodePagar(mundo, cid, sal) && !(falta && c.plantel.length < 18)) continue
         // Clubes mais altos primeiro; dentro da divisão, quem mais ganha com ele.
-        const nota = g + (falta ? 5 : 0) - c.divisao * 10
+        const nota = g + (falta ? 5 : 0) - nivelDe(c) * 10
         if (!melhor || nota > melhor.g) melhor = { cid, g: nota, sal }
       }
     }
@@ -931,7 +932,7 @@ export function promoverJunior(jogo: JogoComMercado, jogadorId: number): Resulta
   if (meu.plantel.length >= PLANTEL_MAX) return { ok: false, texto: `O plantel já tem ${PLANTEL_MAX} jogadores. Vende alguém primeiro.` }
   j.clubeId = jogo.clubeId
   j.contrato = 3
-  j.salario = salarioDe(j.forca, meu.divisao)
+  j.salario = salarioDe(j.forca, nivelDe(meu))
   meu.plantel.push(j.id)
   st.juniores = (st.juniores ?? []).filter((id) => id !== jogadorId)
   return { ok: true, texto: `${j.nome} sobe ao plantel principal com contrato de 3 anos.` }
@@ -964,7 +965,7 @@ export function chamarJunioresUrgencia(jogo: JogoComMercado, indisp: ReadonlySet
     st.juniores = (st.juniores ?? []).filter((id) => id !== j.id)
     j.clubeId = jogo.clubeId
     j.contrato = 1
-    j.salario = salarioDe(j.forca, meu.divisao)
+    j.salario = salarioDe(j.forca, nivelDe(meu))
     meu.plantel.push(j.id)
     nomes.push(j.nome)
   }

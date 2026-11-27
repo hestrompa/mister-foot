@@ -1,4 +1,5 @@
 // Dinheiro por jornada: bilheteira dos jogos em casa, receitas fixas (TV e patrocínios) e salários.
+import { nivelDe } from './ligas'
 import type { Clube, Mundo } from './types'
 import type { LinhaTabela, Partida } from './partida'
 import { lotacaoAtual, avancarObra } from './estadio'
@@ -38,7 +39,7 @@ export interface Balanco {
 
 /** Quantos adeptos vão ao jogo em casa. Determinístico: depende da reputação, do adversário, da posição e do preço. */
 export function publicoEsperado(casa: Clube, fora: Clube, posCasa: number, totalClubes: number): number {
-  const d = casa.divisao - 1
+  const d = nivelDe(casa) - 1
   // Procura base: uma parte do estádio, mais para clubes com reputação alta.
   // Lugares acrescentados por obras atraem metade da procura dos originais.
   const base = casa.estadio.base ?? casa.estadio.lugares
@@ -83,12 +84,12 @@ export function aplicarFinancas(mundo: Mundo, partidas: Partida[], tabelas: Linh
       // Com lugares anuais pagos no arranque, esses adeptos não pagam bilhete outra vez.
       const ini = inicio?.[id]
       const bilheteira = Math.max(0, publico - (ini?.socios ?? 0)) * c.bilhete
-      const fixas = Math.round((RECEITA_FIXA[c.divisao - 1] ?? 0) * (ini ? PARTE_JORNADA : 1))
+      const fixas = Math.round((RECEITA_FIXA[nivelDe(c) - 1] ?? 0) * (ini ? PARTE_JORNADA : 1))
       const staff = custoStaffPorJornada(c)
       const salarios = salariosPorJornada(mundo, id) + staff
       const banco = cobrarPrestacao(c)
       const inaugurados = avancarObra(c)
-      const estadio = Math.round(c.estadio.lugares * (MANUTENCAO_LUGAR[c.divisao - 1] ?? 0.2))
+      const estadio = Math.round(c.estadio.lugares * (MANUTENCAO_LUGAR[nivelDe(c) - 1] ?? 0.2))
       const saldo = bilheteira + fixas - salarios - estadio - banco
       c.dinheiro += bilheteira + fixas - salarios - estadio
       out[id] = { publico, bilheteira, fixas, salarios, estadio, saldo }

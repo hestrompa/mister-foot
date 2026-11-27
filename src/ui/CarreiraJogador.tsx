@@ -1,4 +1,5 @@
 // Carreira de um jogador (linha aberta no plantel): personalidade, idade da reforma e histórico por época.
+import { etiquetaDivisao } from '../core/ligas'
 import type { Jogador, Mundo } from '../core/types'
 import type { EstadoEpoca } from '../core/partida'
 import { DICA_PERSONALIDADE, NOME_PERSONALIDADE, personalidadeDe } from '../core/personalidade'
@@ -45,7 +46,7 @@ export function CarreiraJogador({ j, mundo, epoca }: { j: Jogador; mundo: Mundo;
                 <tr className="meu">
                   <td>{ep(epoca!.ano)} (agora)</td>
                   <td title={nomeClube(j.clubeId)}>{sigla(j.clubeId)}</td>
-                  <td className="num">{mundo.clubes[j.clubeId]?.divisao ?? ''}</td>
+                  <td className="num">{mundo.clubes[j.clubeId] ? etiquetaDivisao(mundo, mundo.clubes[j.clubeId].divisao) : ''}</td>
                   <td className="num">{atual.jogos}</td><td className="num">{atual.golos}</td><td className="num">{atual.assist}</td>
                   <td className="num"><Nota n={mediaEpoca(epoca, j.id)} /></td>
                   <td className="num" style={{ color: corForca(j.forca) }}>{j.forca}</td>
@@ -55,7 +56,7 @@ export function CarreiraJogador({ j, mundo, epoca }: { j: Jogador; mundo: Mundo;
                 <tr key={k}>
                   <td>{ep(l[0])}</td>
                   <td title={nomeClube(l[1])}>{sigla(l[1])}</td>
-                  <td className="num">{l[2]}</td>
+                  <td className="num">{etiquetaDivisao(mundo, l[2])}</td>
                   <td className="num">{l[3]}</td><td className="num">{l[4]}</td><td className="num">{l[6] ?? 0}</td>
                   <td className="num"><Nota n={l[7] ? l[7] / 10 : undefined} /></td>
                   <td className="num" style={{ color: corForca(l[5]) }}>{l[5]}</td>

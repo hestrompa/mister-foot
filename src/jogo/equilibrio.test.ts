@@ -145,3 +145,18 @@ describe('dinheiro com a taça e a Europa', () => {
     for (let d = 0; d < 4; d++) expect(Math.abs(z.forcaMedia[d] - a.forcaMedia[d])).toBeLessThanOrEqual(4)
   }, 90_000)
 })
+
+describe('com Espanha e Inglaterra', () => {
+  it('4 épocas com tudo ligado: o dinheiro e a força das 8 divisões não derivam', async () => {
+    const { medirDinheiro } = await import('./medir')
+    const ms = medirDinheiro(66, 4, 3, true, true, true)
+    // O dobro dos clubes (144): o mesmo limite por clube que os testes de Portugal.
+    for (const m of ms) expect(m.vermelho).toBeLessThanOrEqual(12)
+    const [a, z] = [ms[0], ms[ms.length - 1]]
+    expect((z.total - a.total) / (ms.length - 1)).toBeLessThan(140_000_000)
+    for (let d = 0; d < 8; d++) expect(Math.abs(z.forcaMedia[d] - a.forcaMedia[d])).toBeLessThanOrEqual(4)
+    // 1.ª e 2.ª de cada país estrangeiro continuam separadas.
+    expect(z.forcaMedia[4] - z.forcaMedia[5]).toBeGreaterThanOrEqual(7)
+    expect(z.forcaMedia[6] - z.forcaMedia[7]).toBeGreaterThanOrEqual(7)
+  }, 120_000)
+})

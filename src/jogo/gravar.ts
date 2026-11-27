@@ -1,4 +1,4 @@
-import type { Jogo } from '../core/types'
+import type { Jogo, Mundo } from '../core/types'
 import type { EstadoEpoca, Partida } from '../core/partida'
 import { escalarAuto } from '../core/motor'
 import { manterPlano } from '../core/plano'
@@ -19,24 +19,31 @@ import { qualificarEuropa, type JogoComEuropa } from '../core/europa'
 
 const CHAVE = 'mister-foot:jogo'
 
-/** Partidas antigas guardam só os eventos de golo (o relato completo ocupa demasiado). */
-function compactar(epoca: EstadoEpoca): EstadoEpoca {
+/**
+ * Partidas antigas guardam só os eventos de golo (o relato completo ocupa demasiado).
+ * Nos campeonatos dos outros países nem isso: o resultado chega (os marcadores já estão somados na época).
+ */
+function compactar(epoca: EstadoEpoca, mundo?: Mundo, clubeId?: number): EstadoEpoca {
   const limite = epoca.jornada - 1
-  const calendario = epoca.calendario.map((div) =>
-    div.map((jornada) =>
+  const meuPais = mundo && clubeId !== undefined ? mundo.clubes[clubeId]?.pais ?? 'PT' : 'PT'
+  const calendario = epoca.calendario.map((div, d) => {
+    const fora = !!mundo && (mundo.divisoes[d]?.pais ?? 'PT') !== meuPais
+    return div.map((jornada) =>
       jornada.map((p): Partida =>
-        p.jornada < limite && (p.onzes || p.notas || p.eventos.some((e) => e.tipo !== 'golo'))
-          ? { ...p, eventos: p.eventos.filter((e) => e.tipo === 'golo'), onzes: undefined, notas: undefined }
-          : p,
+        p.jornada < limite && fora && (p.eventos.length || p.onzes || p.notas || p.porque)
+          ? { ...p, eventos: [], onzes: undefined, notas: undefined, porque: undefined, publico: undefined, receita: undefined }
+          : p.jornada < limite && (p.onzes || p.notas || p.eventos.some((e) => e.tipo !== 'golo'))
+            ? { ...p, eventos: p.eventos.filter((e) => e.tipo === 'golo'), onzes: undefined, notas: undefined }
+            : p,
       ),
-    ),
-  )
+    )
+  })
   return { ...epoca, calendario }
 }
 
 export function gravar(jogo: Jogo): boolean {
   try {
-    const dados = jogo.epoca ? { ...jogo, epoca: compactar(jogo.epoca) } : jogo
+    const dados = jogo.epoca ? { ...jogo, epoca: compactar(jogo.epoca, jogo.mundo, jogo.clubeId) } : jogo
     localStorage.setItem(CHAVE, JSON.stringify(dados))
     return true
   } catch {
@@ -101,7 +108,7 @@ export function carregar(): Jogo | null {
 
 /** Texto da gravação para guardar num ficheiro (cópia de segurança ou passar para outro aparelho). */
 export function exportarTexto(jogo: Jogo): string {
-  const dados = jogo.epoca ? { ...jogo, epoca: compactar(jogo.epoca) } : jogo
+  const dados = jogo.epoca ? { ...jogo, epoca: compactar(jogo.epoca, jogo.mundo, jogo.clubeId) } : jogo
   return JSON.stringify({ app: 'mister-foot', exportado: new Date().toISOString(), jogo: dados })
 }
 

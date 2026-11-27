@@ -1,6 +1,7 @@
 // Equipa técnica (staff) e treino: adjunto, treinador de guarda-redes, preparador físico e olheiro.
 // Cada clube tem no máximo um de cada. O nível (1 a 5) decide o efeito e o salário.
 // Tudo determinístico: os sorteios usam createRng com sementes derivadas do mundo.
+import { nivelDe as nivelDivisaoDe } from './ligas'
 import { manutencaoAcademia } from './academia'
 import { anosExtraCarreira, fatorTreinoPers, personalidadeDe } from './personalidade'
 import { PESOS, atributo, mexerPerfil, type Atributo } from './atributos'
@@ -124,7 +125,7 @@ export function candidatos(mundo: Mundo, clubeId: number, f: Funcao): MembroStaf
     const id = mistura(mundo.semente, mundo.epoca, clubeId, k, nivel)
     if (atual?.id === id) continue
     const desvio = 0.9 + rng.next() * 0.25
-    out.push({ id, nome: nomeStaff(rng), funcao: f, nivel, salario: arredonda(salarioStaff(nivel, c.divisao) * desvio) })
+    out.push({ id, nome: nomeStaff(rng), funcao: f, nivel, salario: arredonda(salarioStaff(nivel, nivelDivisaoDe(c)) * desvio) })
   }
   return out
 }

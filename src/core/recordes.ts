@@ -3,7 +3,7 @@
 import type { Jogo } from './types'
 import type { EstadoEpoca, Partida } from './partida'
 import { tabela } from './epoca'
-import { NOMES_DIVISAO } from './mundo'
+import { nomeDivisao, temAcima } from './ligas'
 
 export type TipoRecorde =
   | 'maiorVitoria' | 'maisGolosJogo' | 'golosJogador' | 'serieVitorias' | 'serieInvencivel' | 'serieDerrotas'
@@ -69,7 +69,6 @@ export function estadoRecordes(jogo: Jogo): EstadoRecordes {
 }
 
 const ep = (ano: number) => `${ano}/${String(ano + 1).slice(2)}`
-const nomeDiv = (n: number) => NOMES_DIVISAO[n - 1] ?? `${n}.ª Divisão`
 
 export function chaveConfronto(a: number, b: number): string {
   return a < b ? `${a}-${b}` : `${b}-${a}`
@@ -109,8 +108,8 @@ export function processarJornada(jogo: Jogo, partidas: Partida[], ano: number): 
     const [gc, gf] = p.golos
     const placar = `${nome(p.casaId)} ${gc}-${gf} ${nome(p.foraId)}`
     const dif = Math.abs(gc - gf)
-    if (dif >= 3) bater('maiorVitoria', { valor: dif, extra: Math.max(gc, gf), texto: `${placar} (${nomeDiv(p.divisao)})`, ano })
-    if (gc + gf >= 5) bater('maisGolosJogo', { valor: gc + gf, texto: `${placar} (${nomeDiv(p.divisao)})`, ano })
+    if (dif >= 3) bater('maiorVitoria', { valor: dif, extra: Math.max(gc, gf), texto: `${placar} (${nomeDivisao(mundo, p.divisao)})`, ano })
+    if (gc + gf >= 5) bater('maisGolosJogo', { valor: gc + gf, texto: `${placar} (${nomeDivisao(mundo, p.divisao)})`, ano })
     // Golos por jogador neste jogo.
     const porJog = new Map<number, number>()
     for (const e of p.eventos) if (e.tipo === 'golo' && e.jogadorId !== undefined) porJog.set(e.jogadorId, (porJog.get(e.jogadorId) ?? 0) + 1)
@@ -163,10 +162,10 @@ export function fecharEpocaRecordes(jogo: Jogo, epoca: EstadoEpoca): RecordeBati
     st.campeoes.push({ ano: epoca.ano, divisao: d.numero, clubeId: l.clubeId, nome: c?.nome ?? '?', pontos: l.pts, meu })
     if (meu) st.mister.titulos++
     const anterior = st.recordes.maisPontos
-    if (tentar(st, 'maisPontos', { valor: l.pts, extra: l.gm - l.gs, texto: `${c?.nome ?? '?'}, campeão da ${nomeDiv(d.numero)} (${ep(epoca.ano)})`, ano: epoca.ano }) && anterior) {
+    if (tentar(st, 'maisPontos', { valor: l.pts, extra: l.gm - l.gs, texto: `${c?.nome ?? '?'}, campeão da ${nomeDivisao(mundo, d.numero)} (${ep(epoca.ano)})`, ano: epoca.ano }) && anterior) {
       out.push({ tipo: 'maisPontos', r: st.recordes.maisPontos!, anterior })
     }
-    if (d.numero === meuDiv && d.numero > 1) {
+    if (d.numero === meuDiv && temAcima(mundo, d.numero)) {
       const pos = t.findIndex((x) => x.clubeId === jogo.clubeId)
       if (pos >= 0 && pos < 3) st.mister.subidas++
     }

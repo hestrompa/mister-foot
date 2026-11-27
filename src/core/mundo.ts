@@ -4,6 +4,8 @@ import {
   APELIDOS_AF, APELIDOS_BR, APELIDOS_ES, APELIDOS_PT, CORES, NOMES_AF, NOMES_BR, NOMES_ES, NOMES_ESTADIO,
   NOMES_PT, PADROES_CLUBE, TERRAS,
 } from './nomes'
+import { NOMES_LIGA } from './nomes-ligas'
+import { PAISES_ESTRANGEIROS } from './ligas'
 
 export const NUM_DIVISOES = 4
 export const CLUBES_POR_DIVISAO = 18
@@ -80,70 +82,138 @@ function curvaIdade(idade: number): number {
   return -4
 }
 
-/** Gera um mundo novo: 4 divisões de 18 clubes, cada um com 24 jogadores. */
-export function gerarMundo(semente: number): Mundo {
+export interface OpcoesMundo {
+  /** Junta os campeonatos de Espanha e de Inglaterra (2 divisões cada). */
+  estrangeiros?: boolean
+}
+
+/** Força média dos clubes nas divisões estrangeiras (por nível). */
+const FORCA_ESTRANGEIRA: Record<string, [number, number][]> = {
+  ES: [[59, 77], [48, 61]],
+  EN: [[60, 78], [48, 62]],
+}
+
+interface FonteNomes {
+  jogador: (rng: Rng) => { nome: string; curto: string; nacionalidade: string }
+  padroes: readonly string[]
+  estadios: readonly string[]
+}
+
+const FONTE_PT: FonteNomes = { jogador: nomeJogador, padroes: PADROES_CLUBE, estadios: NOMES_ESTADIO }
+
+function fonteEstrangeira(pais: string): FonteNomes {
+  const n = NOMES_LIGA[pais]
+  return {
+    padroes: n.padroes,
+    estadios: n.estadios,
+    jogador: (rng) => {
+      // A maioria da casa, alguns portugueses, brasileiros, africanos e do outro país.
+      const r = rng.next()
+      if (r > 0.9) return nomeJogador(rng)
+      let nomes = n.nomes, apelidos = n.apelidos, nac = pais
+      if (r > 0.82) { const outro = pais === 'ES' ? 'EN' : 'ES'; nomes = NOMES_LIGA[outro].nomes; apelidos = NOMES_LIGA[outro].apelidos; nac = outro }
+      const primeiro = rng.pick(nomes)
+      const ultimo = rng.pick(apelidos)
+      return { nome: `${primeiro} ${ultimo}`, curto: `${primeiro[0]}. ${ultimo}`, nacionalidade: nac }
+    },
+  }
+}
+
+interface Contexto {
+  rng: Rng
+  clubes: Record<number, Clube>
+  jogadores: Record<number, Jogador>
+  siglas: Set<string>
+  proximoJogador: number
+  proximoClube: number
+}
+
+/** Gera os 18 clubes (e planteis) de uma divisão. */
+function gerarDivisao(ctx: Contexto, nivel: number, terras: readonly string[], [fMin, fMax]: [number, number], fonte: FonteNomes, pais?: string, numero = nivel): number[] {
+  const { rng, jogadores, clubes } = ctx
+  const ids: number[] = []
+  for (let i = 0; i < CLUBES_POR_DIVISAO; i++) {
+    const terra = terras[i]
+    // Força média do clube: espalhada pela divisão, com 3 "grandes" na 1.ª.
+    let media = fMin + ((fMax - fMin) * (CLUBES_POR_DIVISAO - 1 - i)) / (CLUBES_POR_DIVISAO - 1)
+    if (nivel === 1 && i < 3) media += 6 - i * 1.5
+    media += rng.normal(0, 1.5)
+    const clube = criarClube(rng, ctx.proximoClube++, terra, nivel, media, ctx.siglas, fonte, [fMin, fMax])
+    for (const pos of ['GR', 'DEF', 'MED', 'AV'] as Posicao[]) {
+      for (let k = 0; k < PLANTEL[pos]; k++) {
+        // Titulares acima da média do clube, suplentes abaixo.
+        const titular = (pos === 'GR' && k === 0) || (pos === 'DEF' && k < 4) || (pos === 'MED' && k < 4) || (pos === 'AV' && k < 2)
+        const idade = idadeAleatoria(rng)
+        const forca = clamp(Math.round(media + (titular ? 3 : -4) + curvaIdade(idade) + rng.normal(0, 4.5)), 5, 95)
+        const margem = idade <= 21 ? rng.int(3, 14) : idade <= 25 ? rng.int(1, 6) : rng.int(0, 2)
+        const n = fonte.jogador(rng)
+        const j: Jogador = {
+          id: ctx.proximoJogador++,
+          ...n,
+          posicao: pos,
+          idade,
+          forca,
+          potencial: clamp(forca + margem, forca, 99),
+          salario: salarioDe(forca, nivel),
+          valor: valorDe(forca, idade),
+          craque: false,
+          contrato: rng.int(1, 4),
+          clubeId: clube.id,
+        }
+        jogadores[j.id] = j
+        clube.plantel.push(j.id)
+      }
+    }
+    // Craque: o melhor do plantel, se se destacar do segundo.
+    const ordem = clube.plantel.map((id) => jogadores[id]).sort((a, b) => b.forca - a.forca)
+    if (ordem[0].forca - ordem[1].forca >= 2 || ordem[0].forca >= media + 10) {
+      ordem[0].craque = true
+      ordem[0].valor = arredonda(ordem[0].valor * 1.3)
+      ordem[0].salario = arredonda(ordem[0].salario * 1.3)
+    }
+    if (pais) { clube.pais = pais; clube.nivel = nivel; clube.divisao = numero }
+    clubes[clube.id] = clube
+    ids.push(clube.id)
+  }
+  return ids
+}
+
+/**
+ * Gera um mundo novo: 4 divisões de 18 clubes em Portugal, cada clube com 24 jogadores.
+ * Com `estrangeiros`, junta Espanha e Inglaterra (2 divisões de 18 cada, números 5 a 8).
+ */
+export function gerarMundo(semente: number, opcoes: OpcoesMundo = {}): Mundo {
   const rng = createRng(semente)
   const terras = rng.shuffle(TERRAS)
-  const clubes: Record<number, Clube> = {}
-  const jogadores: Record<number, Jogador> = {}
+  const ctx: Contexto = { rng, clubes: {}, jogadores: {}, siglas: new Set<string>(), proximoJogador: 1, proximoClube: 1 }
   const divisoes: Divisao[] = []
-  let proximoJogador = 1
-  let proximoClube = 1
-  const siglas = new Set<string>()
 
   for (let d = 1; d <= NUM_DIVISOES; d++) {
-    const [fMin, fMax] = FORCA_DIVISAO[d - 1]
-    const ids: number[] = []
-    for (let i = 0; i < CLUBES_POR_DIVISAO; i++) {
-      const terra = terras[(d - 1) * CLUBES_POR_DIVISAO + i]
-      // Força média do clube: espalhada pela divisão, com 3 "grandes" na 1.ª.
-      let media = fMin + ((fMax - fMin) * (CLUBES_POR_DIVISAO - 1 - i)) / (CLUBES_POR_DIVISAO - 1)
-      if (d === 1 && i < 3) media += 6 - i * 1.5
-      media += rng.normal(0, 1.5)
-      const clube = criarClube(rng, proximoClube++, terra, d, media, siglas)
-      for (const pos of ['GR', 'DEF', 'MED', 'AV'] as Posicao[]) {
-        for (let k = 0; k < PLANTEL[pos]; k++) {
-          // Titulares acima da média do clube, suplentes abaixo.
-          const titular = (pos === 'GR' && k === 0) || (pos === 'DEF' && k < 4) || (pos === 'MED' && k < 4) || (pos === 'AV' && k < 2)
-          const idade = idadeAleatoria(rng)
-          const forca = clamp(Math.round(media + (titular ? 3 : -4) + curvaIdade(idade) + rng.normal(0, 4.5)), 5, 95)
-          const margem = idade <= 21 ? rng.int(3, 14) : idade <= 25 ? rng.int(1, 6) : rng.int(0, 2)
-          const n = nomeJogador(rng)
-          const j: Jogador = {
-            id: proximoJogador++,
-            ...n,
-            posicao: pos,
-            idade,
-            forca,
-            potencial: clamp(forca + margem, forca, 99),
-            salario: salarioDe(forca, d),
-            valor: valorDe(forca, idade),
-            craque: false,
-            contrato: rng.int(1, 4),
-            clubeId: clube.id,
-          }
-          jogadores[j.id] = j
-          clube.plantel.push(j.id)
-        }
-      }
-      // Craque: o melhor do plantel, se se destacar do segundo.
-      const ordem = clube.plantel.map((id) => jogadores[id]).sort((a, b) => b.forca - a.forca)
-      if (ordem[0].forca - ordem[1].forca >= 2 || ordem[0].forca >= media + 10) {
-        ordem[0].craque = true
-        ordem[0].valor = arredonda(ordem[0].valor * 1.3)
-        ordem[0].salario = arredonda(ordem[0].salario * 1.3)
-      }
-      clubes[clube.id] = clube
-      ids.push(clube.id)
-    }
+    const ids = gerarDivisao(ctx, d, terras.slice((d - 1) * CLUBES_POR_DIVISAO, d * CLUBES_POR_DIVISAO), FORCA_DIVISAO[d - 1], FONTE_PT)
     divisoes.push({ numero: d, nome: NOMES_DIVISAO[d - 1], clubes: ids })
   }
 
-  return { versao: 1, semente, epoca: 2027, divisoes, clubes, jogadores }
+  if (opcoes.estrangeiros) {
+    for (const pais of PAISES_ESTRANGEIROS) {
+      // Gerador próprio: Portugal fica igual com ou sem os campeonatos estrangeiros.
+      const r = createRng(((semente * 2654435761) ^ (pais === 'ES' ? 0xe5 : 0xe9)) >>> 0 || 1)
+      const sub: Contexto = { ...ctx, rng: r }
+      const terrasP = r.shuffle(NOMES_LIGA[pais].terras)
+      FORCA_ESTRANGEIRA[pais].forEach((faixa, k) => {
+        const nivel = k + 1
+        const ids = gerarDivisao(sub, nivel, terrasP.slice(k * CLUBES_POR_DIVISAO, (k + 1) * CLUBES_POR_DIVISAO), faixa, fonteEstrangeira(pais), pais, divisoes.length + 1)
+        divisoes.push({ numero: divisoes.length + 1, nome: NOMES_DIVISAO[k], clubes: ids, pais, nivel })
+      })
+      ctx.proximoClube = sub.proximoClube
+      ctx.proximoJogador = sub.proximoJogador
+    }
+  }
+
+  return { versao: 1, semente, epoca: 2027, divisoes, clubes: ctx.clubes, jogadores: ctx.jogadores }
 }
 
-function criarClube(rng: Rng, id: number, terra: string, divisao: number, media: number, siglas: Set<string>): Clube {
-  const padrao = rng.pick(PADROES_CLUBE)
+function criarClube(rng: Rng, id: number, terra: string, divisao: number, media: number, siglas: Set<string>, fonte: FonteNomes, [fMin, fMax]: [number, number]): Clube {
+  const padrao = rng.pick(fonte.padroes)
   const nome = padrao.replace('{T}', terra)
   const sigla = criarSigla(terra, siglas)
   const reputacao = clamp(Math.round(media * 1.15 + rng.normal(0, 3)), 5, 100)
@@ -153,8 +223,8 @@ function criarClube(rng: Rng, id: number, terra: string, divisao: number, media:
   const dinheiro = [
     [2_000_000, 15_000_000], [500_000, 2_000_000], [150_000, 500_000], [50_000, 200_000],
   ][divisao - 1]
-  const t = clamp((media - FORCA_DIVISAO[divisao - 1][0]) / (FORCA_DIVISAO[divisao - 1][1] - FORCA_DIVISAO[divisao - 1][0]), 0, 1.3)
-  const estadioNome = rng.pick(NOMES_ESTADIO).replace('{T}', terra)
+  const t = clamp((media - fMin) / (fMax - fMin), 0, 1.3)
+  const estadioNome = rng.pick(fonte.estadios).replace('{T}', terra)
   return {
     id,
     nome,

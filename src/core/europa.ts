@@ -16,6 +16,7 @@ import { lotacaoAtual } from './estadio'
 import { tabela } from './epoca'
 import { garantirTaca, marcarPenaltis, prolongar, vencedorDe, textoResultado, type JogoComTaca } from './taca'
 import { CLUBES_EUROPA, CORES_EUROPA, PAISES_EUROPA } from './nomes-europa'
+import { divisoesDoPais, PAIS_BASE, PAISES, paisDe as paisDoClube, paisesDoMundo } from './ligas'
 
 export type IdComp = 'liga' | 'taca'
 
@@ -242,7 +243,20 @@ export function mundoEuropa(jogo: JogoComEuropa): Mundo {
 /** Primeira época (sem classificação anterior): vão os clubes da 1.ª com mais nome. */
 function qualificacaoInicial(mundo: Mundo, ano: number): Qualificados {
   const d1 = (mundo.divisoes[0]?.clubes ?? []).slice().sort((a, b) => mundo.clubes[b].reputacao - mundo.clubes[a].reputacao || a - b)
-  return { ano: ano - 1, liga: d1.slice(0, COMPETICOES.liga.vagas), taca: d1.slice(COMPETICOES.liga.vagas, COMPETICOES.liga.vagas + COMPETICOES.taca.vagas) }
+  const q = { ano: ano - 1, liga: d1.slice(0, COMPETICOES.liga.vagas), taca: d1.slice(COMPETICOES.liga.vagas, COMPETICOES.liga.vagas + COMPETICOES.taca.vagas) }
+  for (const d of primeirasEstrangeiras(mundo)) {
+    const ids = d.clubes.slice().sort((a, b) => mundo.clubes[b].reputacao - mundo.clubes[a].reputacao || a - b)
+    q.liga.push(...ids.slice(0, VAGAS_ESTRANGEIRAS.liga))
+    q.taca.push(...ids.slice(VAGAS_ESTRANGEIRAS.liga, VAGAS_ESTRANGEIRAS.liga + VAGAS_ESTRANGEIRAS.taca))
+  }
+  return q
+}
+
+/** Vagas europeias de cada campeonato estrangeiro do mundo (pela 1.ª divisão). */
+const VAGAS_ESTRANGEIRAS: Record<IdComp, number> = { liga: 2, taca: 2 }
+
+function primeirasEstrangeiras(mundo: Mundo) {
+  return paisesDoMundo(mundo).filter((p) => p !== PAIS_BASE).map((p) => divisoesDoPais(mundo, p)[0]).filter(Boolean)
 }
 
 function novaPartida(id: string, casaId: number, foraId: number, jornada: number): Partida {
@@ -261,7 +275,11 @@ export function nomeClube(jogo: JogoComEuropa, id: number): string {
 /** País de um clube estrangeiro (undefined = clube nacional). */
 export function paisDe(jogo: JogoComEuropa, id: number): string | undefined {
   const c = jogo.europa?.pais[id]
-  return c ? PAISES_EUROPA[c]?.nome : undefined
+  if (c) return PAISES_EUROPA[c]?.nome
+  // Clube de um campeonato estrangeiro do mundo (Espanha, Inglaterra): mostra o país se não for o meu.
+  const m = jogo.mundo.clubes[id]
+  const meu = paisDoClube(jogo.mundo.clubes[jogo.clubeId])
+  return m && paisDoClube(m) !== meu ? PAISES[paisDoClube(m)]?.nome : undefined
 }
 
 /** Cria a Europa da época: clubes estrangeiros, sorteio dos grupos e calendário. */
@@ -287,7 +305,9 @@ function criarEuropa(jogo: JogoComEuropa, antiga: EstadoEuropa | undefined): Est
   const qual: Record<IdComp, number[]> = { liga: q0.liga.filter(valido), taca: q0.taca.filter(valido) }
 
   // Estrangeiros: os de mais nível (com um pouco de sorte) vão à Liga, os seguintes à Taça.
-  const ordem = pool.map((c) => ({ c, v: c.nivel + rng.normal(0, 0.08) })).sort((a, b) => b.v - a.v).map((x) => x.c)
+  // Os países com campeonato no mundo mandam os seus clubes; os inventados desses países ficam de fora.
+  const comLiga = new Set(paisesDoMundo(mundo))
+  const ordem = pool.map((c) => ({ c, v: c.nivel + rng.normal(0, 0.08) })).sort((a, b) => b.v - a.v).map((x) => x.c).filter((c) => !comLiga.has(c.pais))
   const ref = referencia(mundo)
   const proxJog = { v: ID_JOGADOR }
   let k = 0
@@ -306,7 +326,7 @@ function criarEuropa(jogo: JogoComEuropa, antiga: EstadoEuropa | undefined): Est
 
   // Sorteio dos grupos: 4 potes pela força, sem dois clubes do mesmo país no mesmo grupo.
   const m: Mundo = { ...mundo, clubes: { ...mundo.clubes, ...e.clubes }, jogadores: { ...mundo.jogadores, ...e.jogadores } }
-  const paisDeId = (id: number) => e.pais[id] ?? 'NAC'
+  const paisDeId = (id: number) => e.pais[id] ?? paisDoClube(mundo.clubes[id])
   for (const comp of e.comps) {
     const porForca = comp.clubes.slice().sort((a, b) => forcaClube(m, b) - forcaClube(m, a) || a - b)
     const potes = Array.from({ length: 4 }, (_, p) => porForca.slice(p * GRUPOS, (p + 1) * GRUPOS))
@@ -326,11 +346,12 @@ function criarEuropa(jogo: JogoComEuropa, antiga: EstadoEuropa | undefined): Est
   // Notícias do sorteio.
   for (const comp of e.comps) {
     const info = COMPETICOES[comp.id]
-    const nac = comp.clubes.filter((id) => mundo.clubes[id])
+    const meuPais = paisDoClube(mundo.clubes[jogo.clubeId])
+    const nac = comp.clubes.filter((id) => mundo.clubes[id] && paisDoClube(mundo.clubes[id]) === meuPais)
     if (nac.length) noticia(e, `${info.nome}: ${nac.map((id) => mundo.clubes[id].nome).join(', ')} na fase de grupos.`, nac.includes(jogo.clubeId))
     const g = comp.grupos.findIndex((gr) => gr.includes(jogo.clubeId))
     if (g >= 0) {
-      const outros = comp.grupos[g].filter((id) => id !== jogo.clubeId).map((id) => `${m.clubes[id].nome}${e.pais[id] ? ` (${PAISES_EUROPA[e.pais[id]].nome})` : ''}`)
+      const outros = comp.grupos[g].filter((id) => id !== jogo.clubeId).map((id) => { const p = e.pais[id] ? PAISES_EUROPA[e.pais[id]].nome : paisDoClube(mundo.clubes[id]) !== meuPais ? PAISES[paisDoClube(mundo.clubes[id])]?.nome : undefined; return `${m.clubes[id].nome}${p ? ` (${p})` : ''}` })
       noticia(e, `Sorteio do grupo ${letraGrupo(g)} da ${info.nome}: ${outros.join(', ')}. Primeiro jogo depois da ${datas[0]}.ª jornada.`, true)
     }
   }
@@ -693,12 +714,19 @@ export function qualificarEuropa(jogo: JogoComEuropa): Qualificados {
     if (taca.length >= COMPETICOES.taca.vagas) break
     if (!taca.includes(id)) taca.push(id)
   }
+  for (const d of primeirasEstrangeiras(mundo)) {
+    const ord = tabela(mundo, epoca, d.numero).map((l) => l.clubeId)
+    liga.push(...ord.slice(0, VAGAS_ESTRANGEIRAS.liga))
+    taca.push(...ord.slice(VAGAS_ESTRANGEIRAS.liga, VAGAS_ESTRANGEIRAS.liga + VAGAS_ESTRANGEIRAS.taca))
+  }
   const q = { ano: epoca.ano, liga, taca }
   if (e.qualificados?.ano !== epoca.ano) {
     const meu = jogo.clubeId
     const onde = liga.includes(meu) ? COMPETICOES.liga.nome : taca.includes(meu) ? COMPETICOES.taca.nome : null
     if (onde) noticia(e, `${mundo.clubes[meu].nome} vai jogar a ${onde} na próxima época!`, true)
-    noticia(e, `Apurados para a próxima época: ${COMPETICOES.liga.nome} ${liga.map((id) => mundo.clubes[id].nome).join(', ')}; ${COMPETICOES.taca.nome} ${taca.map((id) => mundo.clubes[id].nome).join(', ')}.`)
+    const meuPais = paisDoClube(mundo.clubes[meu])
+    const doPais = (ids: number[]) => ids.filter((id) => paisDoClube(mundo.clubes[id]) === meuPais).map((id) => mundo.clubes[id].nome).join(', ')
+    noticia(e, `Apurados para a próxima época: ${COMPETICOES.liga.nome} ${doPais(liga)}; ${COMPETICOES.taca.nome} ${doPais(taca)}.`)
   }
   e.qualificados = q
   return q

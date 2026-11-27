@@ -5,6 +5,8 @@ export const NOVIDADES: { data: string; itens: string[] }[] = [
   {
     data: '27/11',
     itens: [
+      'Campeonatos de Espanha e Inglaterra nos jogos novos: 2 divisões de 18 clubes em cada país, com calendário completo de 34 jornadas, 3 subidas e 3 descidas e todos os jogos simulados pelo mesmo motor. Podes começar lá, ver as divisões e as classificações de cada país (separadores Divisões e Classificação), comprar e vender jogadores entre países e receber convites de clubes estrangeiros.',
+      'Na Europa entram os 2 primeiros da 1.ª de Espanha e de Inglaterra na Liga Continental e o 3.º e o 4.º na Taça Continental, no lugar dos clubes inventados desses países. A Taça Nacional continua a ser só de Portugal. As gravações antigas ficam como estavam (só Portugal).',
       'Campo tático: arrasta cada jogador para onde queres que jogue, no pré-jogo e durante o jogo (Pausa, Equipa ou intervalo). Um médio mais recuado defende mais e ataca menos, um mais adiantado o contrário, um avançado que recua ajuda o meio-campo e um lateral que sobe dá saída de bola. Quem passa para outra zona muda de papel e a formação muda com ele (ex.: 4-4-2 para 4-3-3). As formações do menu continuam como atalho.',
       'O motor usa as posições: o ganho depende dos atributos de quem mudas (remate e velocidade para subir, defesa para recuar), e uma forma toda à frente ou toda atrás perde mais do que ganha. As percentagens por baixo do campo mostram logo o que muda no meio-campo, no ataque e na defesa.',
       'O campo 2D mostra as caricas nas posições que escolheste, e os lances nascem no corredor de quem os cria. Cada mudança a meio do jogo fica no relato.',

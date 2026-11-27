@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { forcaClube, gerarMundo, NOMES_DIVISAO } from './core/mundo'
+import { forcaClube, gerarMundo } from './core/mundo'
+import { divisoesDoPais, nivelDivisao, nomeDivisao, PAISES, paisDivisao, paisesDoMundo } from './core/ligas'
 import { salariosPorJornada } from './core/financas'
 import { ObrasBanco } from './ui/ObrasBanco'
 import { AbrirCopia, descarregarCopia } from './ui/CopiaSeguranca'
@@ -62,8 +63,8 @@ export default function App() {
         continuar={() => setEcra('jogo')}
         copia={jogo ? () => descarregarCopia(jogo) : undefined}
         aberto={() => { const j = carregar(); if (j) { setJogo(j); setEcra('jogo') } }}
-        novo={(treinador, semente) => {
-          setMundoNovo({ mundo: gerarMundo(semente), treinador })
+        novo={(treinador, semente, estrangeiros) => {
+          setMundoNovo({ mundo: gerarMundo(semente, { estrangeiros }), treinador })
           setEcra('escolher')
         }}
       />
@@ -91,9 +92,10 @@ function Rodape() {
   return <footer className="rodape">Mister-foot · {__VERSAO__} · clubes e jogadores fictícios</footer>
 }
 
-function Inicio({ temJogo, continuar, novo, copia, aberto }: { temJogo: boolean; continuar: () => void; novo: (t: string, s: number) => void; copia?: () => void; aberto: () => void }) {
+function Inicio({ temJogo, continuar, novo, copia, aberto }: { temJogo: boolean; continuar: () => void; novo: (t: string, s: number, estrangeiros: boolean) => void; copia?: () => void; aberto: () => void }) {
   const [treinador, setTreinador] = useState('')
   const [semente, setSemente] = useState('')
+  const [estrangeiros, setEstrangeiros] = useState(true)
   return (
     <div className="ecra inicio">
       <div className="logo">
@@ -111,7 +113,7 @@ function Inicio({ temJogo, continuar, novo, copia, aberto }: { temJogo: boolean;
           if (temJogo && !confirm('Começar um jogo novo apaga a carreira atual. Continuar?')) return
           apagar()
           const s = semente.trim() ? Number(semente.replace(/\D/g, '')) || 1 : Math.floor(Math.random() * 1e9)
-          novo(treinador.trim() || 'Mister', s)
+          novo(treinador.trim() || 'Mister', s, estrangeiros)
         }}
       >
         <h2>Novo jogo</h2>
@@ -122,6 +124,10 @@ function Inicio({ temJogo, continuar, novo, copia, aberto }: { temJogo: boolean;
         <label>
           Semente do mundo <span className="dica">(opcional: o mesmo número gera o mesmo mundo)</span>
           <input value={semente} onChange={(e) => setSemente(e.target.value)} inputMode="numeric" placeholder="aleatória" maxLength={10} />
+        </label>
+        <label className="chk">
+          <input type="checkbox" checked={estrangeiros} onChange={(e) => setEstrangeiros(e.target.checked)} data-testid="estrangeiros" />
+          Campeonatos de Espanha e Inglaterra <span className="dica">(2 divisões cada, com subidas e descidas; podes treinar lá e receber convites)</span>
         </label>
         <button className="botao principal" type="submit">Gerar mundo</button>
       </form>
@@ -150,7 +156,7 @@ function EscolherClube({ mundo, escolher, voltar }: { mundo: Mundo; escolher: (i
         <button className="botao fantasma" onClick={voltar}>Voltar</button>
         <h2>Escolhe o teu clube</h2>
       </header>
-      <p className="nota">Começar na 4.ª Divisão e subir até ao topo é a forma clássica de jogar. Podes começar onde quiseres.</p>
+      <p className="nota">Começar na 4.ª Divisão e subir até ao topo é a forma clássica de jogar. Podes começar onde quiseres{paisesDoMundo(mundo).length > 1 ? ', também em Espanha ou Inglaterra (a Taça Nacional é só em Portugal)' : ''}.</p>
       <Divisoes mundo={mundo} div={div} setDiv={(n) => { setDiv(n); setSel(null) }} />
       <div className="grelha-clubes">
         {clubes.map((c) => (
@@ -176,13 +182,34 @@ function EscolherClube({ mundo, escolher, voltar }: { mundo: Mundo; escolher: (i
 }
 
 function Divisoes({ mundo, div, setDiv }: { mundo: Mundo; div: number; setDiv: (n: number) => void }) {
+  const paises = paisesDoMundo(mundo)
+  const pais = paisDivisao(mundo.divisoes[div - 1])
   return (
-    <nav className="separadores" aria-label="Divisões">
-      {mundo.divisoes.map((d) => (
-        <button key={d.numero} className={div === d.numero ? 'ativo' : ''} onClick={() => setDiv(d.numero)}>{d.nome}</button>
-      ))}
-    </nav>
+    <>
+      {paises.length > 1 && (
+        <nav className="separadores paises" aria-label="Países">
+          {paises.map((p) => (
+            <button key={p} className={pais === p ? 'ativo' : ''} onClick={() => {
+              if (p === pais) return
+              const ds = divisoesDoPais(mundo, p)
+              const nivel = nivelDivisao(mundo.divisoes[div - 1])
+              setDiv((ds.find((d) => nivelDivisao(d) === nivel) ?? ds[0]).numero)
+            }}><Bandeira pais={p} /> {PAISES[p]?.nome ?? p}</button>
+          ))}
+        </nav>
+      )}
+      <nav className="separadores" aria-label="Divisões">
+        {divisoesDoPais(mundo, pais).map((d) => (
+          <button key={d.numero} className={div === d.numero ? 'ativo' : ''} onClick={() => setDiv(d.numero)}>{d.nome}</button>
+        ))}
+      </nav>
+    </>
   )
+}
+
+function Bandeira({ pais }: { pais: string }) {
+  const c = PAISES[pais]?.cores ?? ['#888', '#ccc']
+  return <span className="bandeira" aria-hidden="true" style={{ background: `linear-gradient(90deg, ${c[0]} 50%, ${c[1]} 50%)` }} />
 }
 
 function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; atualizar: (j: Jogo) => void }) {
@@ -239,13 +266,13 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
     avancarDirecao(jogo)
     for (const i of avancarInvestidores(mundo, jogo.epoca)) {
       const c = mundo.clubes[i.clubeId]
-      noticiaExtra(jogo, i.clubeId === jogo.clubeId ? 'meu' : 'liga', `${c.nome}: ${i.nome} investe ${euros(i.valor)}`, `Os bons resultados na ${NOMES_DIVISAO[c.divisao - 1] ?? 'divisão'} convenceram os investidores. O dinheiro já está na conta do clube.`)
+      noticiaExtra(jogo, i.clubeId === jogo.clubeId ? 'meu' : 'liga', `${c.nome}: ${i.nome} investe ${euros(i.valor)}`, `Os bons resultados na ${nomeDivisao(mundo, c.divisao)} convenceram os investidores. O dinheiro já está na conta do clube.`)
     }
     avancarImprensa(jogo)
     for (const pr of avancarTreinadorMes(jogo)) {
       const meu = pr.clubeId === jogo.clubeId
       if (!meu && pr.divisao !== mundo.clubes[jogo.clubeId].divisao) continue
-      noticiaExtra(jogo, meu ? 'meu' : 'liga', meu ? `Mister ${jogo.treinador} é o treinador do mês!` : `Treinador do mês: ${mundo.clubes[pr.clubeId].nome}`, `${pr.pontos} pontos em ${JORNADAS_MES} jornadas na ${NOMES_DIVISAO[pr.divisao - 1] ?? 'divisão'}.${meu ? ' A direção gostou.' : ''}`)
+      noticiaExtra(jogo, meu ? 'meu' : 'liga', meu ? `Mister ${jogo.treinador} é o treinador do mês!` : `Treinador do mês: ${mundo.clubes[pr.clubeId].nome}`, `${pr.pontos} pontos em ${JORNADAS_MES} jornadas na ${nomeDivisao(mundo, pr.divisao)}.${meu ? ' A direção gostou.' : ''}`)
     }
     verificarConquistas(jogo)
     if (!epocaTerminada(jogo.epoca) && despedido(jogo)) { atualizar(jogo); return }
@@ -273,7 +300,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
       <Emblema clube={meu} tamanho={44} />
       <div className="topo-info">
         <h2>{meu.nome}</h2>
-        <span className="topo-det">{mundo.divisoes[meu.divisao - 1].nome} · Época {mundo.epoca}/{String(mundo.epoca + 1).slice(2)} · Mister {jogo.treinador}</span>
+        <span className="topo-det">{nomeDivisao(mundo, meu.divisao)} · Época {mundo.epoca}/{String(mundo.epoca + 1).slice(2)} · Mister {jogo.treinador}</span>
       </div>
       <div className="topo-dinheiro" title="Dinheiro em caixa">{euros(meu.dinheiro)}</div>
     </header>

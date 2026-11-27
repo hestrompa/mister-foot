@@ -148,8 +148,8 @@ function restoDaJornada(jogo: Jogo) {
 }
 
 /** Joga `epocas` épocas como a app (o clube do utilizador não faz nada: só joga). Com `taca`, joga também a taça e a Europa; com `tudo`, também o balneário, seleções, direção, imprensa e fichas. */
-export function medirDinheiro(semente: number, epocas: number, divUtilizador = 3, taca = false, tudo = false): MedidaDinheiro[] {
-  const mundo = gerarMundo(semente)
+export function medirDinheiro(semente: number, epocas: number, divUtilizador = 3, taca = false, tudo = false, estrangeiros = false): MedidaDinheiro[] {
+  const mundo = gerarMundo(semente, { estrangeiros })
   const clubeId = mundo.divisoes[divUtilizador].clubes[9]
   const jogo = prepararEpoca({ mundo, treinador: 'T', clubeId, criado: '' } as Jogo) as JogoComMercado
   const out: MedidaDinheiro[] = []

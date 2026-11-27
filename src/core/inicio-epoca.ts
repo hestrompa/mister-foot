@@ -1,6 +1,7 @@
 // Dinheiro de arranque de época: direitos de TV, patrocinador principal, lugares anuais (sócios) e prémio da Liga
 // pela classificação da época anterior. É sobretudo dinheiro que antes chegava às pinguinhas por jornada:
 // as receitas fixas por jornada descem para PARTE_JORNADA e os lugares anuais deixam de pagar bilhete em cada jogo.
+import { nivelDivisao, nivelDoNumero } from './ligas'
 import type { Mundo } from './types'
 import type { EstadoEpoca, LinhaTabela } from './partida'
 import { RECEITA_FIXA, BILHETE_NORMAL } from './financas'
@@ -88,11 +89,11 @@ export function pagarInicioEpoca(mundo: Mundo, epoca: EstadoEpoca, anteriores: L
   anteriores.forEach((t, d) => {
     const n = t.length
     if (!n) return
-    const bolo = fixasEpoca(d + 1) * PARTE_PREMIO
+    const bolo = fixasEpoca(nivelDoNumero(mundo, d + 1)) * PARTE_PREMIO
     t.forEach((l, i) => premio.set(l.clubeId, { valor: Math.round((bolo * 2 * (n - i)) / (n + 1) / 1000) * 1000, lugar: i + 1, div: d + 1 }))
   })
   for (const div of mundo.divisoes) {
-    const F = fixasEpoca(div.numero)
+    const F = fixasEpoca(nivelDivisao(div))
     // Patrocínio pela reputação relativa dentro da divisão: o de mais nome recebe 1,3x, o de menos 0,7x.
     const porRep = [...div.clubes].sort((a, b) => mundo.clubes[b].reputacao - mundo.clubes[a].reputacao || a - b)
     for (const id of div.clubes) {
@@ -101,7 +102,7 @@ export function pagarInicioEpoca(mundo: Mundo, epoca: EstadoEpoca, anteriores: L
       const tv = Math.round((F * PARTE_TV) / 1000) * 1000
       const patrocinio = Math.round((F * PARTE_PATROCINIO * (1.3 - 0.6 * k)) / 1000) * 1000
       const socios = lugaresAnuais(c)
-      const anuais = Math.round((socios * (BILHETE_NORMAL[div.numero - 1] ?? 5) * JOGOS_CASA * (1 - DESCONTO_ANUAL)) / 1000) * 1000
+      const anuais = Math.round((socios * (BILHETE_NORMAL[nivelDivisao(div) - 1] ?? 5) * JOGOS_CASA * (1 - DESCONTO_ANUAL)) / 1000) * 1000
       const p = premio.get(id)
       const inj: InjecaoEpoca = { tv, patrocinio, socios, anuais, premio: p?.valor ?? 0, total: 0 }
       if (p) { inj.lugarAnterior = p.lugar; inj.divisaoAnterior = p.div }

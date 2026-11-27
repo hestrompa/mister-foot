@@ -1,4 +1,5 @@
 // Formação: jovens das camadas jovens de cada clube, gerados com semente.
+import { nivelDe } from './ligas'
 import type { Rng } from './rng'
 import { efeitoAcademia } from './academia'
 import { definirPersonalidade } from './personalidade'
@@ -57,7 +58,7 @@ export function gerarJunior(mundo: Mundo, rng: Rng, clubeId: number): Jogador {
     idade,
     forca,
     potencial,
-    salario: salarioDe(forca, c.divisao),
+    salario: salarioDe(forca, nivelDe(c)),
     valor: valorDe(forca, idade),
     craque: false,
     contrato: 0,

@@ -1,4 +1,5 @@
 // Staff dos clubes do computador: contratam conforme a divisão e o dinheiro, e escolhem o foco do treino.
+import { nivelDe } from './ligas'
 import { createRng } from './rng'
 import { salariosPorJornada } from './financas'
 import { FUNCOES, candidatos, mistura, salarioStaff, staffDe, type ClubeComStaff, type FocoTreino, type MembroStaff } from './staff'
@@ -11,7 +12,7 @@ const NIVEL_DIVISAO = [2, 2, 2, 1]
 function nivelAlvo(mundo: Mundo, clubeId: number, k: number): number {
   const c = mundo.clubes[clubeId]
   const rng = createRng(mistura(mundo.semente, mundo.epoca, clubeId, k, 0x1a))
-  let n = NIVEL_DIVISAO[c.divisao - 1] ?? 1
+  let n = NIVEL_DIVISAO[nivelDe(c) - 1] ?? 1
   const sal = Math.max(1, salariosPorJornada(mundo, clubeId))
   // Com folga (mais de uma época de salários em caixa) arrisca-se mais; à justa, poupa-se.
   if (c.dinheiro > sal * 34 && rng.chance(0.4)) n += 1
@@ -56,7 +57,7 @@ function contratarIA(mundo: Mundo, clubeId: number, k: number) {
   const atual = c.staff!.membros.find((m) => m.funcao === f)
   if (atual && atual.nivel === alvo) {
     // Mantém-se; o salário acompanha a divisão.
-    atual.salario = salarioStaff(alvo, c.divisao)
+    atual.salario = salarioStaff(alvo, nivelDe(c))
     return
   }
   const novo: MembroStaff | undefined = candidatos(mundo, clubeId, f).find((m) => m.nivel === alvo)

@@ -2,6 +2,7 @@
 import type { Jogo } from '../core/types'
 import { ListaConquistas } from './Conquistas'
 import { NOMES_DIVISAO } from '../core/mundo'
+import { nomeDivisao } from '../core/ligas'
 import { estadoRecordes, marcadoresDeSempre, NOME_RECORDE, confronto, type TipoRecorde } from '../core/recordes'
 import { regiaoDe, rivaisDe } from '../core/rivalidades'
 import type { JogoComTaca } from '../core/taca'
@@ -44,7 +45,7 @@ export function Historia({ jogo }: { jogo: Jogo }) {
               const h = confronto(jogo, jogo.clubeId, clube.id)
               return (
                 <tr key={clube.id} className={r.tipo === 'classico' ? 'meu' : ''}>
-                  <td><span className="clube-linha"><Emblema clube={clube} tamanho={22} /> {clube.nome} <span className="dica">{NOMES_DIVISAO[clube.divisao - 1]}</span></span></td>
+                  <td><span className="clube-linha"><Emblema clube={clube} tamanho={22} /> {clube.nome} <span className="dica">{nomeDivisao(mundo, clube.divisao)}</span></span></td>
                   <td>{r.nome}</td>
                   <td className="num">{h.v}</td><td className="num">{h.e}</td><td className="num">{h.d}</td>
                   <td className="num">{h.gm}-{h.gs}</td>
@@ -122,7 +123,7 @@ export function Historia({ jogo }: { jogo: Jogo }) {
               <thead><tr><th>Época</th><th>Divisão</th><th>Jogador</th><th>Clube</th><th className="num">Golos</th></tr></thead>
               <tbody>
                 {[...st.goleadores].reverse().map((g) => (
-                  <tr key={`${g.ano}-${g.divisao}`}><td>{ep(g.ano)}</td><td>{NOMES_DIVISAO[g.divisao - 1]}</td><td>{g.nome}</td><td>{g.clube}</td><td className="num">{g.golos}</td></tr>
+                  <tr key={`${g.ano}-${g.divisao}`}><td>{ep(g.ano)}</td><td>{nomeDivisao(mundo, g.divisao)}</td><td>{g.nome}</td><td>{g.clube}</td><td className="num">{g.golos}</td></tr>
                 ))}
               </tbody>
             </table>

@@ -1,5 +1,6 @@
 // Venda do nome do estádio (naming): uma empresa paga todas as épocas durante 3 épocas, o estádio muda de nome
 // e os adeptos não gostam (a reputação desce um pouco). Só o mister decide; no fim do contrato o nome antigo volta.
+import { nivelDe } from './ligas'
 import type { Clube, Jogo } from './types'
 import { RECEITA_FIXA } from './financas'
 
@@ -23,7 +24,7 @@ export function namingDe(c: Clube): Naming | undefined {
 export function propostaNaming(jogo: Jogo): { marca: string; valor: number } {
   const c = jogo.mundo.clubes[jogo.clubeId]
   const marca = MARCAS[(jogo.mundo.semente + c.id * 7 + jogo.epoca.ano) % MARCAS.length]
-  const valor = Math.round((fixasEpoca(c.divisao) * PARTE_NAMING * (0.6 + c.reputacao / 100)) / 1000) * 1000
+  const valor = Math.round((fixasEpoca(nivelDe(c)) * PARTE_NAMING * (0.6 + c.reputacao / 100)) / 1000) * 1000
   return { marca, valor }
 }
 

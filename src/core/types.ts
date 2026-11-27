@@ -42,7 +42,12 @@ export interface Clube {
   sigla: string
   cidade: string
   cores: [string, string]
+  /** Número da divisão no mundo (índice em `mundo.divisoes`, a partir de 1). */
   divisao: number
+  /** Nível da divisão no seu país (1 = a primeira). Sem ele, é o próprio `divisao` (clubes de Portugal). */
+  nivel?: number
+  /** País do campeonato (sem ele: Portugal). */
+  pais?: string
   /** 1 a 100: quanto o clube é conhecido e atrai jogadores. */
   reputacao: number
   /** Dinheiro em caixa, em euros. */
@@ -58,8 +63,13 @@ export interface Clube {
 }
 
 export interface Divisao {
+  /** Número único no mundo: Portugal 1 a 4, os campeonatos estrangeiros a seguir. */
   numero: number
   nome: string
+  /** País (sem ele: Portugal). */
+  pais?: string
+  /** Nível no país (sem ele: o próprio número). */
+  nivel?: number
   clubes: number[]
 }
 

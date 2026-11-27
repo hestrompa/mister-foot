@@ -1,4 +1,5 @@
 // Separador Clube: obras no estádio e empréstimo ao banco.
+import { nivelDe } from '../core/ligas'
 import { useState } from 'react'
 import type { Jogo } from '../core/types'
 import { OBRAS, custoObra, duracaoObra, iniciarObra, lotacaoAtual, motivoSemObra } from '../core/estadio'
@@ -50,7 +51,7 @@ export function ObrasBanco({ jogo, atualizar }: { jogo: Jogo; atualizar: (j: Jog
                 </button>
               ))}
             </div>
-            <p>Custo <b>{euros(custoObra(obra))}</b>, pago já · demora <b>{duracaoObra(obra)} jornadas</b> · manutenção +{euros(Math.round(obra * (MANUTENCAO_LUGAR[c.divisao - 1] ?? 0.2)))} por jornada</p>
+            <p>Custo <b>{euros(custoObra(obra))}</b>, pago já · demora <b>{duracaoObra(obra)} jornadas</b> · manutenção +{euros(Math.round(obra * (MANUTENCAO_LUGAR[nivelDe(c) - 1] ?? 0.2)))} por jornada</p>
             {semObra && <p className="ob-aviso">{semObra}</p>}
             <button className="botao principal" disabled={!!semObra} onClick={() => { if (iniciarObra(c, obra)) atualizar(jogo) }}>
               Começar obra
@@ -74,7 +75,7 @@ export function ObrasBanco({ jogo, atualizar }: { jogo: Jogo; atualizar: (j: Jog
           <p className="nota">O banco não empresta mais dinheiro a este clube por agora.</p>
         ) : (
           <>
-            <p className="nota">O banco empresta até {euros(limite)} · juro de {Math.round((JURO_EPOCA[c.divisao - 1] ?? 0.1) * 100)}% por época.</p>
+            <p className="nota">O banco empresta até {euros(limite)} · juro de {Math.round((JURO_EPOCA[nivelDe(c) - 1] ?? 0.1) * 100)}% por época.</p>
             <label className="ob-montante">
               <span>Montante: <b>{euros(m)}</b></span>
               <input type="range" min={10_000} max={Math.max(10_000, limite)} step={10_000} value={m} onChange={(ev) => setMontante(Number(ev.target.value))} />

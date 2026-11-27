@@ -1,7 +1,8 @@
 // Direção do clube e carreira do treinador: objetivos por época, confiança da direção, despedimento,
 // ofertas de outros clubes e histórico. Tudo determinístico (createRng com semente do mundo e da jornada).
+import { nivelDe, paisDe, temAbaixo, temAcima, ultimaDivisao } from './ligas'
 import { createRng } from './rng'
-import { forcaClube, NOMES_DIVISAO } from './mundo'
+import { forcaClube } from './mundo'
 import { epocaTerminada, indisponiveisDe, tabela } from './epoca'
 import { escalarAuto } from './motor'
 import { RECEITA_FIXA } from './financas'
@@ -21,6 +22,8 @@ export interface Objetivos {
   /** Dinheiro mínimo no fim da época (pode ser negativo se o clube já começa endividado). */
   dinheiroMin: number
   dinheiroInicio: number
+  /** Divisão sem descida (a última do país). Sem ele: a 4.ª. */
+  semDescida?: boolean
 }
 
 export interface Oferta {
@@ -98,16 +101,15 @@ function semente(...xs: number[]): number {
   return (h >>> 0) || 1
 }
 
-const nomeDiv = (n: number) => NOMES_DIVISAO[n - 1] ?? `${n}.ª Divisão`
 
-export function textoObjetivo(o: Pick<Objetivos, 'tipo' | 'alvo' | 'divisao'>): string {
+export function textoObjetivo(o: Pick<Objetivos, 'tipo' | 'alvo' | 'divisao' | 'semDescida'>): string {
   switch (o.tipo) {
     case 'titulo': return 'Lutar pelo título (2 primeiros)'
     case 'subida': return `Subir de divisão (${o.alvo} primeiros)`
     case 'europa': return `Ficar nos ${o.alvo} primeiros`
     case 'metade': return `Ficar na primeira metade (até ${o.alvo}.º)`
     case 'meio': return `Meio da tabela (até ${o.alvo}.º)`
-    case 'manutencao': return o.divisao === 4 ? `Não ficar nos últimos (até ${o.alvo}.º)` : `Evitar a descida (até ${o.alvo}.º)`
+    case 'manutencao': return (o.semDescida ?? o.divisao === 4) ? `Não ficar nos últimos (até ${o.alvo}.º)` : `Evitar a descida (até ${o.alvo}.º)`
   }
 }
 
@@ -135,16 +137,16 @@ export function definirObjetivos(mundo: Mundo, clubeId: number): Objetivos {
   let tipo: TipoObjetivo
   let alvo: number
   if (esperado <= 2) { tipo = 'titulo'; alvo = 2 }
-  else if (esperado <= 5) { tipo = c.divisao === 1 ? 'europa' : 'subida'; alvo = c.divisao === 1 ? 5 : 3 }
+  else if (esperado <= 5) { tipo = nivelDe(c) === 1 ? 'europa' : 'subida'; alvo = nivelDe(c) === 1 ? 5 : 3 }
   else if (esperado <= 9) { tipo = 'metade'; alvo = 9 }
   else if (esperado <= 13) { tipo = 'meio'; alvo = 12 }
   else { tipo = 'manutencao'; alvo = n - 3 }
   // Orçamento: quem tem folga não pode perder mais de metade; quem começa a zeros não pode ficar no vermelho;
   // quem já deve não pode afundar mais de uma época de receitas fixas.
-  const fixa = (RECEITA_FIXA[c.divisao - 1] ?? 5_000) * 34
+  const fixa = (RECEITA_FIXA[nivelDe(c) - 1] ?? 5_000) * 34
   const d = c.dinheiro
   const dinheiroMin = d > fixa ? Math.round(d * 0.5) : d >= 0 ? 0 : Math.round(d - fixa * 0.5)
-  return { divisao: c.divisao, tipo, alvo, esperado, dinheiroMin, dinheiroInicio: d }
+  return { divisao: c.divisao, tipo, alvo, esperado, dinheiroMin, dinheiroInicio: d, ...(temAbaixo(mundo, c.divisao) ? {} : { semDescida: true }) }
 }
 
 function arredonda(v: number): number {
@@ -273,15 +275,15 @@ function avaliarEpoca(jogo: JogoComCarreira, st: EstadoCarreira): void {
   const n = t.length
   const o = st.objetivos
   const campeao = pos === 1
-  const subiu = div > 1 && pos <= 3
-  const desceu = div < 4 && pos > n - 3
+  const subiu = temAcima(mundo, div) && pos <= 3
+  const desceu = temAbaixo(mundo, div) && pos > n - 3
   let av: Avaliacao = pos <= o.alvo - 3 || (campeao && o.tipo !== 'titulo') ? 'superado' : pos <= o.alvo ? 'cumprido' : pos <= o.alvo + 3 ? 'quase' : 'falhado'
   if (campeao && o.tipo === 'titulo') av = 'superado'
   const dinheiroOk = meu.dinheiro >= o.dinheiroMin
 
   const bonus = { superado: 18, cumprido: 10, quase: -6, falhado: -22 }[av] + (dinheiroOk ? 3 : -10) + (subiu ? 6 : 0) + (desceu && o.tipo !== 'manutencao' ? -12 : 0)
   st.confianca = clamp(Math.round(st.confianca + bonus), 0, 100)
-  const repDelta = { superado: 6, cumprido: 3, quase: -1, falhado: -5 }[av] + (campeao ? 4 : 0) + (subiu ? 3 : 0) + (desceu ? -3 : 0) + Math.max(0, 4 - div)
+  const repDelta = { superado: 6, cumprido: 3, quase: -1, falhado: -5 }[av] + (campeao ? 4 : 0) + (subiu ? 3 : 0) + (desceu ? -3 : 0) + Math.max(0, 4 - nivelDe(meu))
   st.reputacao = clamp(st.reputacao + repDelta, 1, 100)
 
   const e = entradaAtual(st)
@@ -319,8 +321,8 @@ function reputacaoDosClubes(mundo: Mundo, epoca: Jogo['epoca']): void {
       if (!c) return
       let dr = 0
       if (i === 0) dr += 2
-      if (d.numero > 1 && i < 3) dr += 2
-      if (d.numero < 4 && i >= n - 3) dr -= 2
+      if (temAcima(mundo, d.numero) && i < 3) dr += 2
+      if (temAbaixo(mundo, d.numero) && i >= n - 3) dr -= 2
       c.reputacao = clamp(c.reputacao + dr, 5, 100)
     })
   }
@@ -350,7 +352,7 @@ function ofertasDesempregado(jogo: JogoComCarreira, st: EstadoCarreira, s: numbe
     .slice(0, 3)
   let lista = cands.map(({ c }) => ({ clubeId: c.id, ate, ano, motivo: motivoDe(mundo, epoca, c.id) }))
   if (!lista.length) {
-    const d4 = [...mundo.divisoes[mundo.divisoes.length - 1].clubes].filter((id) => id !== jogo.clubeId)
+    const d4 = [...(ultimaDivisao(mundo, paisDe(mundo.clubes[jogo.clubeId])) ?? mundo.divisoes[3]).clubes].filter((id) => id !== jogo.clubeId)
       .sort((a, b) => mundo.clubes[a].reputacao - mundo.clubes[b].reputacao)
     lista = d4.slice(0, 2).map((id) => ({ clubeId: id, ate, ano, motivo: 'Procura um treinador para recomeçar o projeto.' }))
   }
@@ -380,7 +382,7 @@ function gerarOfertas(jogo: JogoComCarreira, st: EstadoCarreira, ate: number, s:
   // Só depois de mostrar trabalho: meio da época com confiança alta, ou fim de época cumprido.
   if (st.confianca < 55) return
   const cands = Object.values(mundo.clubes)
-    .filter((c) => c.id !== meu.id && c.divisao <= meu.divisao && c.reputacao > meu.reputacao + 2 && c.reputacao <= st.reputacao + 12)
+    .filter((c) => c.id !== meu.id && nivelDe(c) <= nivelDe(meu) && c.reputacao > meu.reputacao + 2 && c.reputacao <= st.reputacao + 12)
     .map((c) => ({ c, peso: aflicao(mundo, epoca, c.id) + rng.next() * 1.5 }))
     .sort((a, b) => b.peso - a.peso)
   const quantas = Math.min(cands.length, rng.chance(0.35 + (st.reputacao - meu.reputacao) / 60) ? rng.int(1, 2) : 0)
@@ -469,4 +471,3 @@ export function textoConfianca(c: number): string {
   return 'Em risco'
 }
 
-export { nomeDiv }

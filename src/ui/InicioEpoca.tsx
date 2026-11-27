@@ -1,6 +1,6 @@
 // Cartão com o dinheiro de arranque da época (TV, patrocinador, lugares anuais, prémio da Liga).
 import type { Jogo } from '../core/types'
-import { NOMES_DIVISAO } from '../core/mundo'
+import { etiquetaDivisao, nomeDivisao } from '../core/ligas'
 import { euros, lugares } from '../core/formato'
 import './obras-banco.css'
 import { PARTE_JORNADA, type EpocaComInicio } from '../core/inicio-epoca'
@@ -13,7 +13,7 @@ export function InicioEpoca({ jogo, titulo = 'Dinheiro para a nova época', atua
   const inj = (jogo.epoca as EpocaComInicio).inicio?.[jogo.clubeId]
   if (!inj) return null
   const po = (jogo.epoca as EpocaComPatrocinio).patrocinioObjetivos
-  const div = (n?: number) => (n ? NOMES_DIVISAO[n - 1] ?? `${n}.ª Divisão` : '')
+  const div = (n?: number) => (n ? nomeDivisao(jogo.mundo, n) : '')
   return (
     <section className="cartao inicio-epoca" data-testid="inicio-epoca" aria-label={titulo}>
       <h3 className="sub-tit">{titulo}</h3>
@@ -115,7 +115,7 @@ export function HistoricoFinancas({ jogo }: { jogo: Jogo }) {
           {[...h].reverse().map((e) => (
             <tr key={e.ano}>
               <td>{e.ano}/{String(e.ano + 1).slice(2)}</td>
-              <td>{e.lugar}.º · {e.divisao}.ª</td>
+              <td>{e.lugar}.º · {etiquetaDivisao(jogo.mundo, e.divisao)}</td>
               <td className="num">{euros(e.receitas)}</td>
               <td className="num">{euros(e.salarios)}</td>
               <td className={`num ${e.caixaFim >= 0 ? 'ie-mais' : 'ie-menos'}`}>{e.caixaFim < 0 ? '−' : ''}{euros(Math.abs(e.caixaFim))}</td>

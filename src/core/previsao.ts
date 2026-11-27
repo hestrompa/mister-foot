@@ -1,4 +1,5 @@
 // Previsão de tesouraria até ao fim da época e histórico financeiro das épocas do mister.
+import { nivelDe } from './ligas'
 import type { Jogo } from './types'
 import type { EstadoEpoca } from './partida'
 import { publicoEsperado, salariosPorJornada, MANUTENCAO_LUGAR, RECEITA_FIXA } from './financas'
@@ -28,10 +29,10 @@ export function previsaoFimEpoca(jogo: Jogo): Previsao {
     const repMedia = div.length ? div.reduce((t, i) => t + mundo.clubes[i].reputacao, 0) / div.length : c.reputacao
     const publico = publicoEsperado(c, { ...c, reputacao: repMedia }, Math.floor(div.length / 2), div.length || 18)
     const socios = ep.inicio?.[c.id]?.socios ?? 0
-    const fixas = (RECEITA_FIXA[c.divisao - 1] ?? 0) * (ep.inicio?.[c.id] ? PARTE_JORNADA : 1)
+    const fixas = (RECEITA_FIXA[nivelDe(c) - 1] ?? 0) * (ep.inicio?.[c.id] ? PARTE_JORNADA : 1)
     receitaJornada = fixas + 0.5 * Math.max(0, publico - socios) * c.bilhete
   }
-  const despesaJornada = salariosPorJornada(mundo, c.id) + custoStaffPorJornada(c) + Math.round(c.estadio.lugares * (MANUTENCAO_LUGAR[c.divisao - 1] ?? 0.2))
+  const despesaJornada = salariosPorJornada(mundo, c.id) + custoStaffPorJornada(c) + Math.round(c.estadio.lugares * (MANUTENCAO_LUGAR[nivelDe(c) - 1] ?? 0.2))
   const banco = c.emprestimo ? c.emprestimo.prestacao * Math.min(c.emprestimo.falta, jornadasFalta) : 0
   const caixaFim = Math.round(c.dinheiro + jornadasFalta * (receitaJornada - despesaJornada) - banco)
   return { jornadasFalta, receitaJornada: Math.round(receitaJornada), despesaJornada, banco, caixaFim }

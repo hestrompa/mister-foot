@@ -5,7 +5,7 @@ import { createRng } from './rng'
 import type { Jogo } from './types'
 import type { Partida } from './partida'
 import { epocaTerminada, tabela } from './epoca'
-import { NOMES_DIVISAO } from './mundo'
+import { nivelDe, nomeDivisao } from './ligas'
 import { estadoCarreira, type JogoComCarreira } from './direcao'
 import { mudarMoral, mudarMoralJogador } from './balneario'
 import { rivalidade } from './rivalidades'
@@ -88,7 +88,6 @@ function semente(...xs: number[]): number {
   return (h >>> 0) || 1
 }
 
-const nomeDiv = (n: number) => NOMES_DIVISAO[n - 1] ?? `${n}.ª Divisão`
 
 export function estadoImprensa(jogo: Jogo): EstadoImprensa {
   const j = jogo as JogoComImprensa
@@ -212,7 +211,7 @@ function noticiarJornada(jogo: Jogo, st: EstadoImprensa, jn: number, batidos: Re
     for (const q of jornadas[jn - 1] ?? []) {
       if (!q.jogada || q === p) continue
       const dif = Math.abs(q.golos[0] - q.golos[1])
-      if (dif >= (d + 1 === div ? 4 : 6)) add('liga', `Goleada na ${nomeDiv(d + 1)}: ${placar(jogo, q)}`)
+      if (dif >= (d + 1 === div ? 4 : 6)) add('liga', `Goleada na ${nomeDivisao(mundo, d + 1)}: ${placar(jogo, q)}`)
     }
   }
 
@@ -231,7 +230,7 @@ function noticiarJornada(jogo: Jogo, st: EstadoImprensa, jn: number, batidos: Re
   const t = tabela(mundo, epoca, div)
   if (t.length && jn > 1) {
     const antes = st.liderAnterior
-    if (antes !== undefined && antes !== t[0].clubeId) add('liga', `${nome(t[0].clubeId)} é o novo líder da ${nomeDiv(div)}`, `${t[0].pts} pontos ao fim de ${jn} jornadas.`)
+    if (antes !== undefined && antes !== t[0].clubeId) add('liga', `${nome(t[0].clubeId)} é o novo líder da ${nomeDivisao(mundo, div)}`, `${t[0].pts} pontos ao fim de ${jn} jornadas.`)
   }
   if (t.length) st.liderAnterior = t[0].clubeId
   for (const l of t) {
@@ -252,7 +251,7 @@ function noticiarJornada(jogo: Jogo, st: EstadoImprensa, jn: number, batidos: Re
     }
     if (melhor) {
       const j = mundo.jogadores[melhor.id]
-      add('liga', `${j.nome} (${nome(j.clubeId)}) lidera os marcadores da ${nomeDiv(div)} com ${melhor.g} golos`)
+      add('liga', `${j.nome} (${nome(j.clubeId)}) lidera os marcadores da ${nomeDivisao(mundo, div)} com ${melhor.g} golos`)
     }
   }
 
@@ -304,7 +303,7 @@ function noticiarFimEpoca(jogo: Jogo, st: EstadoImprensa, batidos: RecordeBatido
     const t = tabela(mundo, epoca, d.numero)
     if (!t.length) continue
     const c = mundo.clubes[t[0].clubeId]
-    add(t[0].clubeId === jogo.clubeId ? 'meu' : 'epoca', `${c.nome} campeão da ${nomeDiv(d.numero)}`, `${t[0].pts} pontos, ${t[0].v} vitórias.`)
+    add(t[0].clubeId === jogo.clubeId ? 'meu' : 'epoca', `${c.nome} campeão da ${nomeDivisao(mundo, d.numero)}`, `${t[0].pts} pontos, ${t[0].v} vitórias.`)
   }
   for (const b of batidos) add('recorde', `Recorde! ${textoRecorde(b)}`)
 }
@@ -501,7 +500,7 @@ export function gerarConferencia(jogo: Jogo): Conferencia | undefined {
   else if (se.v >= 3) tema = 'embalo'
   else if (jn > 4 && posAdv >= 0 && posAdv < 3 && posMeu > posAdv) tema = 'grande'
   else if (humorDe(meu) < 30 && rng.chance(0.6)) tema = 'adeptos'
-  else if (p.casaId === jogo.clubeId && meu.bilhete > 1.4 * ([15, 10, 7, 5][meu.divisao - 1] ?? 5) && rng.chance(0.35)) tema = 'bilhetes'
+  else if (p.casaId === jogo.clubeId && meu.bilhete > 1.4 * ([15, 10, 7, 5][nivelDe(meu) - 1] ?? 5) && rng.chance(0.35)) tema = 'bilhetes'
   else if (rng.chance(0.3)) tema = rng.chance(0.4) ? 'craque' : 'balneario'
   if (!tema) return undefined
   const c = PERGUNTAS[tema](jogo, adv?.nome ?? '?')

@@ -157,6 +157,24 @@ try {
     await foto('4-divisoes.png')
   })
 
+  await passo('campeonatos de Espanha e Inglaterra: divisões e classificação', async () => {
+    await page.locator('nav[aria-label="Países"] button', { hasText: 'Espanha' }).click()
+    await page.locator('nav[aria-label="Divisões"] button').nth(1).click()
+    await page.locator('table tbody tr').first().waitFor({ timeout: 5000 })
+    const n = await page.locator('table tbody tr').count()
+    esperar(n === 18, `Espanha 2.ª: esperava 18 clubes, encontrei ${n}`)
+    await foto('4c-espanha.png')
+    await page.getByRole('button', { name: 'Classificação', exact: true }).or(page.getByRole('tab', { name: 'Classificação', exact: true })).first().click()
+    await page.locator('nav[aria-label="Países"] button', { hasText: 'Inglaterra' }).click()
+    await page.locator('table.classificacao tbody tr').first().waitFor({ timeout: 5000 })
+    const m = await page.locator('table.classificacao tbody tr').count()
+    esperar(m === 18, `Inglaterra: esperava 18 linhas na classificação, encontrei ${m}`)
+    const desce = await page.locator('table.classificacao tbody tr.desce').count()
+    esperar(desce === 0 || desce === 3, `zona de descida estranha: ${desce}`)
+    await foto('4d-inglaterra.png')
+    await page.locator('nav[aria-label="Países"] button', { hasText: 'Portugal' }).click()
+  })
+
   await passo('separador Carreira: confiança, objetivos e histórico', async () => {
     await page.getByRole('button', { name: /^Carreira/ }).first().click()
     await page.getByText('Confiança da direção').first().waitFor({ timeout: 5000 })
