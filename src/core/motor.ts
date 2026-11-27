@@ -3,7 +3,7 @@
 // a qualidade das oportunidades; rematador contra guarda-redes decide a defesa.
 import { createRng, type Rng } from './rng'
 import type { Jogador, Mundo, Posicao } from './types'
-import { FORMACOES } from './partida'
+import { contagem, desvioDoLugar, larguraRelativa, moverJogador, papelNaFormacao, textoMovimento, type Ponto } from './posicoes'
 import type { Escalacao, EstatJogo, EventoJogo, Formacao, Lado, Lance, Partida, Postura } from './partida'
 import { fatorMoral } from './balneario'
 import { fatorFisico, riscoLesao, sortearLesao } from './lesoes'
@@ -72,11 +72,7 @@ function outro(l: Lado): Lado {
 
 /** Posição do lugar `i` na formação (0 = GR, depois DEF, MED, AV). */
 export function posicaoDoLugar(formacao: Formacao, i: number): Posicao {
-  const [d, m] = FORMACOES[formacao]
-  if (i === 0) return 'GR'
-  if (i <= d) return 'DEF'
-  if (i <= d + m) return 'MED'
-  return 'AV'
+  return papelNaFormacao(formacao, i)
 }
 
 /**
@@ -98,7 +94,7 @@ export function escalarAuto(mundo: Mundo, clubeId: number, indisponiveis: Readon
     .map((id) => mundo.jogadores[id])
     .sort((a, b) => b.forca * fatorFisico(b) - a.forca * fatorFisico(a) || a.id - b.id)
   const usados = new Set<number>()
-  const [d, m, a] = FORMACOES[formacao]
+  const [d, m, a] = contagem(formacao)
   const lugares: Posicao[] = ['GR', ...Array<Posicao>(d).fill('DEF'), ...Array<Posicao>(m).fill('MED'), ...Array<Posicao>(a).fill('AV')]
   const titulares: number[] = []
   // Primeiro os de posição natural, depois preencher buracos com o melhor que render nesse lugar.
@@ -136,7 +132,7 @@ function estatVazia(): EstatJogo {
 
 /** Prepara um jogo para ser jogado minuto a minuto. */
 export function iniciarJogo(_mundo: Mundo, partida: Partida, casa: Escalacao, fora: Escalacao, semente: number): EstadoJogo {
-  const copia = (e: Escalacao): Escalacao => ({ ...e, titulares: e.titulares.slice(), suplentes: e.suplentes.slice() })
+  const copia = (e: Escalacao): Escalacao => ({ ...e, titulares: e.titulares.slice(), suplentes: e.suplentes.slice(), ...(e.posicoes ? { posicoes: e.posicoes.map((p) => [p[0], p[1]] as [number, number]) } : {}) })
   const extra: Extra = {
     autoSub: { casa: true, fora: true },
     expulsos: [],
@@ -174,6 +170,18 @@ interface EmCampo {
   inst?: Instrucao
   /** Quem o marca de perto (marcação individual do adversário). */
   marcador?: Jogador
+  /** Arrastado no campo tático: -1 bem recuado, 1 bem adiantado face à posição base (0 ou ausente = base). */
+  alt?: number
+  /** y no campo (0 a 68), só quando o treinador mexeu nas posições. */
+  y?: number
+}
+
+/** Altura e y do lugar `i`, só se a escalação tiver posições à medida (sem elas, o motor joga como sempre). */
+function extraPosicao(esc: Escalacao, i: number): { alt?: number; y?: number } {
+  if (!esc.posicoes || i === 0) return {}
+  const { altura } = desvioDoLugar(esc, i)
+  const y = esc.posicoes[i]?.[1]
+  return { ...(altura ? { alt: altura } : {}), ...(Number.isFinite(y) ? { y } : {}) }
 }
 
 /** Quem do lado `lado` está a marcar de perto e a quem (o marcador tem de estar em campo). */
@@ -206,7 +214,7 @@ function emCampo(mundo: Mundo, estado: EstadoJogo, lado: Lado): EmCampo[] {
     const marcador = mi && mi.alvo === id ? mundo.jogadores[mi.marcador] : undefined
     if (marcador) ef *= fatorMarcado(marcador, j)
     const inst = esc.plano?.instrucoes?.[id]
-    out.push({ j, pos, f, ef, ...(inst ? { inst } : {}), ...(marcador ? { marcador } : {}) })
+    out.push({ j, pos, f, ef, ...(inst ? { inst } : {}), ...(marcador ? { marcador } : {}), ...extraPosicao(esc, i) })
   })
   return out
 }
@@ -218,13 +226,18 @@ export interface Setores {
   defesa: number
 }
 
-function somarSetores(campo: EmCampo[], emCasa: boolean, post: Postura, plano?: PlanoJogo): Setores {
+/** Posições arrastadas: fração da força que passa de um setor para o outro num desvio inteiro, peso da perda e meio-campo perdido por um médio fora da linha. */
+export const POS_TROCA = 0.3
+export const POS_PERDA = 0.75
+export const POS_MEIO = 0.12
+
+function somarSetores(campo: EmCampo[], emCasa: boolean, post: Postura, plano?: PlanoJogo, largura = 1): Setores {
   // Cada setor soma a força efetiva, puxada um pouco pelo atributo que esse setor pede:
   // passe no meio-campo, remate e velocidade no ataque, defesa atrás, reflexos na baliza.
   // Num plantel normal os fatores dão 1 em média: o perfil decide quem é bom em quê, não a força total.
   const vazio = (): Record<Posicao, number> => ({ GR: 0, DEF: 0, MED: 0, AV: 0 })
   const m = vazio(), a = vazio(), d = vazio()
-  let g = 0, ataqueExtra = 0, defesaExtra = 0
+  let g = 0, ataqueExtra = 0, defesaExtra = 0, meioExtra = 0
   for (const c of campo) {
     const f = c.f
     if (c.pos === 'GR') { g += c.ef * f.gr50; continue }
@@ -242,6 +255,27 @@ function somarSetores(campo: EmCampo[], emCasa: boolean, post: Postura, plano?: 
       if (c.inst === 'subir') { ataqueExtra += k * c.ef * e.ataque * Math.sqrt(f.rem * f.vel); defesaExtra += k * c.ef * e.defesa * Math.sqrt(f.fis * f.vel) }
       else if (c.inst === 'segurar') { ataqueExtra += k * c.ef * e.ataque * Math.sqrt(f.pas * f.vel); defesaExtra += k * c.ef * e.defesa * f.def }
       else ataqueExtra += c.ef * e.ataque * f.rem
+    }
+    // Posição arrastada no campo tático: a mesma troca das instruções, na medida do desvio.
+    // Mais adiantado ganha com remate e velocidade e deixa de correr atrás; mais recuado defende com
+    // a defesa que tem e sai menos a jogar. Um avançado que recua (falso 9) ajuda o meio-campo mas
+    // defende pouco; um defesa que sobe dá saída de bola; um médio fora da linha do meio dá-lhe menos.
+    if (c.alt) {
+      // A perda pesa 3/4 do ganho: o golo cresce mais depressa do que a proporção ataque/defesa,
+      // e assim uma troca igual dos dois lados fica perto de soma zero.
+      const s = c.alt, mag = Math.abs(s), t = POS_TROCA * mag * c.ef
+      if (s > 0) {
+        const k = c.pos === 'AV' ? 0.4 : c.pos === 'DEF' ? 0.7 : 1
+        ataqueExtra += k * t * Math.sqrt(f.rem * f.vel)
+        defesaExtra -= POS_PERDA * k * t * Math.sqrt(f.fis * f.vel)
+      } else {
+        const k = c.pos === 'DEF' ? 0.4 : c.pos === 'AV' ? 0.35 : 1
+        ataqueExtra -= POS_PERDA * t * Math.sqrt(f.pas * f.vel) * (c.pos === 'AV' ? 1.2 : 1)
+        defesaExtra += k * t * f.def
+      }
+      if (c.pos === 'AV' && s < 0) meioExtra += 0.8 * t * f.pas
+      else if (c.pos === 'DEF' && s > 0) meioExtra += 0.35 * t * f.pas
+      else if (c.pos === 'MED') meioExtra -= POS_MEIO * t * f.pas35
     }
   }
   // Marcação: a pressão alta ganha bola conforme a velocidade e o físico, mas joga com a linha subida;
@@ -261,11 +295,12 @@ function somarSetores(campo: EmCampo[], emCasa: boolean, post: Postura, plano?: 
   const a0 = a.AV + 0.35 * a.MED + 0.1 * a.DEF
   const d0 = d.DEF + 0.35 * d.MED + 0.1 * d.AV
   const casa = emCasa ? 1.04 : 1
-  const fa = post === 'ofensiva' ? 1.12 : post === 'defensiva' ? 0.88 : 1
+  const fa = (post === 'ofensiva' ? 1.12 : post === 'defensiva' ? 0.88 : 1) * (1 + 0.06 * (largura - 1))
   const fd = post === 'ofensiva' ? 0.88 : post === 'defensiva' ? 1.12 : 1
   return {
     gr: (g || 20) * casa,
-    meio: (m.MED + 0.25 * (m.DEF + m.AV)) * casa * fMeio,
+    // Uma equipa mais junta ganha meio-campo; uma mais aberta estica a defesa deles (mais ataque).
+    meio: Math.max(1, m.MED + 0.25 * (m.DEF + m.AV) + meioExtra) * casa * fMeio * (1 + 0.06 * (1 - largura)),
     ataque: Math.max(1, a0 + ataqueExtra) * casa * fa,
     // As trocas contam em proporção a cada setor (o ataque soma menos do que a defesa).
     defesa: Math.max(1, d0 + defesaExtra * (d0 / Math.max(1, a0))) * casa * fd * fDef,
@@ -280,7 +315,8 @@ function velMedia(campo: EmCampo[], pos: Posicao): number {
 
 function setores(_mundo: Mundo, estado: EstadoJogo, lado: Lado, campo: EmCampo[]): Setores {
   const esc = estado.escalacoes[lado]
-  return somarSetores(campo, lado === 'casa', esc.postura, esc.plano)
+  const fora = new Set(estado.fora)
+  return somarSetores(campo, lado === 'casa', esc.postura, esc.plano, larguraRelativa(esc, (i) => !fora.has(esc.titulares[i])))
 }
 
 /** Força de cada setor de uma escalação antes do jogo (para a antevisão). */
@@ -291,9 +327,9 @@ export function forcaSetores(mundo: Mundo, esc: Escalacao, emCasa: boolean): Set
     if (!j) return
     const pos = posicaoDoLugar(esc.formacao, i)
     const inst = esc.plano?.instrucoes?.[id]
-    campo.push({ j, pos, f: fatores(j), ef: forcaNoLugar(j, pos), ...(inst ? { inst } : {}) })
+    campo.push({ j, pos, f: fatores(j), ef: forcaNoLugar(j, pos), ...(inst ? { inst } : {}), ...extraPosicao(esc, i) })
   })
-  return somarSetores(campo, emCasa, esc.postura, esc.plano)
+  return somarSetores(campo, emCasa, esc.postura, esc.plano, larguraRelativa(esc))
 }
 
 /** Gerador mínimo (mulberry32, como o rng.ts) para a nota: barato de criar a cada minuto. */
@@ -436,6 +472,7 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
     // Peso de cada jogador como rematador: a posição, a força, o remate e a instrução individual.
     const pesoRem = (c: EmCampo, longe: boolean) => PESO_REMATE[c.pos] * Math.pow(c.ef, 0.6) * c.f.rem150
       * (c.inst ? EFEITO_INSTRUCAO[c.inst].remate : 1) * (longe && c.inst === 'rematar' ? 2 : 1) * (c.marcador ? 0.6 : 1)
+      * (c.alt ? Math.max(0.4, 1 + 0.6 * c.alt) : 1)
     // Bolas paradas pelo ar: ganha quem tem mais físico (os centrais sobem à área).
     const pesoCabeca = (c: EmCampo) => PESO_CABECA[c.pos] * Math.pow(c.ef, 0.6) * c.f.fis ** 2.5 * (c.marcador ? 0.6 : 1)
     let remC: EmCampo | undefined
@@ -490,7 +527,10 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
       else if (rr < pGolo + (1 - pGolo) * 0.24) desfecho = 'defesa'
       else if (rr < pGolo + (1 - pGolo) * 0.27) desfecho = 'poste'
       else desfecho = 'fora'
-      const corredor = (rng.int(-1, 1)) as -1 | 0 | 1
+      let corredor = (rng.int(-1, 1)) as -1 | 0 | 1
+      // Com posições à medida, o lance nasce no corredor de quem o criou (no 2D vê-se de onde vem).
+      const criador = pasC ?? remC
+      if (estado.escalacoes[atac].posicoes && criador.y != null) corredor = criador.y < 24 ? -1 : criador.y > 44 ? 1 : 0
       const lance: Lance = {
         origem, rematadorId: remC.j.id, desfecho, corredor,
         ...(pasC ? { passadorId: pasC.j.id } : {}),
@@ -527,7 +567,7 @@ export function avancarMinuto(mundo: Mundo, estado: EstadoJogo): EventoJogo[] {
   // Ganha mais desarmes quem defende melhor; perde mais bolas quem passa pior.
   if (!houveRemate) {
     const r = rn.next()
-    if (r < 0.5) contarDesarme(conta(pesado(rn, campo[def], (c) => PESO_DESARME[c.pos] * c.f.def * (c.ef + 40) * (c.inst === 'marcar' ? 1.3 : 1))))
+    if (r < 0.5) contarDesarme(conta(pesado(rn, campo[def], (c) => PESO_DESARME[c.pos] * c.f.def * (c.ef + 40) * (c.inst === 'marcar' ? 1.3 : 1) * (c.alt ? Math.max(0.4, 1 - 0.5 * c.alt) : 1))))
     else if (r < 0.85) contarPerda(conta(pesado(rn, campo[atac], (c) => PESO_PERDA[c.pos] * (2.2 - c.f.pas) / (c.ef + 40))))
   }
 
@@ -698,7 +738,7 @@ export function mudarMarcacao(estado: EstadoJogo, lado: Lado, marcacao: Marcacao
 export function mudarFormacao(mundo: Mundo, estado: EstadoJogo, lado: Lado, formacao: Formacao): void {
   const esc = estado.escalacoes[lado]
   if (esc.formacao === formacao || estado.partida.jogada) return
-  const [d, m, a] = FORMACOES[formacao]
+  const [d, m, a] = contagem(formacao)
   const lugares: Posicao[] = ['GR', ...Array<Posicao>(d).fill('DEF'), ...Array<Posicao>(m).fill('MED'), ...Array<Posicao>(a).fill('AV')]
   const gr = esc.titulares[0]
   const outros = esc.titulares.slice(1)
@@ -726,9 +766,46 @@ export function mudarFormacao(mundo: Mundo, estado: EstadoJogo, lado: Lado, form
   lugares.forEach((_, i) => { if (escolha[i] === undefined) escolha[i] = resto.shift() })
   esc.titulares = escolha.filter((id): id is number => id !== undefined)
   esc.formacao = formacao
+  delete esc.posicoes
   estado.partida.eventos.push({
     minuto: estado.minuto, tipo: 'postura', lado,
     texto: `${lado === 'casa' ? 'A equipa da casa' : 'A equipa visitante'} muda para ${formacao}.`,
+  })
+}
+
+/**
+ * O treinador arrastou um jogador no campo tático a meio do jogo (intervalo, pausa ou com o jogo a correr).
+ * Muda posições, papéis e formação; não gasta substituições. Devolve false se o movimento não for permitido.
+ */
+export function mudarPosicoes(mundo: Mundo, estado: EstadoJogo, lado: Lado, id: number, ponto: Ponto): boolean {
+  const esc = estado.escalacoes[lado]
+  const i = esc.titulares.indexOf(id)
+  if (estado.partida.jogada || i <= 0 || estado.fora.includes(id)) return false
+  const nova = moverJogador(esc, i, ponto)
+  if (!nova) return false
+  const antes: Escalacao = { ...esc }
+  esc.titulares = nova.titulares
+  esc.formacao = nova.formacao
+  if (nova.posicoes) esc.posicoes = nova.posicoes
+  else delete esc.posicoes
+  // Uma linha por jogador e por minuto no relato (arrastar várias vezes não enche o relato).
+  const texto = textoMovimento(antes, esc, id, mundo.jogadores[id]?.curto ?? '?')
+  const evs = estado.partida.eventos
+  const ult = evs[evs.length - 1]
+  const ev: EventoJogo = { minuto: estado.minuto, tipo: 'postura', lado, jogadorId: id, texto }
+  if (ult && ult.tipo === 'postura' && ult.minuto === estado.minuto && ult.lado === lado && ult.jogadorId === id) evs[evs.length - 1] = ev
+  else evs.push(ev)
+  return true
+}
+
+/** Volta às posições base da formação atual (a meio do jogo). */
+export function reporPosicoes(estado: EstadoJogo, lado: Lado): void {
+  const esc = estado.escalacoes[lado]
+  if (!esc.posicoes || estado.partida.jogada) return
+  delete esc.posicoes
+  estado.partida.eventos.push({
+    minuto: estado.minuto, tipo: 'postura', lado,
+    texto: `${lado === 'casa' ? 'A equipa da casa' : 'A equipa visitante'} volta às posições do ${esc.formacao}.`,
   })
 }
 

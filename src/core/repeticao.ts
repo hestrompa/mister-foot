@@ -4,7 +4,7 @@
 // Coordenadas em metros: campo 105 x 68, a equipa que ataca vai sempre para a direita (x = 105).
 import { createRng, type Rng } from './rng'
 import { cartoesDoJogo, posicaoDoLugar, type CartaoJogo } from './motor'
-import { FORMACOES } from './partida'
+import { posicoesDe } from './posicoes'
 import type { Escalacao, EventoJogo, Lado, Lance } from './partida'
 import type { Mundo, Posicao } from './types'
 import { atributosDe, type Atributos } from './atributos'
@@ -148,20 +148,13 @@ interface Lugar extends CaricaRep {
 
 function lugares(lado: Lado, e: EmCampoRep): Lugar[] {
   const esc = e.escalacao
-  const [d, m, a] = FORMACOES[esc.formacao]
-  const tam: Record<Posicao, number> = { GR: 1, DEF: d, MED: m, AV: a }
-  const inicio: Record<Posicao, number> = { GR: 0, DEF: 1, MED: 1 + d, AV: 1 + d + m }
-  const BX: Record<Posicao, number> = { GR: 4, DEF: 22, MED: 40, AV: 56 }
+  // As posições do treinador (arrastadas no campo tático) ou as da formação.
+  const ps = posicoesDe(esc)
   const out: Lugar[] = []
   esc.titulares.forEach((id, i) => {
     if (e.fora.includes(id)) return
     const pos = posicaoDoLugar(esc.formacao, i)
-    const n = Math.max(1, tam[pos])
-    const k = i - inicio[pos]
-    const w = Math.min(50, 14 * (n - 1))
-    const by = n === 1 ? 34 : 34 - w / 2 + (w * k) / (n - 1)
-    // Meio-campo de 5: os das pontas um pouco mais à frente.
-    const bx = BX[pos] + (pos === 'MED' && n >= 5 && (k === 0 || k === n - 1) ? 5 : 0)
+    const [bx, by] = ps[i]
     out.push({ id, lado, num: i + 1, pos, bx, by, a: e.atrib?.[id] ?? MEDIO, ...(e.cartoes?.[id] === 'amarelo' ? { am: true } : {}) })
   })
   return out

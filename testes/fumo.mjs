@@ -15,6 +15,22 @@ mkdirSync(OUT, { recursive: true })
 const erros = []
 let falhas = 0
 
+/** Arrasta a carica n (número na camisola) do campo tático para (x, y) em metros. */
+async function arrastarCarica(raiz, num, x, y) {
+  const page = raiz.page()
+  const svg = raiz.locator('.ct-svg')
+  await svg.scrollIntoViewIfNeeded()
+  const box = await svg.boundingBox()
+  const g = svg.locator('.ct-jog').filter({ has: page.locator(`text.ct-num:text-is("${num}")`) })
+  const c = await g.locator('circle.ct-carica').boundingBox()
+  const px = (mx) => box.x + ((mx + 2) / 109) * box.width
+  const py = (my) => box.y + ((my + 2) / 72) * box.height
+  await page.mouse.move(c.x + c.width / 2, c.y + c.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(px(x), py(y), { steps: 8 })
+  await page.mouse.up()
+}
+
 async function passo(nome, fn) {
   try {
     await fn()
@@ -243,6 +259,21 @@ try {
     await foto('5e-relatorio.png')
   })
 
+  await passo('campo tático: arrastar um médio para trás e para a frente', async () => {
+    await page.getByRole('button', { name: 'Jogo', exact: true }).click()
+    const ct = page.locator('.campo-tatico').first()
+    await ct.waitFor({ timeout: 5000 })
+    const form = await ct.locator('.ct-form').textContent()
+    // O 7 é um médio no 4-4-2 (e no 4-3-3): recuado fica médio, a formação não muda.
+    await arrastarCarica(ct, 7, 33, 30)
+    const defesa = await ct.locator('.ct-setor').nth(2).locator('b').textContent()
+    esperar(/^\+\d+%$/.test(defesa.trim()) && defesa.trim() !== '+0%', `a defesa devia subir com o médio recuado (vi ${defesa})`)
+    esperar((await ct.locator('.ct-form').textContent()) === form, 'a formação mudou com um médio recuado')
+    await foto('5f-campo-tatico.png')
+    await ct.getByRole('button', { name: 'Repor posições' }).click()
+    esperar((await ct.locator('.ct-setor').nth(2).locator('b').textContent()).trim() === '0%', 'repor posições não voltou à base')
+  })
+
   await passo('jogar jornada ao vivo a 2x', async () => {
     await page.getByRole('button', { name: 'Jogo', exact: true }).click()
     await page.getByRole('button', { name: 'Jogar jornada' }).click()
@@ -281,6 +312,19 @@ try {
     esperar(notasVivo >= 10, `notas ao vivo da minha equipa (vi ${notasVivo})`)
     await painel.getByRole('button', { name: 'Fechar', exact: true }).click()
     await page.locator('.relato').getByText(/muda para 4-3-3/).waitFor({ timeout: 5000 })
+  })
+
+  await passo('ao vivo: arrastar um médio para o ataque no campo tático', async () => {
+    await page.getByTestId('repeticao').waitFor({ state: 'detached', timeout: 20000 }).catch(() => {})
+    await page.getByRole('button', { name: 'Pausa', exact: true }).click()
+    const painel = page.locator('.painel-subs')
+    await painel.getByText('Pausa', { exact: true }).waitFor({ timeout: 8000 })
+    // 4-3-3: o 6 é médio; vai para a frente e passa a avançado (4-2-4).
+    await arrastarCarica(painel, 6, 60, 20)
+    await painel.locator('.ct-form', { hasText: '4-2-4' }).waitFor({ timeout: 3000 })
+    await foto('6c-campo-tatico-vivo.png')
+    await painel.getByRole('button', { name: 'Continuar', exact: true }).click()
+    await page.locator('.relato').getByText(/passa a jogar a avançado/).waitFor({ timeout: 5000 })
   })
 
   await passo('saltar e ver o resumo', async () => {

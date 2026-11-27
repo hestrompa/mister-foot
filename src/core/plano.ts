@@ -97,6 +97,9 @@ export function manterPlano(nova: Escalacao, antiga: Escalacao | undefined): Esc
   const p = antiga?.plano
   const out: Escalacao = { ...nova, postura: antiga?.postura ?? nova.postura }
   if (p) out.plano = p
+  // A forma arrastada no campo tático pertence aos lugares: fica enquanto a formação for a mesma.
+  if (antiga?.posicoes && antiga.formacao === nova.formacao) out.posicoes = antiga.posicoes
+  else delete out.posicoes
   return out
 }
 

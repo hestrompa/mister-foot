@@ -12,6 +12,8 @@ import { FormaPills, minhaPartida } from './comum'
 import { Antevisao, escalacaoAdversario } from './Antevisao'
 import { PlanoJogoCartao } from './PlanoJogo'
 import { manterPlano } from '../core/plano'
+import { contagem, formacaoPredefinida, moverJogador, semPosicoes } from '../core/posicoes'
+import { CampoTatico } from './CampoTatico'
 
 export const POSTURAS: { v: Postura; t: string }[] = [
   { v: 'defensiva', t: 'Defensiva' }, { v: 'equilibrada', t: 'Equilibrada' }, { v: 'ofensiva', t: 'Ofensiva' },
@@ -19,7 +21,7 @@ export const POSTURAS: { v: Postura; t: string }[] = [
 
 /** Posição de cada lugar do onze, segundo a formação. */
 export function lugaresFormacao(f: Formacao): Posicao[] {
-  const [d, m, a] = FORMACOES[f]
+  const [d, m, a] = contagem(f)
   return ['GR', ...Array(d).fill('DEF'), ...Array(m).fill('MED'), ...Array(a).fill('AV')] as Posicao[]
 }
 
@@ -198,9 +200,14 @@ export function PreJogo({ jogo, mudar, jogar, outro, avisos }: { jogo: Jogo; mud
             const f = e.target.value as Formacao
             mudar(manterPlano(escalarAuto(mundo, clubeId, indisp, f), esc))
           }}>
+            {!formacaoPredefinida(esc.formacao) && <option value={esc.formacao}>{esc.formacao} (à medida)</option>}
             {(Object.keys(FORMACOES) as Formacao[]).map((f) => <option key={f} value={f}>{f}</option>)}
           </select>
         </label>
+        <CampoTatico mundo={mundo} esc={esc} emCasa={p.casaId === clubeId}
+          adversario={escalacaoAdversario(jogo, outro?.partida, outro?.indispAdv) ?? undefined}
+          mover={(id, pt) => { const n = moverJogador(esc, esc.titulares.indexOf(id), pt); if (n) { setSel(null); mudar(n) } }}
+          repor={() => mudar(semPosicoes(esc))} />
         <div className="campo">Postura
           <div className="grupo-botoes">
             {POSTURAS.map((x) => (

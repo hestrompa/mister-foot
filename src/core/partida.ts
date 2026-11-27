@@ -3,10 +3,12 @@
 // a UI só usa o que está aqui e as funções exportadas por esses dois ficheiros.
 import type { PlanoJogo } from './plano'
 
-export type Formacao = '4-4-2' | '4-3-3' | '4-5-1' | '3-5-2' | '3-4-3' | '5-3-2' | '5-4-1' | '4-2-4' | '5-0-5'
+/** Formação "D-M-A". As do menu estão em FORMACOES; outras nascem a arrastar jogadores (ver posicoes.ts). */
+export type Formacao = `${number}-${number}-${number}`
+export type FormacaoMenu = '4-4-2' | '4-3-3' | '4-5-1' | '3-5-2' | '3-4-3' | '5-3-2' | '5-4-1' | '4-2-4' | '5-0-5'
 
-/** Quantos DEF, MED e AV cada formação usa (o GR é sempre 1). */
-export const FORMACOES: Record<Formacao, [number, number, number]> = {
+/** Quantos DEF, MED e AV cada formação do menu usa (o GR é sempre 1). Para qualquer formação, usar posicoes.contagem. */
+export const FORMACOES: Record<FormacaoMenu, [number, number, number]> = {
   '4-4-2': [4, 4, 2], '4-3-3': [4, 3, 3], '4-5-1': [4, 5, 1], '3-5-2': [3, 5, 2], '3-4-3': [3, 4, 3],
   '5-3-2': [5, 3, 2], '5-4-1': [5, 4, 1], '4-2-4': [4, 2, 4], '5-0-5': [5, 0, 5],
 }
@@ -22,6 +24,11 @@ export interface Escalacao {
   suplentes: number[]
   /** Marcação, bolas paradas e instruções individuais (ver plano.ts). Sem plano, joga-se o habitual. */
   plano?: PlanoJogo
+  /**
+   * Onde cada lugar joga, em metros (x da própria baliza, y de 0 a 68), pela ordem de `titulares`.
+   * Sem isto, cada um fica na posição base da formação (ver posicoes.ts).
+   */
+  posicoes?: [number, number][]
 }
 
 export type Lado = 'casa' | 'fora'

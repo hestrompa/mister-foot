@@ -3,7 +3,9 @@ import { useEffect, useRef, useState } from 'react'
 import type { Jogo } from '../core/types'
 import { FORMACOES, type EventoJogo, type Formacao, type Lado, type LinhaTabela, type Partida, type Postura } from '../core/partida'
 import { escalarIA } from '../core/tatica'
-import { avancarMinuto, cartoesDoJogo, definirAutoSub, lancesDoMinuto, mudarFormacao, notasDoJogo, posseDoMinuto, iniciarJogo, mudarPostura, mudarMarcacao, substituir, type EstadoJogo } from '../core/motor'
+import { avancarMinuto, cartoesDoJogo, definirAutoSub, lancesDoMinuto, mudarFormacao, notasDoJogo, posseDoMinuto, iniciarJogo, mudarPostura, mudarMarcacao, mudarPosicoes, reporPosicoes, substituir, type EstadoJogo } from '../core/motor'
+import { formacaoPredefinida } from '../core/posicoes'
+import { CampoTatico } from './CampoTatico'
 import { Cartao, MelhorEmCampo, Nota, NotasEquipa } from './Nota'
 import { EscolhaMarcacao } from './PlanoJogo'
 import { concluirJornada, indisponiveisDe, partidasDaJornada, tabela } from '../core/epoca'
@@ -414,9 +416,14 @@ export function PainelSubs({ jogo, estado, lado, fase, lesionado, retomar, atual
       <label className="ps-formacao">
         <span className="dica">Formação</span>
         <select value={esc.formacao} onChange={(e) => { mudarFormacao(mundo, estado, lado, e.target.value as Formacao); setSai(null); atualizar() }}>
+          {!formacaoPredefinida(esc.formacao) && <option value={esc.formacao}>{esc.formacao} (à medida)</option>}
           {(Object.keys(FORMACOES) as Formacao[]).map((f) => <option key={f} value={f}>{f}</option>)}
         </select>
       </label>
+      <CampoTatico mundo={mundo} esc={esc} emCasa={lado === 'casa'} bloqueados={fora}
+        adversario={estado.escalacoes[lado === 'casa' ? 'fora' : 'casa']}
+        mover={(id, pt) => { if (mudarPosicoes(mundo, estado, lado, id, pt)) { setSai(null); atualizar() } }}
+        repor={() => { reporPosicoes(estado, lado); atualizar() }} />
       <div className="onze-grelha">
         <ul className="lista-jog">
           {esc.titulares.map((id) => {
