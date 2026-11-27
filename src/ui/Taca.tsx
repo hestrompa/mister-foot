@@ -14,7 +14,7 @@ import {
 import { Emblema } from './Emblema'
 import { PainelSubs } from './AoVivo'
 import { LayoutVivo } from './LayoutVivo'
-import { SaltarJogo, sementeJornada } from './comum'
+import { SaltarJogo, sementeJornada, sorteJogo } from './comum'
 import './taca.css'
 
 const MS_MINUTO = 450
@@ -140,8 +140,10 @@ export function AoVivoTaca({ jogo, guardar, continuar }: { jogo: JogoComTaca; gu
   const { mundo, clubeId } = jogo
   const t = garantirTaca(jogo)
   const [ronda] = useState(() => rondaPendente(jogo) ?? t.rondas[t.atual])
+  // Cada vez que o jogo começa tira-se uma sorte nova: recomeçar a mesma jornada não repete a partida.
+  const [sorte] = useState(sorteJogo)
   const [ini] = useState(() => {
-    const semente = sementeJornada(jogo, ronda.nome === NOME_SUPERTACA ? 6999 : 7000 + t.atual)
+    const semente = sementeJornada(jogo, ronda.nome === NOME_SUPERTACA ? 6999 : 7000 + t.atual, sorte)
     const escDe = (p: Partida, id: number) => {
       if (id === clubeId) {
         const ind = indisponiveisTaca(jogo, id)
@@ -172,7 +174,7 @@ export function AoVivoTaca({ jogo, guardar, continuar }: { jogo: JogoComTaca; gu
   const terminou = (e: EstadoJogo) => terminouVivo(rv, e)
   const mon = useMonitor2D({
     mundo, meu, casa: mundo.clubes[meu.partida.casaId], fora: mundo.clubes[meu.partida.foraId],
-    semente: (x) => sementeJornada(jogo, 7100 + t.atual * 1000 + x),
+    semente: (x) => sementeJornada(jogo, 7100 + t.atual * 1000 + x, sorte),
     voltar: (f) => setFase((f as FaseVivo | null) ?? 'jogo'),
   })
 

@@ -19,7 +19,7 @@ import type { OutroJogo } from './PreJogo'
 import { Emblema } from './Emblema'
 import { PainelSubs } from './AoVivo'
 import { LayoutVivo } from './LayoutVivo'
-import { SaltarJogo, sementeJornada } from './comum'
+import { SaltarJogo, sementeJornada, sorteJogo } from './comum'
 import './taca.css'
 import './europa.css'
 
@@ -229,8 +229,10 @@ export function AoVivoEuropa({ jogo, guardar, continuar }: { jogo: JogoComEuropa
   const eu = garantirEuropa(jogo)
   const [dia] = useState(eu.dia)
   const [m] = useState(() => mundoEuropa(jogo))
+  // Cada vez que o jogo começa tira-se uma sorte nova: recomeçar a mesma jornada não repete a partida.
+  const [sorte] = useState(sorteJogo)
   const [ini] = useState(() => {
-    const semente = sementeJornada(jogo, 8000 + dia)
+    const semente = sementeJornada(jogo, 8000 + dia, sorte)
     const lista: EstadoEu[] = []
     eu.comps.forEach((comp, ci) => {
       const r = comp.rondas[dia]
@@ -269,7 +271,7 @@ export function AoVivoEuropa({ jogo, guardar, continuar }: { jogo: JogoComEuropa
   const jogoVista = useMemo(() => ({ ...jogo, mundo: m }), [jogo, m])
   const mon = useMonitor2D({
     mundo: m, meu: meu.e, casa: m.clubes[meu.e.partida.casaId], fora: m.clubes[meu.e.partida.foraId],
-    semente: (x) => sementeJornada(jogo, 8100 + dia * 1000 + x),
+    semente: (x) => sementeJornada(jogo, 8100 + dia * 1000 + x, sorte),
     voltar: (f) => setFase((f as FaseVivo | null) ?? 'jogo'),
   })
 

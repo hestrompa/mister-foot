@@ -11,7 +11,7 @@ import { EscolhaMarcacao } from './PlanoJogo'
 import { concluirJornada, indisponiveisDe, partidasDaJornada, tabela } from '../core/epoca'
 import { Emblema } from './Emblema'
 import { POSTURAS } from './PreJogo'
-import { SaltarJogo, sementeJornada, TabelaLiga } from './comum'
+import { SaltarJogo, sementeJornada, sorteJogo, TabelaLiga } from './comum'
 import { criarAmbiente, criarIncidente, criarRepeticao, DURACAO_AMBIENTE, emCampoDe, fimEmCampo, type CenaRepeticao } from '../core/repeticao'
 import { Repeticao2D } from './Repeticao2D'
 import { LayoutVivo } from './LayoutVivo'
@@ -71,10 +71,12 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
   const { mundo, epoca, clubeId } = jogo
   const div = mundo.clubes[clubeId].divisao
 
+  // Cada vez que o jogo começa tira-se uma sorte nova: recomeçar a mesma jornada não repete a partida.
+  const [sorte] = useState(sorteJogo)
   const [ini] = useState(() => {
     const partidas = partidasDaJornada(epoca, div)
     const base = tabela(mundo, epoca, div).map(clonarLinha)
-    const semente = sementeJornada(jogo)
+    const semente = sementeJornada(jogo, 0, sorte)
     const escDe = (id: number, advId: number, emCasa: boolean) => {
       if (id === clubeId) {
         const ind = indisponiveisDe(mundo, epoca, id)
@@ -143,12 +145,12 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
         if (ev.tipo === 'fim') feitos.current.add(e.partida.id)
         if (ev.tipo === 'golo') flash.current[e.partida.id] = tickRef.current
         if (e !== meu && ev.tipo === 'golo' && ev.lance) {
-          const cena = criarRepeticao(ev, emCampoDe(mundo, e), (sementeJornada(jogo, 700 + ev.minuto) ^ (ev.jogadorId ?? 0) ^ e.partida.casaId * 977) >>> 0)
+          const cena = criarRepeticao(ev, emCampoDe(mundo, e), (sementeJornada(jogo, 700 + ev.minuto, sorte) ^ (ev.jogadorId ?? 0) ^ e.partida.casaId * 977) >>> 0)
           if (cena) (outrasCenas.current[e.partida.id] ??= []).push(cena)
         }
         if (e === meu) {
           if ((ev.tipo === 'golo' || ev.tipo === 'oportunidade') && ev.lance) {
-            const cena = criarRepeticao(ev, emCampoDe(mundo, e), (sementeJornada(jogo, 500 + ev.minuto) ^ (ev.jogadorId ?? 0)) >>> 0)
+            const cena = criarRepeticao(ev, emCampoDe(mundo, e), (sementeJornada(jogo, 500 + ev.minuto, sorte) ^ (ev.jogadorId ?? 0)) >>> 0)
             if (cena) {
               cenas.current.push(cena)
               const m = modoRepRef.current
@@ -165,7 +167,7 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
           }
           // Cartões e lesões também se veem no campo (só com as repetições todas ligadas).
           if ((ev.tipo === 'amarelo' || ev.tipo === 'vermelho' || ev.tipo === 'lesao') && !saltando.current && !repPend.current && modoRepRef.current === 'tudo') {
-            const cena = criarIncidente(ev, emCampoDe(mundo, e), (sementeJornada(jogo, 600 + ev.minuto) ^ (ev.jogadorId ?? 0)) >>> 0)
+            const cena = criarIncidente(ev, emCampoDe(mundo, e), (sementeJornada(jogo, 600 + ev.minuto, sorte) ^ (ev.jogadorId ?? 0)) >>> 0)
             if (cena) repPend.current = cena
           }
           if (ev.tipo === 'golo' || ev.tipo === 'intervalo') pontape.current = true
@@ -195,7 +197,7 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
           posse, minuto: meu.minuto, ...lancesDoMinuto(meu),
           posturas: { casa: meu.escalacoes.casa.postura, fora: meu.escalacoes.fora.postura },
           antes: pontape.current || !ant ? undefined : { ...fimEmCampo(ant), posse: ant.ambiente ? ant.atacante : undefined },
-          semente: sementeJornada(jogo, 900 + meu.minuto),
+          semente: sementeJornada(jogo, 900 + meu.minuto, sorte),
         })
         pontape.current = false
         ultimaCena.current = cena
@@ -220,7 +222,7 @@ export function AoVivo({ jogo, guardar, continuar }: { jogo: Jogo; guardar: () =
     }
     const antes: Record<number, number> = {}
     ini.base.forEach((l, i) => { antes[l.clubeId] = i })
-    concluirJornada(mundo, epoca, sementeJornada(jogo, 999))
+    concluirJornada(mundo, epoca, sementeJornada(jogo, 999, sorte))
     const depois = tabela(mundo, epoca, div)
     guardar()
     setResumo({ minha: meu.partida, outras: estados.slice(1).map((e) => e.partida), antes, depois, jornada, cenas: cenas.current.slice(), outrasCenas: { ...outrasCenas.current }, estado: meu })

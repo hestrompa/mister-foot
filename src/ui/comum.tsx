@@ -18,9 +18,14 @@ export function minhaPartida(jogo: Jogo, jornada: number): Partida | undefined {
   return jogo.epoca.calendario[div - 1]?.[jornada - 1]?.find((p) => p.casaId === jogo.clubeId || p.foraId === jogo.clubeId)
 }
 
-/** Semente estável por jornada. */
-export function sementeJornada(jogo: Jogo, extra = 0): number {
-  return ((jogo.mundo.semente * 2654435761 + jogo.epoca.ano * 97 + jogo.epoca.jornada * 131 + extra * 7) >>> 0) || 1
+/** Sorte de uma partida: tirada à sorte cada vez que um jogo começa (só na UI; o núcleo e os testes usam sementes fixas). */
+export function sorteJogo(): number {
+  return (Math.random() * 0x100000000) >>> 0
+}
+
+/** Semente da jornada. Com `sorte` (de sorteJogo), recomeçar o mesmo jogo dá uma partida diferente. */
+export function sementeJornada(jogo: Jogo, extra = 0, sorte = 0): number {
+  return (((jogo.mundo.semente * 2654435761 + jogo.epoca.ano * 97 + jogo.epoca.jornada * 131 + extra * 7) ^ sorte) >>> 0) || 1
 }
 
 /** Linhas da tabela com zonas de subida e descida. */

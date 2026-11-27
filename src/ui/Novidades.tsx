@@ -5,6 +5,7 @@ export const NOVIDADES: { data: string; itens: string[] }[] = [
   {
     data: '27/11',
     itens: [
+      'Cada jogo é novo: recomeçar a mesma jornada (atualizar a página e voltar a jogar) já não repete a mesma partida lance a lance. Antes a sorte de cada jornada vinha só da semente do mundo; agora tira-se uma sorte nova sempre que o jogo começa.',
       'Staff mais fundo: treinadores de setor opcionais (defesas, médios, avançados) que aceleram a evolução da sua posição e puxam pelo que ela mais pede.',
       'Intensidade do treino (leve, normal, forte): mais evolução ou mais descanso, com o cansaço e o risco de lesão a acompanhar.',
       'Treino individual para até 5 jogadores: puxar um atributo, ou aprender uma posição nova (um médio que aprende a defesa passa de 74% para 94% do rendimento lá).',
