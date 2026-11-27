@@ -1,7 +1,9 @@
 // Notícias, conferências de imprensa e aviso de dérbi antes do jogo.
 import { useEffect, useState } from 'react'
 import type { Jogo } from '../core/types'
-import { conferenciaPendente, estadoImprensa, marcarLidas, responderConferencia, type Noticia, type TipoNoticia } from '../core/imprensa'
+import { conferenciaPendente, estadoImprensa, flashPendente, marcarLidas, responderConferencia, type Noticia, type TipoNoticia } from '../core/imprensa'
+import { fatorAdeptos, humorDe, NOME_HUMOR, nivelHumor } from '../core/adeptos'
+import { lotacaoAtual } from '../core/estadio'
 import { rivalidade } from '../core/rivalidades'
 import { confronto } from '../core/recordes'
 import { minhaPartida } from './comum'
@@ -9,7 +11,7 @@ import { Emblema } from './Emblema'
 import './imprensa.css'
 
 const ETIQUETA: Record<TipoNoticia, string> = {
-  meu: 'O teu clube', liga: 'Liga', derbi: 'Dérbi', recorde: 'Recorde', imprensa: 'Imprensa', direcao: 'Direção', epoca: 'Época',
+  meu: 'O teu clube', liga: 'Liga', derbi: 'Dérbi', recorde: 'Recorde', imprensa: 'Imprensa', direcao: 'Direção', epoca: 'Época', adeptos: 'Adeptos',
 }
 
 function efeito(v: number, nome: string) {
@@ -17,15 +19,15 @@ function efeito(v: number, nome: string) {
   return <span className={`im-ef ${v > 0 ? 'mais' : 'menos'}`}>{nome} {v > 0 ? '+' : '−'}</span>
 }
 
-/** Conferência de imprensa antes do jogo (opcional: pode-se jogar sem responder). */
-export function ConferenciaCartao({ jogo, atualizar }: { jogo: Jogo; atualizar: (j: Jogo) => void }) {
-  const c = conferenciaPendente(jogo)
+/** Conferência de imprensa antes do jogo, ou no fim do último (opcional: pode-se jogar sem responder). */
+export function ConferenciaCartao({ jogo, atualizar, momento = 'antes' }: { jogo: Jogo; atualizar: (j: Jogo) => void; momento?: 'antes' | 'depois' }) {
+  const c = momento === 'depois' ? flashPendente(jogo) : conferenciaPendente(jogo)
   const [aberta, setAberta] = useState(true)
   if (!c) return null
   return (
-    <section className="cartao im-conf" aria-label="Conferência de imprensa">
+    <section className={`cartao im-conf ${momento === 'depois' ? 'im-flash' : ''}`} aria-label={momento === 'depois' ? 'Conferência depois do jogo' : 'Conferência de imprensa'}>
       <div className="im-conf-topo">
-        <span className="im-etq imprensa">Conferência de imprensa</span>
+        <span className="im-etq imprensa">{momento === 'depois' ? 'Conferência depois do jogo' : 'Conferência antes do jogo'}</span>
         <button className="botao fantasma pequeno" onClick={() => setAberta(!aberta)}>{aberta ? 'Agora não' : 'Responder'}</button>
       </div>
       {aberta && (
@@ -33,12 +35,13 @@ export function ConferenciaCartao({ jogo, atualizar }: { jogo: Jogo; atualizar: 
           <p className="im-pergunta">«{c.pergunta}»</p>
           <div className="im-opcoes">
             {c.opcoes.map((o, i) => (
-              <button key={i} className="botao im-opcao" onClick={() => { responderConferencia(jogo, i); atualizar(jogo) }}>
+              <button key={i} className="botao im-opcao" onClick={() => { responderConferencia(jogo, i, momento); atualizar(jogo) }}>
                 <span>{o.texto}</span>
                 <span className="im-efs">
                   {efeito(o.moral, 'Moral')}
                   {efeito(o.moralJogador ?? 0, 'Moral dele')}
                   {efeito(o.confianca, 'Direção')}
+                  {efeito(o.adeptos ?? 0, 'Adeptos')}
                   {o.promessa && <span className="im-ef promessa">{o.promessa === 'vencer' ? 'Promete vitória' : 'Promete não perder'}</span>}
                 </span>
               </button>
@@ -46,6 +49,40 @@ export function ConferenciaCartao({ jogo, atualizar }: { jogo: Jogo; atualizar: 
           </div>
         </>
       )}
+    </section>
+  )
+}
+
+/** Humor dos adeptos do meu clube e o que faz à bilheteira. */
+export function PainelAdeptos({ jogo }: { jogo: Jogo }) {
+  const meu = jogo.mundo.clubes[jogo.clubeId]
+  const h = humorDe(meu)
+  const nivel = nivelHumor(h)
+  const pct = Math.round((fatorAdeptos(meu) - 1) * 100)
+  // Último jogo em casa da liga.
+  let ultimo: { publico: number; adv: string } | null = null
+  const cal = jogo.epoca.calendario[meu.divisao - 1] ?? []
+  for (let k = Math.min(cal.length, jogo.epoca.jornada - 1) - 1; k >= 0 && !ultimo; k--) {
+    const p = cal[k]?.find((x) => x.casaId === meu.id && x.jogada)
+    if (p?.publico) ultimo = { publico: p.publico, adv: jogo.mundo.clubes[p.foraId]?.nome ?? '?' }
+  }
+  const lot = lotacaoAtual(meu)
+  return (
+    <section className={`cartao im-adeptos ${nivel}`} aria-label="Adeptos" data-testid="adeptos">
+      <div className="im-ad-topo">
+        <span className="im-etq adeptos">Adeptos</span>
+        <b>{NOME_HUMOR[nivel]}</b>
+        <span className="im-ad-num">{Math.round(h)}/100</span>
+      </div>
+      <div className="im-ad-barra" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(h)} aria-label="Humor dos adeptos">
+        <span style={{ width: `${Math.max(2, h)}%` }} />
+      </div>
+      <p className="info-d">
+        {pct === 0 ? 'Procura de bilhetes normal.' : `${pct > 0 ? '+' : '−'}${Math.abs(pct)}% de procura de bilhetes e de lugares anuais.`}
+        {ultimo ? ` Último jogo em casa: ${ultimo.publico.toLocaleString('pt-PT')} de ${lot.toLocaleString('pt-PT')} lugares (${ultimo.adv}).` : ''}
+        {nivel === 'furiosos' ? ' A direção sente a pressão das bancadas e os jogadores ouvem assobios em casa.' : nivel === 'euforia' ? ' O estádio em festa dá moral em casa e a direção agradece.' : ''}
+      </p>
+      <p className="nota">Sobem e descem com os resultados face ao esperado (dérbis valem mais), com o que dizes na imprensa, com o preço do bilhete e com a venda das figuras.</p>
     </section>
   )
 }
@@ -111,6 +148,8 @@ export function Noticias({ jogo, atualizar }: { jogo: Jogo; atualizar: (j: Jogo)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="imprensa">
+      <PainelAdeptos jogo={jogo} />
+      <ConferenciaCartao jogo={jogo} atualizar={atualizar} momento="depois" />
       <ConferenciaCartao jogo={jogo} atualizar={atualizar} />
       {st.noticias.length ? <ListaNoticias noticias={st.noticias} novas={lidaAte} /> : <p className="nota">Ainda não há notícias. Joga a primeira jornada.</p>}
     </div>

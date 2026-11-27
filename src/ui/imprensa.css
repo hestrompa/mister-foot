@@ -28,3 +28,13 @@
 .hi-valor { font-size: 24px; font-weight: 800; }
 .historia .tabela td { white-space: normal; }
 td.hi-meu { color: var(--verde); font-weight: 700; }
+.im-flash { border-color: #4ea3ff; }
+.im-etq.adeptos { background: #b388ff22; color: #c7a6ff; }
+.im-adeptos { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+.im-ad-topo { display: flex; align-items: center; gap: 10px; }
+.im-ad-num { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--texto-2); }
+.im-ad-barra { height: 8px; border-radius: 4px; background: var(--linha); overflow: hidden; }
+.im-ad-barra span { display: block; height: 100%; background: var(--aviso); }
+.im-adeptos.furiosos .im-ad-barra span, .im-adeptos.desiludidos .im-ad-barra span { background: var(--f-fraca); }
+.im-adeptos.satisfeitos .im-ad-barra span, .im-adeptos.euforia .im-ad-barra span { background: var(--verde); }
+.im-adeptos .nota { margin: 0; font-size: 12px; }

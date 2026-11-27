@@ -9,9 +9,10 @@ import { NOMES_DIVISAO } from './mundo'
 import { estadoCarreira, type JogoComCarreira } from './direcao'
 import { mudarMoral, mudarMoralJogador } from './balneario'
 import { rivalidade } from './rivalidades'
+import { humorDe, mudarHumor, nivelHumor, NOME_HUMOR, type NivelHumor } from './adeptos'
 import { fecharEpocaRecordes, processarJornada, serieDe, textoRecorde, type RecordeBatido } from './recordes'
 
-export type TipoNoticia = 'meu' | 'liga' | 'derbi' | 'recorde' | 'imprensa' | 'direcao' | 'epoca'
+export type TipoNoticia = 'meu' | 'liga' | 'derbi' | 'recorde' | 'imprensa' | 'direcao' | 'epoca' | 'adeptos'
 
 export interface Noticia {
   n: number
@@ -28,6 +29,8 @@ export interface OpcaoConferencia {
   moral: number
   /** Confiança da direção. */
   confianca: number
+  /** Humor dos adeptos. */
+  adeptos?: number
   /** Moral de um jogador (o craque, numa pergunta sobre ele). */
   moralJogador?: number
   promessa?: 'vencer' | 'naoPerder'
@@ -38,7 +41,10 @@ export interface OpcaoConferencia {
 export interface Conferencia {
   ano: number
   jornada: number
-  tema: 'inicio' | 'classico' | 'derbi' | 'crise' | 'embalo' | 'grande' | 'craque' | 'balneario'
+  tema: 'inicio' | 'classico' | 'derbi' | 'crise' | 'embalo' | 'grande' | 'craque' | 'balneario' | 'adeptos' | 'bilhetes'
+    | 'vitoria' | 'derrota' | 'empate' | 'goleada' | 'humilhacao' | 'derbiGanho' | 'derbiPerdido'
+  /** 'depois': conferência no fim do jogo (vale até ao jogo seguinte). */
+  momento?: 'antes' | 'depois'
   pergunta: string
   opcoes: OpcaoConferencia[]
   jogadorId?: number
@@ -55,6 +61,12 @@ export interface EstadoImprensa {
   lidaAte: number
   noticias: Noticia[]
   conferencia?: Conferencia
+  /** Conferência depois do último jogo. */
+  flash?: Conferencia
+  /** Nível de humor dos adeptos na última jornada noticiada (para noticiar mudanças). */
+  nivelAdeptos?: NivelHumor
+  /** Craque do plantel na última jornada (para notar a venda). */
+  craqueId?: number
   promessa?: Promessa
   /** Líder da minha divisão na última jornada noticiada. */
   liderAnterior?: number
@@ -170,11 +182,13 @@ function noticiarJornada(jogo: Jogo, st: EstadoImprensa, jn: number, batidos: Re
       if (cumpriu) {
         mexerConfianca(jogo, pr.tipo === 'vencer' ? 4 : 2, 'Prometeu e cumpriu. A direção gosta de treinadores de palavra.')
         mudarMoral(jogo, jogo.clubeId, 2, 'promessa cumprida')
+        mudarHumor(meu, 3)
         add('imprensa', `Promessa cumprida: o mister tinha dito que ${pr.tipo === 'vencer' ? 'ganhava' : 'não perdia'} com o ${pr.adversario}`)
       } else {
         const custo = pr.tipo === 'vencer' ? (r === 'E' ? 2 : 5) : 4
         mexerConfianca(jogo, -custo, 'Promessas falhadas na imprensa deixam a direção desconfortável.')
         mudarMoral(jogo, jogo.clubeId, -2, 'promessa falhada')
+        mudarHumor(meu, -4)
         add('imprensa', `Promessa falhada: o mister garantiu que ${pr.tipo === 'vencer' ? 'ganhava' : 'não perdia'} com o ${pr.adversario}`)
       }
       st.promessa = undefined
@@ -183,6 +197,7 @@ function noticiarJornada(jogo: Jogo, st: EstadoImprensa, jn: number, batidos: Re
     const se = serieDe(jogo, jogo.clubeId)
     if (se.v === 3 || se.v === 5 || se.v === 8) add('meu', `${meu.nome} soma ${se.v} vitórias seguidas`)
     if (se.d === 3 || se.d === 5) add('meu', `Crise no ${meu.nome}: ${se.d} derrotas seguidas`)
+    pressaoAdeptos(jogo, st, p, add)
   }
 
   // Dérbis dos outros na minha divisão.
@@ -244,6 +259,42 @@ function noticiarJornada(jogo: Jogo, st: EstadoImprensa, jn: number, batidos: Re
   for (const b of batidos) add('recorde', `Recorde! ${textoRecorde(b)}`)
 }
 
+/** O que os adeptos fazem sentir depois do meu jogo: notícia quando o humor muda de nível, pressão enquanto dura. */
+function pressaoAdeptos(jogo: Jogo, st: EstadoImprensa, p: Partida, add: (tipo: TipoNoticia, titulo: string, texto?: string) => void) {
+  const meu = jogo.mundo.clubes[jogo.clubeId]
+  // Vender o craque dói aos adeptos.
+  const ant = st.craqueId !== undefined ? jogo.mundo.jogadores[st.craqueId] : undefined
+  if (ant && ant.clubeId !== jogo.clubeId && jogo.mundo.clubes[ant.clubeId]) {
+    mudarHumor(meu, -6)
+    add('adeptos', `Adeptos revoltados com a saída de ${ant.nome}`, `Foi para o ${jogo.mundo.clubes[ant.clubeId].nome}. Vender a figura da equipa nunca cai bem nas bancadas.`)
+  }
+  st.craqueId = meu.plantel.map((id) => jogo.mundo.jogadores[id]).filter(Boolean).sort((x, y) => y.forca - x.forca || x.id - y.id)[0]?.id
+  const h = humorDe(meu)
+  const nivel = nivelHumor(h)
+  const emCasa = p.casaId === jogo.clubeId
+  const antes = st.nivelAdeptos
+  st.nivelAdeptos = nivel
+  const ordem: NivelHumor[] = ['furiosos', 'desiludidos', 'exigentes', 'satisfeitos', 'euforia']
+  if (antes && antes !== nivel) {
+    const subiu = ordem.indexOf(nivel) > ordem.indexOf(antes)
+    const txt: Record<NivelHumor, string> = {
+      furiosos: emCasa ? `Lenços brancos no estádio do ${meu.nome}: os adeptos pedem a saída do mister` : `Adeptos do ${meu.nome} em fúria com o mister`,
+      desiludidos: `Adeptos do ${meu.nome} desiludidos`,
+      exigentes: subiu ? `Os adeptos do ${meu.nome} voltam a acreditar, mas exigem mais` : `Os adeptos do ${meu.nome} começam a perder a paciência`,
+      satisfeitos: `Adeptos do ${meu.nome} satisfeitos com a equipa`,
+      euforia: `Euforia no ${meu.nome}: os adeptos já sonham alto`,
+    }
+    add('adeptos', txt[nivel], `Humor dos adeptos: ${NOME_HUMOR[nivel].toLowerCase()} (${Math.round(h)}/100). ${subiu ? 'Mais gente no estádio nos próximos jogos.' : 'Menos gente no estádio nos próximos jogos.'}`)
+  }
+  if (nivel === 'furiosos') {
+    mexerConfianca(jogo, -1.5, antes !== 'furiosos' ? 'Os adeptos estão contra ti e a direção sente a pressão das bancadas.' : undefined)
+    if (emCasa) mudarMoral(jogo, jogo.clubeId, -1, 'assobios das bancadas')
+  } else if (nivel === 'euforia') {
+    mexerConfianca(jogo, 0.5)
+    if (emCasa) mudarMoral(jogo, jogo.clubeId, 1, 'estádio em festa')
+  }
+}
+
 /** Fim de época: campeões, melhor marcador, recordes da época. */
 function noticiarFimEpoca(jogo: Jogo, st: EstadoImprensa, batidos: RecordeBatido[]) {
   const { mundo, epoca } = jogo
@@ -267,9 +318,9 @@ const PERGUNTAS: Record<Conferencia['tema'], Gerador> = {
       tema: 'inicio',
       pergunta: 'Arranque de época. A direção definiu um objetivo: o que diz aos adeptos?',
       opcoes: [
-        { texto: 'Vamos cumprir o objetivo, passo a passo.', moral: 1, confianca: 2, manchete: 'Mister promete trabalho e o objetivo da direção' },
-        { texto: o.tipo === 'titulo' ? 'Só o título interessa.' : 'Queremos mais do que nos pedem.', moral: 3, confianca: 4, manchete: 'Mister ambicioso: "queremos mais"' },
-        { texto: 'É uma época de construção, peço paciência.', moral: 1, confianca: -3, manchete: 'Mister pede paciência aos adeptos' },
+        { texto: 'Vamos cumprir o objetivo, passo a passo.', moral: 1, confianca: 2, adeptos: 1, manchete: 'Mister promete trabalho e o objetivo da direção' },
+        { texto: o.tipo === 'titulo' ? 'Só o título interessa.' : 'Queremos mais do que nos pedem.', moral: 3, confianca: 4, adeptos: 4, manchete: 'Mister ambicioso: "queremos mais"' },
+        { texto: 'É uma época de construção, peço paciência.', moral: 1, confianca: -3, adeptos: -4, manchete: 'Mister pede paciência aos adeptos' },
       ],
     }
   },
@@ -277,27 +328,27 @@ const PERGUNTAS: Record<Conferencia['tema'], Gerador> = {
     tema: 'classico',
     pergunta: `O grande clássico contra o ${adv} está aí. A cidade não fala de outra coisa. Promete a vitória?`,
     opcoes: [
-      { texto: 'Prometo. Vamos ganhar este clássico.', moral: 3, confianca: 1, promessa: 'vencer', manchete: `Mister promete vencer o ${adv}` },
-      { texto: 'É um jogo especial, mas são só três pontos.', moral: 0, confianca: 0, manchete: 'Mister tira pressão ao clássico' },
-      { texto: 'A pressão está toda do lado deles.', moral: 2, confianca: -1, manchete: `Mister provoca o ${adv}` },
+      { texto: 'Prometo. Vamos ganhar este clássico.', moral: 3, confianca: 1, promessa: 'vencer', adeptos: 5, manchete: `Mister promete vencer o ${adv}` },
+      { texto: 'É um jogo especial, mas são só três pontos.', moral: 0, confianca: 0, adeptos: -3, manchete: 'Mister tira pressão ao clássico' },
+      { texto: 'A pressão está toda do lado deles.', moral: 2, confianca: -1, adeptos: 4, manchete: `Mister provoca o ${adv}` },
     ],
   }),
   derbi: (_j, adv) => ({
     tema: 'derbi',
     pergunta: `Dérbi com o ${adv}. Os adeptos pedem a vitória. Que mensagem deixa?`,
     opcoes: [
-      { texto: 'Os dérbis ganham-se, não se jogam. Vamos ganhar.', moral: 2, confianca: 1, promessa: 'vencer', manchete: `Mister garante vitória no dérbi com o ${adv}` },
-      { texto: 'Respeito total pelo adversário.', moral: 0, confianca: 0, manchete: 'Mister com respeito antes do dérbi' },
-      { texto: 'Não vamos perder em casa de ninguém.', moral: 1, confianca: 0, promessa: 'naoPerder', manchete: `Mister: "não perdemos com o ${adv}"` },
+      { texto: 'Os dérbis ganham-se, não se jogam. Vamos ganhar.', moral: 2, confianca: 1, promessa: 'vencer', adeptos: 4, manchete: `Mister garante vitória no dérbi com o ${adv}` },
+      { texto: 'Respeito total pelo adversário.', moral: 0, confianca: 0, adeptos: -1, manchete: 'Mister com respeito antes do dérbi' },
+      { texto: 'Não vamos perder em casa de ninguém.', moral: 1, confianca: 0, promessa: 'naoPerder', adeptos: 2, manchete: `Mister: "não perdemos com o ${adv}"` },
     ],
   }),
   crise: () => ({
     tema: 'crise',
     pergunta: 'Os resultados não aparecem. De quem é a culpa?',
     opcoes: [
-      { texto: 'A responsabilidade é minha. Os jogadores estão comigo.', moral: 4, confianca: -2, manchete: 'Mister assume a culpa e protege o grupo' },
-      { texto: 'Os jogadores têm de dar muito mais.', moral: -4, confianca: 2, manchete: 'Mister critica os jogadores em público' },
-      { texto: 'Foi azar. A equipa está a jogar bem.', moral: 1, confianca: -1, manchete: 'Mister fala em azar' },
+      { texto: 'A responsabilidade é minha. Os jogadores estão comigo.', moral: 4, confianca: -2, adeptos: 1, manchete: 'Mister assume a culpa e protege o grupo' },
+      { texto: 'Os jogadores têm de dar muito mais.', moral: -4, confianca: 2, adeptos: 2, manchete: 'Mister critica os jogadores em público' },
+      { texto: 'Foi azar. A equipa está a jogar bem.', moral: 1, confianca: -1, adeptos: -3, manchete: 'Mister fala em azar' },
     ],
   }),
   embalo: () => ({
@@ -305,17 +356,17 @@ const PERGUNTAS: Record<Conferencia['tema'], Gerador> = {
     pergunta: 'Vitória atrás de vitória. Já se pode sonhar?',
     opcoes: [
       { texto: 'Ainda não ganhámos nada. Pés no chão.', moral: 1, confianca: 1, manchete: 'Mister pede pés no chão' },
-      { texto: 'Somos candidatos, sem medo de o dizer.', moral: 3, confianca: 2, promessa: 'naoPerder', manchete: 'Mister assume: "somos candidatos"' },
-      { texto: 'O mérito é todo dos jogadores.', moral: 2, confianca: 0, manchete: 'Mister elogia o plantel' },
+      { texto: 'Somos candidatos, sem medo de o dizer.', moral: 3, confianca: 2, promessa: 'naoPerder', adeptos: 4, manchete: 'Mister assume: "somos candidatos"' },
+      { texto: 'O mérito é todo dos jogadores.', moral: 2, confianca: 0, adeptos: 1, manchete: 'Mister elogia o plantel' },
     ],
   }),
   grande: (_j, adv) => ({
     tema: 'grande',
     pergunta: `Vem aí o ${adv}, um dos candidatos. Joga para ganhar ou para não perder?`,
     opcoes: [
-      { texto: 'Vamos lá para ganhar, sem complexos.', moral: 2, confianca: 1, promessa: 'vencer', manchete: `Mister quer vencer o ${adv}` },
-      { texto: 'Um empate seria um bom resultado.', moral: -1, confianca: 0, promessa: 'naoPerder', manchete: `Mister contente com um empate frente ao ${adv}` },
-      { texto: 'Eles são favoritos. Nós vamos competir.', moral: 0, confianca: 0, manchete: `Mister dá o favoritismo ao ${adv}` },
+      { texto: 'Vamos lá para ganhar, sem complexos.', moral: 2, confianca: 1, promessa: 'vencer', adeptos: 3, manchete: `Mister quer vencer o ${adv}` },
+      { texto: 'Um empate seria um bom resultado.', moral: -1, confianca: 0, promessa: 'naoPerder', adeptos: -3, manchete: `Mister contente com um empate frente ao ${adv}` },
+      { texto: 'Eles são favoritos. Nós vamos competir.', moral: 0, confianca: 0, adeptos: -1, manchete: `Mister dá o favoritismo ao ${adv}` },
     ],
   }),
   craque: (jogo) => {
@@ -327,12 +378,93 @@ const PERGUNTAS: Record<Conferencia['tema'], Gerador> = {
       jogadorId: craque.id,
       pergunta: `Fala-se que há clubes interessados em ${craque.nome}. Ele fica?`,
       opcoes: [
-        { texto: `${craque.curto} não sai. É o nosso líder.`, moral: 1, confianca: -1, moralJogador: 6, manchete: `Mister fecha a porta à saída de ${craque.nome}` },
-        { texto: 'No futebol tudo tem um preço.', moral: -1, confianca: 2, moralJogador: -6, manchete: `${craque.nome} pode sair, admite o mister` },
+        { texto: `${craque.curto} não sai. É o nosso líder.`, moral: 1, confianca: -1, moralJogador: 6, adeptos: 4, manchete: `Mister fecha a porta à saída de ${craque.nome}` },
+        { texto: 'No futebol tudo tem um preço.', moral: -1, confianca: 2, moralJogador: -6, adeptos: -5, manchete: `${craque.nome} pode sair, admite o mister` },
         { texto: 'Não comento rumores.', moral: 0, confianca: 0, moralJogador: -1, manchete: 'Mister foge aos rumores de mercado' },
       ],
     }
   },
+  adeptos: () => ({
+    tema: 'adeptos',
+    pergunta: 'Os adeptos assobiaram a equipa e há lenços brancos nas bancadas. O que lhes diz?',
+    opcoes: [
+      { texto: 'Peço-lhes que estejam connosco. Precisamos deles.', moral: 1, confianca: 0, adeptos: 3, manchete: 'Mister pede apoio aos adeptos' },
+      { texto: 'Têm razão. Esta equipa tem de dar muito mais.', moral: -2, confianca: 1, adeptos: 6, manchete: 'Mister dá razão aos adeptos' },
+      { texto: 'Quem assobia não ajuda o clube.', moral: 3, confianca: -2, adeptos: -6, manchete: 'Mister responde aos assobios' },
+    ],
+  }),
+  bilhetes: () => ({
+    tema: 'bilhetes',
+    pergunta: 'Os adeptos queixam-se do preço dos bilhetes. O clube vai baixá-los?',
+    opcoes: [
+      { texto: 'Vou falar com a direção. Os adeptos merecem.', moral: 0, confianca: -2, adeptos: 4, manchete: 'Mister do lado dos adeptos no preço dos bilhetes' },
+      { texto: 'É o preço de ter uma equipa competitiva.', moral: 0, confianca: 2, adeptos: -4, manchete: 'Mister defende bilhetes caros' },
+      { texto: 'Isso não é comigo, eu treino a equipa.', moral: 0, confianca: 0, adeptos: -1, manchete: 'Mister afasta-se da polémica dos bilhetes' },
+    ],
+  }),
+  vitoria: (_j, adv) => ({
+    tema: 'vitoria',
+    pergunta: `Vitória frente ao ${adv}. A quem a dedica?`,
+    opcoes: [
+      { texto: 'Aos adeptos, que nunca nos deixaram sozinhos.', moral: 0, confianca: 0, adeptos: 4, manchete: 'Mister dedica a vitória aos adeptos' },
+      { texto: 'Aos jogadores. Foram enormes.', moral: 3, confianca: 0, manchete: 'Mister rendido aos jogadores' },
+      { texto: 'Não fizemos mais do que a obrigação.', moral: -1, confianca: 2, adeptos: 1, manchete: 'Mister exigente mesmo a ganhar' },
+    ],
+  }),
+  goleada: (_j, adv) => ({
+    tema: 'goleada',
+    pergunta: `Goleada ao ${adv}! Esta equipa pode chegar onde?`,
+    opcoes: [
+      { texto: 'Onde os adeptos sonharem.', moral: 2, confianca: 0, adeptos: 5, manchete: 'Mister põe os adeptos a sonhar' },
+      { texto: 'Foi um dia bom. Amanhã já não conta.', moral: 1, confianca: 2, manchete: 'Mister trava a euforia' },
+      { texto: 'Quem nos criticava devia pedir desculpa.', moral: 2, confianca: -1, adeptos: 2, manchete: 'Mister responde aos críticos depois da goleada' },
+    ],
+  }),
+  empate: (_j, adv) => ({
+    tema: 'empate',
+    pergunta: `Empate com o ${adv}. Um ponto sabe a pouco?`,
+    opcoes: [
+      { texto: 'Sabe a pouco. Queríamos ganhar.', moral: 0, confianca: 1, adeptos: 2, manchete: 'Mister insatisfeito com o empate' },
+      { texto: 'É um ponto que pode valer muito no fim.', moral: 1, confianca: 0, adeptos: -1, manchete: 'Mister valoriza o ponto' },
+      { texto: 'O árbitro tirou-nos a vitória.', moral: 1, confianca: -2, adeptos: 3, manchete: 'Mister ataca a arbitragem' },
+    ],
+  }),
+  derrota: (_j, adv) => ({
+    tema: 'derrota',
+    pergunta: `Derrota com o ${adv}. O que falhou?`,
+    opcoes: [
+      { texto: 'Falhei eu. Assumo a derrota.', moral: 2, confianca: -1, adeptos: 1, manchete: 'Mister assume a derrota' },
+      { texto: 'Houve quem não estivesse à altura.', moral: -3, confianca: 1, adeptos: 2, manchete: 'Mister aponta o dedo a jogadores' },
+      { texto: 'A arbitragem decidiu o jogo.', moral: 1, confianca: -2, adeptos: 2, manchete: 'Mister culpa o árbitro pela derrota' },
+    ],
+  }),
+  humilhacao: (_j, adv) => ({
+    tema: 'humilhacao',
+    pergunta: `Uma goleada sofrida frente ao ${adv}. Os adeptos estão envergonhados. Que explicação lhes dá?`,
+    opcoes: [
+      { texto: 'Peço desculpa aos adeptos. Não se repete.', moral: 0, confianca: 0, adeptos: 5, manchete: 'Mister pede desculpa aos adeptos' },
+      { texto: 'Vou tirar conclusões. Há lugares em risco.', moral: -4, confianca: 2, adeptos: 3, manchete: 'Mister ameaça mexer na equipa' },
+      { texto: 'Dias maus acontecem. Vamos levantar a cabeça.', moral: 2, confianca: -1, adeptos: -3, manchete: 'Mister desvaloriza a goleada' },
+    ],
+  }),
+  derbiGanho: (_j, adv) => ({
+    tema: 'derbiGanho',
+    pergunta: `Ganhou o jogo grande contra o ${adv}. Uma palavra para os adeptos?`,
+    opcoes: [
+      { texto: 'Esta é para vocês. A cidade é nossa!', moral: 1, confianca: 0, adeptos: 6, manchete: 'Mister em festa com os adeptos' },
+      { texto: 'Respeito pelo adversário. São só três pontos.', moral: 0, confianca: 1, adeptos: -1, manchete: 'Mister humilde depois do dérbi' },
+      { texto: 'Eles falaram muito antes do jogo. Nós respondemos em campo.', moral: 2, confianca: -1, adeptos: 4, manchete: `Mister provoca o ${adv} depois da vitória` },
+    ],
+  }),
+  derbiPerdido: (_j, adv) => ({
+    tema: 'derbiPerdido',
+    pergunta: `Perdeu o jogo grande com o ${adv}. Os adeptos não perdoam. O que lhes diz?`,
+    opcoes: [
+      { texto: 'Peço desculpa. Sei o que este jogo significa.', moral: 0, confianca: 0, adeptos: 4, manchete: 'Mister pede desculpa pelo dérbi perdido' },
+      { texto: 'Os jogadores sabem que falharam.', moral: -3, confianca: 1, adeptos: 2, manchete: 'Mister deixa os jogadores sozinhos depois do dérbi' },
+      { texto: 'É só um jogo. A época continua.', moral: 1, confianca: -1, adeptos: -5, manchete: 'Mister desvaloriza o dérbi perdido' },
+    ],
+  }),
   balneario: () => ({
     tema: 'balneario',
     pergunta: 'Como está o ambiente no balneário?',
@@ -368,30 +500,54 @@ export function gerarConferencia(jogo: Jogo): Conferencia | undefined {
   else if (ult.length === 3 && !ult.includes('V') && ult.filter((r) => r === 'D').length >= 2) tema = 'crise'
   else if (se.v >= 3) tema = 'embalo'
   else if (jn > 4 && posAdv >= 0 && posAdv < 3 && posMeu > posAdv) tema = 'grande'
+  else if (humorDe(meu) < 30 && rng.chance(0.6)) tema = 'adeptos'
+  else if (p.casaId === jogo.clubeId && meu.bilhete > 1.4 * ([15, 10, 7, 5][meu.divisao - 1] ?? 5) && rng.chance(0.35)) tema = 'bilhetes'
   else if (rng.chance(0.3)) tema = rng.chance(0.4) ? 'craque' : 'balneario'
   if (!tema) return undefined
   const c = PERGUNTAS[tema](jogo, adv?.nome ?? '?')
   if (!c) return undefined
-  return { ...c, ano: epoca.ano, jornada: jn }
+  return { ...c, ano: epoca.ano, jornada: jn, momento: 'antes' }
+}
+
+/** Conferência no fim do meu jogo da jornada `jn` (já jogada). Não grava estado. */
+export function gerarFlash(jogo: Jogo, jn: number): Conferencia | undefined {
+  const p = minhaDaJornada(jogo, jn)
+  if (!p?.jogada) return undefined
+  const advId = p.casaId === jogo.clubeId ? p.foraId : p.casaId
+  const adv = jogo.mundo.clubes[advId]
+  const { m, s, r } = resultado(p, jogo.clubeId)
+  const riv = rivalidade(jogo.mundo.clubes[jogo.clubeId], adv)
+  const tema: Conferencia['tema'] = riv && r === 'V' ? 'derbiGanho' : riv && r === 'D' ? 'derbiPerdido'
+    : s - m >= 3 ? 'humilhacao' : m - s >= 3 ? 'goleada' : r === 'V' ? 'vitoria' : r === 'E' ? 'empate' : 'derrota'
+  const c = PERGUNTAS[tema](jogo, adv?.nome ?? '?')
+  if (!c) return undefined
+  return { ...c, ano: jogo.epoca.ano, jornada: jn, momento: 'depois' }
+}
+
+/** Conferência do fim do último jogo, ainda por responder (vale até ao jogo seguinte). */
+export function flashPendente(jogo: Jogo): Conferencia | undefined {
+  const c = (jogo as JogoComImprensa).imprensa?.flash
+  return c && c.resposta === undefined && c.ano === jogo.epoca.ano && c.jornada === jogo.epoca.jornada - 1 ? c : undefined
 }
 
 /** Responde à conferência pendente: aplica os efeitos, guarda a promessa e sai a notícia. */
-export function responderConferencia(jogo: Jogo, i: number): boolean {
+export function responderConferencia(jogo: Jogo, i: number, momento: 'antes' | 'depois' = 'antes'): boolean {
   const st = estadoImprensa(jogo)
-  const c = st.conferencia
-  if (!c || c.resposta !== undefined || c.ano !== jogo.epoca.ano || c.jornada !== jogo.epoca.jornada) return false
+  const c = momento === 'depois' ? flashPendente(jogo) : conferenciaPendente(jogo)
+  if (!c) return false
   const o = c.opcoes[i]
   if (!o) return false
   c.resposta = i
   if (o.moral) mudarMoral(jogo, jogo.clubeId, o.moral, 'conferência de imprensa')
   if (o.moralJogador && c.jogadorId !== undefined) mudarMoralJogador(jogo, c.jogadorId, o.moralJogador, 'conferência de imprensa')
   mexerConfianca(jogo, o.confianca)
+  if (o.adeptos) mudarHumor(jogo.mundo.clubes[jogo.clubeId], o.adeptos)
   if (o.promessa) {
     const p = minhaDaJornada(jogo, c.jornada)
     const advId = p ? (p.casaId === jogo.clubeId ? p.foraId : p.casaId) : -1
     st.promessa = { ano: c.ano, jornada: c.jornada, tipo: o.promessa, adversario: jogo.mundo.clubes[advId]?.nome ?? '?' }
   }
-  publicar(st, { ano: c.ano, jornada: c.jornada - 1, tipo: 'imprensa', titulo: o.manchete, texto: `«${o.texto}»` })
+  publicar(st, { ano: c.ano, jornada: momento === 'depois' ? c.jornada : c.jornada - 1, tipo: 'imprensa', titulo: o.manchete, texto: `«${o.texto}»` })
   st.lidaAte = st.seq
   return true
 }
@@ -425,6 +581,8 @@ export function avancarImprensa(jogo: Jogo): void {
     }
     return
   }
+  const f = st.flash
+  if (epoca.jornada > 1 && (!f || f.ano !== epoca.ano || f.jornada !== epoca.jornada - 1)) st.flash = gerarFlash(jogo, epoca.jornada - 1)
   const c = st.conferencia
   if (!c || c.ano !== epoca.ano || c.jornada !== epoca.jornada) st.conferencia = gerarConferencia(jogo)
 }

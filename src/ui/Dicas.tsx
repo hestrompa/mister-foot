@@ -20,7 +20,7 @@ export const DICAS: Record<string, { titulo: string; texto: string }> = {
   },
   noticias: {
     titulo: 'Imprensa',
-    texto: 'Antes de cada jornada há conferência de imprensa: o que dizes mexe com a moral do plantel e com o rival. Aqui ficam as notícias da tua divisão, da taça e do mercado.',
+    texto: 'Há conferência de imprensa antes e depois dos jogos: o que dizes mexe com a moral do plantel, com a direção e com os adeptos. Adeptos contentes enchem o estádio; furiosos ficam em casa e pressionam a direção. Aqui ficam as notícias da tua divisão, da taça e do mercado.',
   },
   calendario: {
     titulo: 'Calendário',

@@ -5,6 +5,7 @@ import type { Mundo } from './types'
 import type { EstadoEpoca, LinhaTabela } from './partida'
 import { RECEITA_FIXA, BILHETE_NORMAL } from './financas'
 import { avancarNaming } from './naming'
+import { humorDe } from './adeptos'
 
 /** Parte das receitas fixas (TV e patrocínios) que continua a chegar em cada jornada. */
 export const PARTE_JORNADA = 0.65 // igual à constante em financas.ts
@@ -68,7 +69,8 @@ export function fixasEpoca(divisao: number): number {
 /** Quantos lugares anuais o clube vende: depende do estádio original e da reputação, com tecto. */
 export function lugaresAnuais(c: Mundo['clubes'][number]): number {
   const base = c.estadio.base ?? c.estadio.lugares
-  const n = base * (0.08 + c.reputacao / 600)
+  // Adeptos contentes no verão compram mais lugares anuais (0,85x a 1,15x).
+  const n = base * (0.08 + c.reputacao / 600) * (0.85 + (0.3 * humorDe(c)) / 100)
   return Math.max(0, Math.min(Math.round(c.estadio.lugares * 0.3), Math.round(n / 10) * 10))
 }
 

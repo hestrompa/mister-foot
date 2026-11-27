@@ -5,6 +5,7 @@ import { lotacaoAtual, avancarObra } from './estadio'
 import { cobrarPrestacao } from './banco'
 import { custoStaffPorJornada } from './staff'
 import { rivalidade } from './rivalidades'
+import { fatorAdeptos } from './adeptos'
 import type { InjecaoEpoca } from './inicio-epoca'
 
 /** Parte das receitas fixas que chega por jornada quando a época teve dinheiro de arranque (ver inicio-epoca.ts). */
@@ -47,6 +48,8 @@ export function publicoEsperado(casa: Clube, fora: Clube, posCasa: number, total
   procura *= 0.85 + fora.reputacao / 250
   // Dérbis e clássicos enchem o estádio.
   procura *= rivalidade(casa, fora)?.publico ?? 1
+  // Adeptos contentes enchem o estádio; furiosos ficam em casa.
+  procura *= fatorAdeptos(casa)
   // Equipa nos lugares de cima enche mais; no fundo, menos.
   const frac = totalClubes > 1 ? posCasa / (totalClubes - 1) : 0.5
   procura *= 1.15 - 0.3 * frac

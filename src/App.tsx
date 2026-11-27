@@ -41,7 +41,7 @@ import { avancarSelecao } from './core/selecao'
 import { Balneario, conflitosPendentes } from './ui/Balneario'
 import { registarFichas } from './core/fichas'
 import { avancarImprensa, noticiaExtra, noticiasPorLer } from './core/imprensa'
-import { AvisoRival, ConferenciaCartao, Noticias } from './ui/Imprensa'
+import { AvisoRival, ConferenciaCartao, Noticias, PainelAdeptos } from './ui/Imprensa'
 import { Historia } from './ui/Historia'
 import { EditarClube } from './ui/EditarClube'
 import { AvisoDirecao, Carreira, Despedido, despedido, ofertasPendentes } from './ui/Carreira'
@@ -221,7 +221,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
       <AvisoInvestidor jogo={jogo} />
       <AvisoTesouraria jogo={jogo} abrir={() => setSep('clube')} />
       <PreEpoca jogo={jogo} atualizar={atualizar} />
-      {!pendTaca && !pendEu && <><AvisoRival jogo={jogo} /><ConferenciaCartao jogo={jogo} atualizar={atualizar} /></>}
+      {!pendTaca && !pendEu && <><ConferenciaCartao jogo={jogo} atualizar={atualizar} momento="depois" /><AvisoRival jogo={jogo} /><ConferenciaCartao jogo={jogo} atualizar={atualizar} /></>}
     </>
   )
 
@@ -403,6 +403,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
           <Info t="Força do onze" v={String(forcaClube(mundo, meu.id))} d="média dos 11 melhores" />
         </div>
       )}
+      {sep === 'clube' && <PainelAdeptos jogo={jogo} />}
       {sep === 'clube' && <ObrasBanco jogo={jogo} atualizar={atualizar} />}
 
       {sep === 'divisoes' && !verClube && (

@@ -1,5 +1,6 @@
 // Calendário, tabela, castigos, lesões, subidas e descidas. IMPLEMENTAÇÃO: agente da época.
 import { aplicarFinancas } from './financas'
+import { atualizarAdeptos, feriasAdeptos } from './adeptos'
 import { somarContas, type EpocaComInicio } from './inicio-epoca'
 import type { Mundo } from './types'
 import type { EstadoEpoca, EstatJogo, Indisponivel, LinhaTabela, Partida, ResumoEpoca } from './partida'
@@ -202,6 +203,8 @@ export function concluirJornada(mundo: Mundo, epoca: EstadoEpoca, semente: numbe
   const tabelas = epoca.calendario.map((_, d) => tabela(mundo, epoca, d + 1))
   epoca.ultimoBalanco = aplicarFinancas(mundo, daJornada, tabelas, (epoca as EpocaComInicio).inicio)
   somarContas(epoca, epoca.ultimoBalanco)
+  // Os adeptos reagem ao resultado (conta para a bilheteira do jogo seguinte).
+  atualizarAdeptos(mundo, daJornada)
 
   // Quem estava de fora antes do jogo (não conta como "não foi escolhido" para a moral).
   const ausentes = new Set(Object.keys(epoca.indisponiveis).map(Number).filter((id) => epoca.indisponiveis[id].jogos > 0))
@@ -390,6 +393,13 @@ export function fecharEpoca(mundo: Mundo, epoca: EstadoEpoca): ResumoEpoca {
     baixo.clubes = baixo.clubes.filter((id) => !t.sobe.includes(id)).concat(t.desce)
   }
   for (const d of mundo.divisoes) for (const id of d.clubes) if (mundo.clubes[id]) mundo.clubes[id].divisao = d.numero
+
+  // Adeptos: metade esquece-se no verão; títulos e subidas deixam festa, descidas deixam mágoa.
+  const extra: Record<number, number> = {}
+  for (const c of campeoes) extra[c.clubeId] = (extra[c.clubeId] ?? 0) + 12
+  for (const s of subidas) for (const id of s.clubeIds) extra[id] = (extra[id] ?? 0) + 10
+  for (const s of descidas) for (const id of s.clubeIds) extra[id] = (extra[id] ?? 0) - 12
+  feriasAdeptos(mundo, extra)
 
   // Melhor marcador.
   let melhorMarcador: ResumoEpoca['melhorMarcador'] = null

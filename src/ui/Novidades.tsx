@@ -3,6 +3,15 @@ import { useState } from 'react'
 
 export const NOVIDADES: { data: string; itens: string[] }[] = [
   {
+    data: '27/11',
+    itens: [
+      'Adeptos com humor (de furiosos a euforia), visível no separador Imprensa e no Clube: sobe e desce com os resultados face ao esperado, pesa mais nos dérbis, castiga bilhetes muito caros e a venda da figura da equipa, e volta devagar ao normal.',
+      'Bilheteira ligada aos adeptos: contentes trazem até 20% mais gente ao estádio e compram mais lugares anuais no verão; furiosos tiram até 20%. Títulos e subidas deixam festa para a época seguinte; descidas deixam mágoa.',
+      'Pressão das bancadas: com os adeptos furiosos há lenços brancos, assobios que tiram moral em casa e a direção perde confiança jogo a jogo; em euforia o estádio dá moral e a direção agradece.',
+      'Conferência de imprensa também depois de cada jogo (vitória, empate, derrota, goleada, dérbi), e novas perguntas antes do jogo sobre os assobios e o preço dos bilhetes. Cada resposta mostra o efeito na moral, na direção e nos adeptos; promessas cumpridas ou falhadas também contam para os adeptos.',
+    ],
+  },
+  {
     data: '25/11',
     itens: [
       'Cartões à vista durante o jogo: quem tem amarelo leva um cartãozinho junto da carica no campo 2D, e as notas ao vivo e o painel Equipa mostram o amarelo, o segundo amarelo e o vermelho ao lado do nome. Tudo vem da mesma conta do árbitro e segue o jogador em substituições, mudanças de formação, prolongamento, taça e Europa.',
