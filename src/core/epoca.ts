@@ -12,6 +12,7 @@ import { valorDe } from './mundo'
 import { contarJogos, fecharEpocaJogadores } from './carreira-jogador'
 import { duracaoLesao, evoluirFimEpoca, nivelDe, treinarJornada } from './staff'
 import { aplicarJogo, semanaDeTreino } from './balneario'
+import { observarJornada } from './olheiro'
 import { definirFadiga, fadigaDe } from './lesoes'
 import { fatorValorNota, jogosComNota, mediaEpoca, registarNotas } from './notas'
 
@@ -283,6 +284,8 @@ export function concluirJornada(mundo: Mundo, epoca: EstadoEpoca, semente: numbe
   // 4. Treino da semana: quem não está lesionado pode ganhar força (depende do staff e do foco).
   const lesionados = new Set(Object.keys(epoca.indisponiveis).map(Number).filter((id) => epoca.indisponiveis[id].motivo === 'lesao'))
   treinarJornada(mundo, jogaram, lesionados, mistura(semente, epoca.ano, j, 0x7e1), epoca.ano)
+  // Olheiros em missão (só o clube do utilizador as tem) procuram talentos lá fora.
+  observarJornada(mundo, epoca.ano, epoca.jornada, mistura(semente, epoca.ano, j, 0x0b5))
 
   epoca.jornada += 1
 }

@@ -32,6 +32,7 @@ import { Mercado, propostasPendentes } from './ui/Mercado'
 import { avancarMercado, chamarJunioresUrgencia } from './core/mercado'
 import { avancarTaca, indisponiveisTaca, meuJogoPendente, registarCampeao, type JogoComTaca } from './core/taca'
 import { Staff } from './ui/Staff'
+import { ESPERA, descobertas, descobertasNovas } from './core/olheiro'
 import { AoVivoTaca, TacaSeparador, avisoTaca } from './ui/Taca'
 import { avancarEuropa, indisponiveisEuropa, meuJogoEuropa, mundoEuropa, qualificarEuropa, type JogoComEuropa } from './core/europa'
 import { AoVivoEuropa, EuropaSeparador, avisoEuropa } from './ui/Europa'
@@ -269,6 +270,9 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
       noticiaExtra(jogo, i.clubeId === jogo.clubeId ? 'meu' : 'liga', `${c.nome}: ${i.nome} investe ${euros(i.valor)}`, `Os bons resultados na ${nomeDivisao(mundo, c.divisao)} convenceram os investidores. O dinheiro já está na conta do clube.`)
     }
     avancarImprensa(jogo)
+    for (const d of descobertas(mundo, jogo.clubeId)) {
+      if (d.nova && d.ate - ESPERA === jogo.epoca.jornada - 1) noticiaExtra(jogo, 'meu', `Olheiro: ${d.j.nome}, ${d.j.idade} anos (${d.j.posicao})`, `O olheiro encontrou um talento e quer saber se avançamos. Está à espera no separador Staff durante ${ESPERA} jornadas.`)
+    }
     for (const pr of avancarTreinadorMes(jogo)) {
       const meu = pr.clubeId === jogo.clubeId
       if (!meu && pr.divisao !== mundo.clubes[jogo.clubeId].divisao) continue
@@ -359,7 +363,7 @@ function Principal({ jogo, sair, atualizar }: { jogo: Jogo; sair: () => void; at
     <div className="ecra jogo shell" data-sep={sep}>
       {cabecalho}
       <nav className="separadores principal-nav">
-        {([['jogo', 'Jogo'], ['plantel', 'Plantel'], ['balneario', conflitosPendentes(jogo) ? `Balneário (${conflitosPendentes(jogo)})` : 'Balneário'], ['staff', 'Staff'], ['mercado', `Mercado${propostasPendentes(jogo) ? ` (${propostasPendentes(jogo)})` : ''}`], ['taca', pendTaca ? 'Taça (!)' : 'Taça'], ['europa', pendEu ? 'Europa (!)' : 'Europa'], ['classificacao', 'Classificação'], ['calendario', 'Calendário'], ['clube', 'Clube'], ['carreira', `Carreira${ofertasPendentes(jogo) ? ` (${ofertasPendentes(jogo)})` : ''}`], ['divisoes', 'Divisões'], ['noticias', `Imprensa${noticiasPorLer(jogo) ? ` (${noticiasPorLer(jogo)})` : ''}`], ['historia', 'História']] as [Separador, string][]).map(([k, t]) => (
+        {([['jogo', 'Jogo'], ['plantel', 'Plantel'], ['balneario', conflitosPendentes(jogo) ? `Balneário (${conflitosPendentes(jogo)})` : 'Balneário'], ['staff', descobertasNovas(jogo.mundo, jogo.clubeId) ? `Staff (${descobertasNovas(jogo.mundo, jogo.clubeId)})` : 'Staff'], ['mercado', `Mercado${propostasPendentes(jogo) ? ` (${propostasPendentes(jogo)})` : ''}`], ['taca', pendTaca ? 'Taça (!)' : 'Taça'], ['europa', pendEu ? 'Europa (!)' : 'Europa'], ['classificacao', 'Classificação'], ['calendario', 'Calendário'], ['clube', 'Clube'], ['carreira', `Carreira${ofertasPendentes(jogo) ? ` (${ofertasPendentes(jogo)})` : ''}`], ['divisoes', 'Divisões'], ['noticias', `Imprensa${noticiasPorLer(jogo) ? ` (${noticiasPorLer(jogo)})` : ''}`], ['historia', 'História']] as [Separador, string][]).map(([k, t]) => (
           <button key={k} className={sep === k ? 'ativo' : ''} onClick={() => { setSep(k); setVerClube(null); setEditar(null) }}>{t}</button>
         ))}
         <button className="sair" onClick={sair}>Menu</button>

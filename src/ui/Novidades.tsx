@@ -5,6 +5,10 @@ export const NOVIDADES: { data: string; itens: string[] }[] = [
   {
     data: '27/11',
     itens: [
+      'Staff mais fundo: treinadores de setor opcionais (defesas, médios, avançados) que aceleram a evolução da sua posição e puxam pelo que ela mais pede.',
+      'Intensidade do treino (leve, normal, forte): mais evolução ou mais descanso, com o cansaço e o risco de lesão a acompanhar.',
+      'Treino individual para até 5 jogadores: puxar um atributo, ou aprender uma posição nova (um médio que aprende a defesa passa de 74% para 94% do rendimento lá).',
+      'Olheiro em missão: escolhe a região (Portugal, Brasil, África lusófona, resto da Europa) e a posição, e ele vai encontrando talentos de 16 a 20 anos que se podem contratar durante 6 jornadas.',
       'Campeonatos de Espanha e Inglaterra nos jogos novos: 2 divisões de 18 clubes em cada país, com calendário completo de 34 jornadas, 3 subidas e 3 descidas e todos os jogos simulados pelo mesmo motor. Podes começar lá, ver as divisões e as classificações de cada país (separadores Divisões e Classificação), comprar e vender jogadores entre países e receber convites de clubes estrangeiros.',
       'Na Europa entram os 2 primeiros da 1.ª de Espanha e de Inglaterra na Liga Continental e o 3.º e o 4.º na Taça Continental, no lugar dos clubes inventados desses países. A Taça Nacional continua a ser só de Portugal. As gravações antigas ficam como estavam (só Portugal).',
       'Campo tático: arrasta cada jogador para onde queres que jogue, no pré-jogo e durante o jogo (Pausa, Equipa ou intervalo). Um médio mais recuado defende mais e ataca menos, um mais adiantado o contrário, um avançado que recua ajuda o meio-campo e um lateral que sobe dá saída de bola. Quem passa para outra zona muda de papel e a formação muda com ele (ex.: 4-4-2 para 4-3-3). As formações do menu continuam como atalho.',

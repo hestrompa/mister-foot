@@ -2,7 +2,7 @@
 import { nivelDe } from './ligas'
 import { createRng } from './rng'
 import { salariosPorJornada } from './financas'
-import { FUNCOES, candidatos, mistura, salarioStaff, staffDe, type ClubeComStaff, type FocoTreino, type MembroStaff } from './staff'
+import { FUNCOES, candidatos, eSetor, mistura, salarioStaff, staffDe, type ClubeComStaff, type FocoTreino, type MembroStaff } from './staff'
 import type { Mundo, Posicao } from './types'
 
 /** Nível típico do staff por divisão. */
@@ -53,11 +53,16 @@ function contratarIA(mundo: Mundo, clubeId: number, k: number) {
     c.staff!.membros = c.staff!.membros.filter((m) => m.funcao !== f)
     return
   }
-  const alvo = nivelAlvo(mundo, clubeId, k)
+  // Treinadores de setor são um luxo: só com mais de uma época de salários em caixa, e um nível abaixo.
+  if (eSetor(f) && (pobre || c.dinheiro < Math.max(1, salariosPorJornada(mundo, clubeId)) * 34)) {
+    c.staff!.membros = c.staff!.membros.filter((m) => m.funcao !== f)
+    return
+  }
+  const alvo = Math.max(1, nivelAlvo(mundo, clubeId, k) - (eSetor(f) ? 1 : 0))
   const atual = c.staff!.membros.find((m) => m.funcao === f)
   if (atual && atual.nivel === alvo) {
     // Mantém-se; o salário acompanha a divisão.
-    atual.salario = salarioStaff(alvo, nivelDe(c))
+    atual.salario = salarioStaff(alvo, nivelDe(c), f)
     return
   }
   const novo: MembroStaff | undefined = candidatos(mundo, clubeId, f).find((m) => m.nivel === alvo)

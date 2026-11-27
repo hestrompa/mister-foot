@@ -9,6 +9,7 @@ import { fatorMoral } from './balneario'
 import { fatorFisico, riscoLesao, sortearLesao } from './lesoes'
 import { fatorFaltaPers, personalidadeDe } from './personalidade'
 import { atributo, fatores, notaNaPosicao, type FatoresMotor } from './atributos'
+import { fatorForaDaPosicao } from './polivalencia'
 import { EFEITO_INSTRUCAO, fatorMarcado, type Instrucao, type Marcacao, type PlanoJogo } from './plano'
 import { calcularNotas, contarCartao, contarDesarme, contarPerda, contarRemate, novaConta, type ContaJogo, type Contas } from './notas'
 
@@ -82,7 +83,8 @@ export function posicaoDoLugar(formacao: Formacao, i: number): Posicao {
 export function forcaNoLugar(j: Jogador, pos: Posicao): number {
   if (j.posicao === pos) return j.forca
   if (pos === 'GR' || j.posicao === 'GR') return j.forca * 0.45
-  return Math.min(j.forca, notaNaPosicao(j, pos)) * 0.74
+  // Quem aprendeu a posição no treino individual perde menos (ver core/polivalencia.ts).
+  return Math.min(j.forca, notaNaPosicao(j, pos)) * fatorForaDaPosicao(j, pos)
 }
 
 /** Escolhe a melhor escalação automática para um clube, ignorando indisponíveis. */

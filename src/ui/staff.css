@@ -22,3 +22,20 @@
   .st-candidatos .botao { grid-column: 1 / -1; }
   .st-int { display: block; }
 }
+.st-bloco { display: flex; flex-direction: column; gap: 8px; }
+.st-bloco > p { margin: 0; }
+.st-planos { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.st-planos li { display: grid; grid-template-columns: auto minmax(80px, 160px) 1fr auto; align-items: center; gap: 8px; padding: 4px 0; border-top: 1px solid var(--linha); }
+.st-planos .botao { padding: 4px 10px; }
+.st-plano { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.st-barra { display: inline-block; width: 80px; height: 6px; border-radius: 3px; background: var(--linha); overflow: hidden; }
+.st-barra span { display: block; height: 100%; background: var(--verde); }
+.st-novo-plano { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.st-novo-plano select { min-width: 0; max-width: 100%; padding: 6px; }
+.st-acoes { display: flex; gap: 6px; justify-content: flex-end; }
+.st-acoes .botao { padding: 4px 10px; }
+tr.st-nova td { background: color-mix(in srgb, var(--verde) 12%, transparent); }
+@media (max-width: 480px) {
+  .st-planos li { grid-template-columns: auto 1fr auto; }
+  .st-plano { grid-column: 1 / -1; }
+}
